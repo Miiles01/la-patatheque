@@ -367,12 +367,12 @@ function PizzaSpinner() {
   }, []);
 
   return (
-    <div ref={sectionRef} className="relative py-20 md:py-32 flex items-center justify-center">
+    <div ref={sectionRef} className="relative pt-20 pb-2 md:pt-32 md:pb-6 flex items-center justify-center">
       <img
         ref={pizzaRef}
         src="/images/pizza.png"
         alt="Pizza pepperoni de La Patathèque"
-        className="w-72 h-72 md:w-[28rem] md:h-[28rem] drop-shadow-2xl"
+        className="w-[80vw] h-[80vw] max-w-sm max-h-[24rem] sm:max-w-md sm:max-h-none md:w-[38rem] md:h-[38rem] md:max-w-none drop-shadow-2xl"
       />
     </div>
   );
@@ -423,7 +423,7 @@ function Story() {
   }, []);
 
   return (
-    <section id="histoire" ref={sectionRef} data-bg="#fffaf3" className="relative py-28 md:py-44">
+    <section id="histoire" ref={sectionRef} data-bg="#fffaf3" className="relative pt-8 pb-28 md:pt-16 md:pb-44">
       <div className="mx-auto max-w-7xl px-6 md:px-10 grid md:grid-cols-2 gap-16 items-center">
         <div>
           <p className="script text-5xl md:text-6xl text-red-600 mb-2">Notre histoire</p>
