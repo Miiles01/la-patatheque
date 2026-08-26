@@ -27,11 +27,16 @@
   --color-orange-soft: #f3a05e;
 }
 
+:root {
+  --bg: #a11f1a;
+}
+
 body {
-  background: var(--color-cream);
+  background: var(--bg);
   color: var(--color-ink);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  transition: color 0.4s ease;
 }
 
 ::selection {

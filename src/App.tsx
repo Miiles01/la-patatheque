@@ -119,7 +119,7 @@ function FeatureGallery() {
   }, []);
 
   return (
-    <section className="bg-ink">
+    <section data-bg="#2b1c14">
       {/* Desktop: 3 static full-bleed columns */}
       <div className="hidden md:grid md:grid-cols-3">
         {GALLERY_ITEMS.map((item, i) => (
@@ -303,7 +303,7 @@ function Hero() {
   }, []);
 
   return (
-    <section id="top" ref={heroRef} className="relative h-[100svh] min-h-[720px] overflow-hidden bg-red-700">
+    <section id="top" ref={heroRef} data-bg="#a11f1a" className="relative h-[100svh] min-h-[720px] overflow-hidden">
       <div className="hero-img absolute inset-0 -top-[10%] h-[120%]">
         <img src={HERO_IMG} alt="Pizza toute garnie de La Patathèque" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-red-700/80 via-red-700/70 to-red-700" />
@@ -343,6 +343,38 @@ function Hero() {
         </motion.div>
       </div>
     </section>
+  );
+}
+
+function PizzaSpinner() {
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const pizzaRef = useRef<HTMLImageElement>(null);
+
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.to(pizzaRef.current, {
+        rotation: 360,
+        ease: "none",
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: true,
+        },
+      });
+    }, sectionRef);
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div ref={sectionRef} className="relative py-20 md:py-32 flex items-center justify-center">
+      <img
+        ref={pizzaRef}
+        src="/images/pizza.png"
+        alt="Pizza pepperoni de La Patathèque"
+        className="w-72 h-72 md:w-[28rem] md:h-[28rem] drop-shadow-2xl"
+      />
+    </div>
   );
 }
 
@@ -391,7 +423,7 @@ function Story() {
   }, []);
 
   return (
-    <section id="histoire" ref={sectionRef} className="relative py-28 md:py-44 bg-paper">
+    <section id="histoire" ref={sectionRef} data-bg="#fffaf3" className="relative py-28 md:py-44">
       <div className="mx-auto max-w-7xl px-6 md:px-10 grid md:grid-cols-2 gap-16 items-center">
         <div>
           <p className="script text-5xl md:text-6xl text-red-600 mb-2">Notre histoire</p>
@@ -458,7 +490,7 @@ function MenuSection() {
   }, []);
 
   return (
-    <section id="menu" ref={sectionRef} className="py-28 md:py-44 bg-cream text-ink">
+    <section id="menu" ref={sectionRef} data-bg="#fbf3e6" className="py-28 md:py-44 text-ink">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-16">
           <div>
@@ -521,7 +553,7 @@ function Specials() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="relative py-28 md:py-40 bg-red-700 overflow-hidden">
+    <section ref={sectionRef} data-bg="#a11f1a" className="relative py-28 md:py-40 overflow-hidden">
       <div className="relative mx-auto max-w-5xl px-6 md:px-10 flex flex-col items-center text-center">
         <p className="script text-5xl md:text-6xl text-orange mb-4">Spéciaux de la semaine</p>
         <h2 ref={headingRef} className="font-display font-extrabold text-5xl md:text-7xl leading-[1.05] text-paper mb-12">
@@ -570,7 +602,7 @@ function Testimonials() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="py-28 md:py-44 bg-cream">
+    <section ref={sectionRef} data-bg="#fbf3e6" className="py-28 md:py-44">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
         <p className="script text-5xl md:text-6xl text-red-600 mb-2">Ils en parlent</p>
         <h2 ref={headingRef} className="font-display font-extrabold text-4xl md:text-5xl leading-tight text-ink max-w-xl mb-14">
@@ -622,7 +654,7 @@ function Visit() {
   }, []);
 
   return (
-    <section id="visite" ref={sectionRef} className="py-28 md:py-44 bg-paper text-ink">
+    <section id="visite" ref={sectionRef} data-bg="#fffaf3" className="py-28 md:py-44 text-ink">
       <div className="mx-auto max-w-7xl px-6 md:px-10 grid lg:grid-cols-2 gap-16">
         <div>
           <p className="script text-5xl md:text-6xl text-red-600 mb-2">Nous trouver</p>
@@ -719,7 +751,7 @@ function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="bg-red-700 pt-24 md:pt-32 pb-10">
+    <footer data-bg="#a11f1a" className="pt-24 md:pt-32 pb-10">
       <div className="mx-auto max-w-7xl px-6 md:px-10 flex flex-col items-center text-center gap-10">
         <LogoMark className="h-14 sm:h-20 md:h-28 lg:h-36 text-paper max-w-full" />
 
@@ -774,13 +806,38 @@ function Footer() {
   );
 }
 
+function useScrollBackground() {
+  useLayoutEffect(() => {
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("[data-bg]"));
+    if (sections.length === 0) return;
+
+    const root = document.documentElement;
+    gsap.set(root, { "--bg": sections[0].dataset.bg });
+
+    const triggers = sections.slice(1).map((section, i) => {
+      const prevColor = sections[i].dataset.bg;
+      const color = section.dataset.bg;
+      return ScrollTrigger.create({
+        trigger: section,
+        start: "top center",
+        onEnter: () => gsap.to(root, { "--bg": color, duration: 0.6, ease: "power1.inOut" }),
+        onLeaveBack: () => gsap.to(root, { "--bg": prevColor, duration: 0.6, ease: "power1.inOut" }),
+      });
+    });
+
+    return () => triggers.forEach((t) => t.kill());
+  }, []);
+}
+
 export default function App() {
   useSmoothScroll();
+  useScrollBackground();
 
   return (
-    <div className="bg-paper">
+    <div>
       <Navbar />
       <Hero />
+      <PizzaSpinner />
       <Story />
       <FeatureGallery />
       <MenuSection />
