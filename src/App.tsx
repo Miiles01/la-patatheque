@@ -119,7 +119,7 @@ function FeatureGallery() {
   }, []);
 
   return (
-    <section data-bg="#2b1c14">
+    <section data-bg="#fbf3e6">
       {/* Desktop: 3 static full-bleed columns */}
       <div className="hidden md:grid md:grid-cols-3">
         {GALLERY_ITEMS.map((item, i) => (
