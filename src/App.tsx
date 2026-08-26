@@ -311,7 +311,7 @@ function Hero() {
 
       <div className="relative h-full mx-auto max-w-7xl px-6 md:px-10 pt-32 flex flex-col justify-center">
         <h1 className="font-display font-black text-paper leading-[1.05] sm:leading-[0.95] text-5xl sm:text-6xl md:text-[6rem] max-w-4xl">
-          <span ref={headingLine1Ref} className="block">Pizza, poutine et sous-marins,</span>
+          <span ref={headingLine1Ref} className="block">Pizza, poutine, sous-marins</span>
           <span ref={headingLine2Ref} className="block text-orange">depuis 45 ans.</span>
         </h1>
 
