@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { DrawLogo } from "./components/DrawLogo";
 import { LineButton, SweepLink } from "./components/LineLink";
 import { Navigation, SOCIALS } from "./components/Navigation";
@@ -14,6 +14,7 @@ import {
   specialsNote,
   testimonials,
   type MenuCategory,
+  type MenuItem,
 } from "./data/menu";
 import { gsap, reducedMotion, scrollToHash, useScrollEffects, useSmoothScroll } from "./lib/motion";
 
@@ -37,7 +38,7 @@ function Hero() {
           <br />
           <Alt>&amp;</Alt> sous-marins
         </h1>
-        <p data-fade="0.35" data-intro className="script text-red-600 text-[clamp(2.2rem,4.5vw,3.6rem)] mt-6">
+        <p data-fade="0.35" data-intro className="script text-red-600 text-[clamp(2.2rem,4.5vw,3.6rem)] mt-6 text-balance">
           La meilleure pizza de l'Est
         </p>
         <div data-fade="0.55" data-intro className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
@@ -290,11 +291,56 @@ function MenuSection() {
 function MenuTable({ category }: { category: MenuCategory }) {
   const multiSize = category.sizes.length > 1;
   const columns = `minmax(0,1fr) repeat(${category.sizes.length}, 5.5rem)`;
+  // Phones show one price per dish, for the size picked here.
+  const [size, setSize] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStuck(!entry.isIntersecting && entry.boundingClientRect.top < 76),
+      { rootMargin: "-76px 0px 0px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div>
       <h3 className="alt text-3xl md:text-4xl text-red-600 mb-2">{category.name}</h3>
       {category.note && <p className="text-ink/60 mb-6 max-w-2xl">{category.note}</p>}
+
+      {multiSize && (
+        <>
+        <div ref={sentinelRef} aria-hidden="true" className="md:hidden h-px" />
+        {/* Sticks under the navbar so the active size stays in view down the list; once
+            stuck, a cream band fills the gap up to the top so dishes don't show through. */}
+        <div
+          className={`md:hidden sticky top-[76px] z-10 -mx-5 px-5 mt-5 py-2 bg-paper ${
+            stuck ? "before:absolute before:inset-x-0 before:bottom-full before:h-[76px] before:bg-paper" : ""
+          }`}
+        >
+          <p className="alt text-ink/60 mb-2">Format</p>
+          <div role="radiogroup" aria-label="Format" className="-mx-5 px-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {category.sizes.map((label, i) => (
+              <button
+                key={label}
+                role="radio"
+                aria-checked={i === size}
+                onClick={() => setSize(i)}
+                className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  i === size ? "bg-ink text-paper" : "bg-ink/5 text-ink/70"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        </>
+      )}
 
       {multiSize && (
         <div
@@ -315,7 +361,7 @@ function MenuTable({ category }: { category: MenuCategory }) {
             className="py-4 border-b border-ink/10 md:grid md:gap-x-2 md:items-baseline"
             style={{ gridTemplateColumns: multiSize ? columns : undefined }}
           >
-            <div className={multiSize ? "" : "flex items-baseline justify-between gap-4"}>
+            <div className={multiSize ? "max-md:flex max-md:items-baseline max-md:justify-between max-md:gap-4" : "flex items-baseline justify-between gap-4"}>
               <div>
                 <p className="font-semibold">
                   {item.num && <span className="text-red-600 mr-2">{item.num}.</span>}
@@ -329,21 +375,11 @@ function MenuTable({ category }: { category: MenuCategory }) {
                   {item.prices[0] === null ? "—" : formatPrice(item.prices[0])}
                 </span>
               )}
+              {multiSize && <MobilePrice item={item} sizes={category.sizes} size={size} />}
             </div>
 
             {multiSize && (
               <>
-                {/* Mobile: size/price pairs */}
-                <div className="md:hidden mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                  {item.prices.map((price, i) =>
-                    price === null ? null : (
-                      <span key={category.sizes[i]}>
-                        <span className="text-ink/50">{category.sizes[i]}</span>{" "}
-                        <span className="font-semibold">{formatPrice(price)}</span>
-                      </span>
-                    ),
-                  )}
-                </div>
                 {/* Desktop: one column per size */}
                 {item.prices.map((price, i) => (
                   <span key={category.sizes[i]} className="hidden md:block text-right font-semibold tabular-nums">
@@ -356,6 +392,18 @@ function MenuTable({ category }: { category: MenuCategory }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function MobilePrice({ item, sizes, size }: { item: MenuItem; sizes: string[]; size: number }) {
+  let i = size;
+  if (item.prices[i] === null) i = item.prices.findIndex((p) => p !== null);
+  const price = i === -1 ? null : item.prices[i];
+  return (
+    <span className="md:hidden shrink-0 text-right">
+      <span className="block font-display font-bold text-lg tabular-nums">{price === null ? "—" : formatPrice(price)}</span>
+      {i !== size && i !== -1 && <span className="block text-xs text-ink/50">{sizes[i]}</span>}
+    </span>
   );
 }
 

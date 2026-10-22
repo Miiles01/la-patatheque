@@ -15,7 +15,10 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * an enlarged view with the whole text.
  */
 export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
-  const [emblaRef, embla] = useEmblaCarousel({ loop: true, align: "center" }, [
+  const [emblaRef, embla] = useEmblaCarousel(
+    // One card per view on phones sits flush with the page; from tablet up the
+    // centred cards leave room for the faded neighbours.
+    { loop: true, align: "start", breakpoints: { "(min-width: 768px)": { align: "center" } } }, [
     Autoplay({ delay: 4500, stopOnInteraction: false, stopOnMouseEnter: true, active: !reducedMotion }),
   ]);
   const [selected, setSelected] = useState(0);
@@ -57,7 +60,7 @@ export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
           ref={emblaRef}
           className="overflow-hidden cursor-grab active:cursor-grabbing md:relative md:left-1/2 md:w-screen md:-translate-x-1/2 md:[mask-image:linear-gradient(to_right,transparent,black_16%,black_84%,transparent)]"
         >
-          <div className="flex touch-pan-y -ml-5">
+          <div className="flex items-start md:items-stretch touch-pan-y -ml-5">
             {reviews.map((t, i) => (
               <div
                 key={t.name}
@@ -79,17 +82,21 @@ export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
 
         <div className="mt-10 flex items-center justify-center gap-6">
           <ArrowButton direction="prev" onClick={prev} />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center">
             {snaps.map((_, i) => (
               <button
                 key={i}
                 onClick={() => embla?.scrollTo(i)}
                 aria-label={`Aller à l'avis ${i + 1}`}
                 aria-current={i === selected}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === selected ? "w-7 bg-red-600" : "w-1.5 bg-ink/20 hover:bg-ink/40"
-                }`}
-              />
+                className="group flex h-10 items-center px-1"
+              >
+                <span
+                  className={`block h-1.5 rounded-full transition-all duration-300 ${
+                    i === selected ? "w-7 bg-red-600" : "w-1.5 bg-ink/20 group-hover:bg-ink/40"
+                  }`}
+                />
+              </button>
             ))}
           </div>
           <ArrowButton direction="next" onClick={next} />
@@ -147,7 +154,7 @@ function ReviewCard({
         {clipped && (
           <button
             onClick={onExpand}
-            className="mt-3 text-sm font-semibold text-red-600 underline underline-offset-4 decoration-red-600/30 hover:decoration-red-600 transition-colors"
+            className="mt-1 py-2.5 text-sm font-semibold text-red-600 underline underline-offset-4 decoration-red-600/30 hover:decoration-red-600 transition-colors"
           >
             Lire la suite
           </button>
