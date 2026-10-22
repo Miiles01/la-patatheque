@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { restaurant } from "../data/menu";
 import { gsap, reducedMotion, ScrollTrigger, scrollToHash, startScroll, stopScroll } from "../lib/motion";
 import { LogoMark } from "./LogoMark";
-import { openPolicy } from "./PolicyModal";
 import { openReservation } from "./ReservationModal";
 
 const LINKS = [
@@ -243,10 +242,6 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
 
           <div className="mt-auto pt-14 grid sm:grid-cols-2 gap-8 text-sm text-ink/75">
             <div className="sm-item">
-              <p className="alt text-lg text-ink mb-1">Téléphone</p>
-              <a href={`tel:${restaurant.phone}`} className="hover:text-red-600 tabular-nums">{restaurant.phoneDisplay}</a>
-            </div>
-            <div className="sm-item">
               <p className="alt text-lg text-ink mb-1">Adresse</p>
               <a href={restaurant.mapsUrl} target="_blank" rel="noreferrer" className="hover:text-red-600">
                 13640, rue Sherbrooke Est
@@ -268,12 +263,6 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
                   </a>
                 ))}
               </div>
-            </div>
-            <div className="sm-item">
-              <p className="alt text-lg text-ink mb-1">Légal</p>
-              <button onClick={() => closeThen(openPolicy)} className="text-left hover:text-red-600 underline underline-offset-4 decoration-ink/20">
-                Politique de confidentialité
-              </button>
             </div>
           </div>
         </div>
