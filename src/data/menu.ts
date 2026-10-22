@@ -89,6 +89,21 @@ export const testimonials: Testimonial[] = [
     quote:
       "Had breakfast with my family, truly loved the vibe, staff was very enthusiastic and energetic. its just funny to see them interact, there is a lot of jokes going around making you feel comfortable like at home.\n\nThe prices for the breakfast was the lowest I could find in the area and they had amazing dishes.\n\nTruly love this unique restaurant, it feels like the classic diners I used to go to as a kid with my dad.",
   },
+  {
+    name: "Edgar M.",
+    source: "Avis Google · Local Guide",
+    avatar: "/avatars/edgar.webp",
+    lang: "en",
+    quote:
+      "I’ve been here a few times over the last few months for take out. The service is AMAZING!! Super friendly, joyful, courteous and always with a smile. The cook even makes small suggestions for the hotdogs I’ve ordered. It’s a true neighbourhood spot! I don’t think I’ve ever left there without a smile. Definitely a must! The pizzas are delicious! Poutine too!! (Italian poutine and classic)",
+  },
+  {
+    name: "Denise H.",
+    source: "Avis Google",
+    lang: "en",
+    quote:
+      "The perfect spot for a quick and satisfying meal! The food is always fresh, packed with flavor, and served lightning-fast. The staff is friendly and efficient, making every visit a pleasure. This place never disappoints. Great prices, amazing taste, and a welcoming atmosphere.",
+  },
 ];
 
 export const restaurant = {
