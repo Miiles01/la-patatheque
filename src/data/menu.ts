@@ -56,6 +56,13 @@ export const testimonials: Testimonial[] = [
     quote:
       "We’ve been living in the area for around a year now and recently tried this place. IT IS THE BEST COMFORT FOOD SPOT EVER. The service is always great, staff is always kind on the phone and delivery is fast. The food is to die for, the poutine is full of flavor and the subs are a good size with lots of meat in it. If you’re ever looking for a good greasy spoon this restaurant is the spot :) as well everything is priced very well. thank you we will be ordering or coming to dine very soon 😊",
   },
+  {
+    name: "Bagha S.",
+    source: "Avis Google · Local Guide",
+    lang: "en",
+    quote:
+      "Excellent food with extremely friendly service! We really enjoyed the subway sandwich and the poutine, it doesn't get more authentic than this.",
+  },
 ];
 
 export const restaurant = {
