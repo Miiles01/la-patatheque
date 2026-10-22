@@ -41,19 +41,16 @@ export const testimonials = [
     name: "Camille T.",
     neighborhood: "Rivière-des-Prairies",
     quote: "La poutine toute garnie fait l'unanimité chez nous depuis toujours. C'est LE comptoir du quartier, point final.",
-    avatar: "/avatars/1.jpg",
   },
   {
     name: "Marc-André L.",
     neighborhood: "Pointe-aux-Trembles",
     quote: "Portions généreuses, prix honnêtes, service rapide même les soirs de rush. On y retourne chaque semaine.",
-    avatar: "/avatars/2.jpg",
   },
   {
     name: "Sophie B.",
     neighborhood: "Rivière-des-Prairies",
     quote: "45 ans plus tard, la pizza toute garnie goûte encore exactement comme dans mes souvenirs d'enfance.",
-    avatar: "/avatars/3.jpg",
   },
 ];
 

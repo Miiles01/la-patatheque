@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ghostwhite-butterfly-191855.hostingersite.com/sitemap.xml
