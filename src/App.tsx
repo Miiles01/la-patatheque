@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useLayoutEffect, useRef, useState } from "react";
 import { DrawLogo } from "./components/DrawLogo";
 import { LineButton, SweepLink } from "./components/LineLink";
-import { LogoMark } from "./components/LogoMark";
 import { Navigation, SOCIALS } from "./components/Navigation";
 import { openPolicy, PolicyModal } from "./components/PolicyModal";
 import { openReservation, ReservationModal } from "./components/ReservationModal";
@@ -27,11 +26,7 @@ function Alt({ children }: { children: React.ReactNode }) {
 function Hero() {
   return (
     <section id="accueil" className="bg-paper">
-      <div className="mx-auto max-w-7xl px-5 md:px-10 pt-32 pb-16 md:pt-40 md:pb-24 min-h-[86svh] flex flex-col items-center justify-center text-center">
-        {/* Slot the navbar logo starts in (same size as in the bar); it slides into the bar on scroll. */}
-        <div id="hero-logo" aria-hidden="true" className="h-8 md:h-10 aspect-[3225/794] mb-8 md:mb-10 text-red-600">
-          {reducedMotion && <LogoMark className="block w-full h-full" />}
-        </div>
+      <div className="mx-auto max-w-7xl px-5 md:px-10 pt-36 pb-16 md:pt-44 md:pb-24 min-h-[78svh] flex flex-col items-center justify-center text-center">
         <h1
           data-reveal
           data-intro
