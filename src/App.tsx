@@ -446,22 +446,44 @@ function Testimonials() {
           Le quartier <Alt>en parle</Alt>
         </h2>
 
-        <div className="grid md:grid-cols-3 gap-5">
-          {testimonials.map((t, i) => (
-            <figure key={t.name} data-fade={i * 0.1} className="rounded-2xl bg-paper p-8 flex flex-col">
-              <span className="text-orange tracking-[0.2em] mb-5" aria-label="5 étoiles sur 5">★★★★★</span>
-              <blockquote className="alt text-xl leading-snug text-ink flex-1 mb-8">« {t.quote} »</blockquote>
-              <figcaption className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
-                  {t.name.charAt(0)}
-                </span>
-                <span>
-                  <span className="block font-semibold text-ink text-sm">{t.name}</span>
-                  <span className="block text-ink/50 text-xs">{t.neighborhood}</span>
-                </span>
-              </figcaption>
-            </figure>
-          ))}
+        <div
+          className={
+            testimonials.length === 1
+              ? "mx-auto max-w-3xl"
+              : `grid gap-5 ${testimonials.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`
+          }
+        >
+          {testimonials.map((t, i) => {
+            const featured = testimonials.length === 1;
+            return (
+              <figure
+                key={t.name}
+                data-fade={i * 0.1}
+                className={`rounded-2xl bg-paper flex flex-col ${featured ? "p-8 md:p-14 text-center items-center" : "p-8"}`}
+              >
+                {t.rating !== undefined && (
+                  <span className="text-orange tracking-[0.2em] mb-5" aria-label={`${t.rating} étoiles sur 5`}>
+                    {"★".repeat(t.rating)}
+                  </span>
+                )}
+                <blockquote
+                  lang={t.lang}
+                  className={`alt leading-snug text-ink flex-1 mb-8 ${featured ? "text-2xl md:text-3xl" : "text-xl"}`}
+                >
+                  « {t.quote} »
+                </blockquote>
+                <figcaption className="flex items-center gap-3 text-left">
+                  <span className="w-11 h-11 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
+                    {t.name.charAt(0)}
+                  </span>
+                  <span>
+                    <span className="block font-semibold text-ink text-sm">{t.name}</span>
+                    <span className="block text-ink/50 text-xs">{t.source}</span>
+                  </span>
+                </figcaption>
+              </figure>
+            );
+          })}
         </div>
       </div>
     </section>

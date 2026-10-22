@@ -36,21 +36,25 @@ export const promos = menu.promos as { name: string; price: number | null }[];
 const priceFormat = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 export const formatPrice = (price: number) => priceFormat.format(price);
 
-export const testimonials = [
+export type Testimonial = {
+  name: string;
+  /** Where the review was posted, e.g. "Avis Google · Local Guide". */
+  source: string;
+  quote: string;
+  /** Language of the quote as written; reviews are shown untranslated. */
+  lang: string;
+  /** Star rating out of 5, only when the review shows one. */
+  rating?: number;
+};
+
+// Real reviews only, quoted verbatim with first name and last initial.
+export const testimonials: Testimonial[] = [
   {
-    name: "Camille T.",
-    neighborhood: "Rivière-des-Prairies",
-    quote: "La poutine toute garnie fait l'unanimité chez nous depuis toujours. C'est LE comptoir du quartier, point final.",
-  },
-  {
-    name: "Marc-André L.",
-    neighborhood: "Pointe-aux-Trembles",
-    quote: "Portions généreuses, prix honnêtes, service rapide même les soirs de rush. On y retourne chaque semaine.",
-  },
-  {
-    name: "Sophie B.",
-    neighborhood: "Rivière-des-Prairies",
-    quote: "45 ans plus tard, la pizza toute garnie goûte encore exactement comme dans mes souvenirs d'enfance.",
+    name: "Anna S.",
+    source: "Avis Google · Local Guide",
+    lang: "en",
+    quote:
+      "We’ve been living in the area for around a year now and recently tried this place. IT IS THE BEST COMFORT FOOD SPOT EVER. The service is always great, staff is always kind on the phone and delivery is fast. The food is to die for, the poutine is full of flavor and the subs are a good size with lots of meat in it. If you’re ever looking for a good greasy spoon this restaurant is the spot :) as well everything is priced very well. thank you we will be ordering or coming to dine very soon 😊",
   },
 ];
 
