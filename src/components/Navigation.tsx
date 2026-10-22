@@ -12,7 +12,9 @@ const LINKS = [
 ];
 
 export const SOCIALS = [
-  { label: "Instagram", href: "https://www.instagram.com/resto.la.patatheque", icon: <InstagramIcon /> },
+  { label: "Instagram", href: "https://www.instagram.com/resto.la.patatheque/", icon: <InstagramIcon /> },
+  { label: "Facebook", href: "https://www.facebook.com/patatheque/", icon: <FacebookIcon /> },
+  { label: "TikTok", href: "https://www.tiktok.com/@la.patatheque", icon: <TikTokIcon /> },
 ];
 
 const NAV_LINE = 36; // px from the top where the bar's content sits
@@ -277,6 +279,23 @@ export function InstagramIcon() {
       <rect x="3" y="3" width="18" height="18" rx="5" />
       <circle cx="12" cy="12" r="4.2" />
       <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+      <path d="M15 8.5h-2c-.83 0-1.5.67-1.5 1.5v2h3.5l-.5 3H11.5v7h-3v-7H6v-3h2.5v-2.3C8.5 6.8 10 5 12.7 5H15v3.5Z" />
+    </svg>
+  );
+}
+
+function TikTokIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+      <path d="M14 4v10.5a3.2 3.2 0 1 1-2.4-3.1" />
+      <path d="M14 4c.3 2.2 1.9 3.9 4 4.2V11c-1.5 0-2.9-.5-4-1.4" />
     </svg>
   );
 }
