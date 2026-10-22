@@ -26,7 +26,11 @@ function Alt({ children }: { children: React.ReactNode }) {
 function Hero() {
   return (
     <section id="accueil" className="bg-paper">
-      <div className="mx-auto max-w-7xl px-5 md:px-10 pt-36 pb-16 md:pt-44 md:pb-24 min-h-[78svh] flex flex-col items-center justify-center text-center">
+      <div className="mx-auto max-w-7xl px-5 md:px-10 pt-32 pb-16 md:pt-40 md:pb-24 min-h-[86svh] flex flex-col items-center justify-center text-center">
+        {/* Slot the navbar logo starts in; it scrubs from here into the bar on scroll. */}
+        <div id="hero-logo" aria-hidden="true" className="w-[min(78vw,36rem)] aspect-[3225/794] mb-10 md:mb-12 text-red-600">
+          {reducedMotion && <LogoMark className="block w-full h-full" />}
+        </div>
         <h1
           data-reveal
           data-intro

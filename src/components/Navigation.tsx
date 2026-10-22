@@ -75,25 +75,80 @@ function CopyPhone({ dark }: { dark: boolean }) {
   );
 }
 
+/**
+ * The bar's logo starts scaled up over the hero slot (#hero-logo) and docks
+ * into the bar as the page scrolls. The scrub spans exactly the distance
+ * between the slot and the bar, so the logo rides with the hero until it lands.
+ */
+function useDockingLogo(anchorRef: React.RefObject<HTMLAnchorElement | null>, logoRef: React.RefObject<HTMLSpanElement | null>) {
+  useLayoutEffect(() => {
+    const slot = document.getElementById("hero-logo");
+    const anchor = anchorRef.current;
+    const logo = logoRef.current;
+    if (!slot || !anchor || !logo || reducedMotion) return;
+
+    // The anchor never moves, so it gives the logo's resting box.
+    const geometry = () => {
+      const from = slot.getBoundingClientRect();
+      const to = anchor.getBoundingClientRect();
+      const slotTop = from.top + window.scrollY;
+      return { x: from.left - to.left, y: slotTop - to.top, scale: from.width / to.width };
+    };
+
+    const tween = gsap.fromTo(
+      logo,
+      {
+        x: () => geometry().x,
+        y: () => geometry().y,
+        scale: () => geometry().scale,
+      },
+      {
+        x: 0,
+        y: 0,
+        scale: 1,
+        ease: "none",
+        transformOrigin: "0 0",
+        scrollTrigger: {
+          start: 0,
+          end: () => Math.max(1, geometry().y),
+          scrub: true,
+          invalidateOnRefresh: true,
+        },
+      },
+    );
+    return () => {
+      tween.scrollTrigger?.kill();
+      tween.kill();
+      gsap.set(logo, { clearProps: "transform" });
+    };
+  }, [anchorRef, logoRef]);
+}
+
 export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const dark = useDarkBackdrop();
   const onDark = dark && !menuOpen;
+  const anchorRef = useRef<HTMLAnchorElement>(null);
+  const logoRef = useRef<HTMLSpanElement>(null);
+  useDockingLogo(anchorRef, logoRef);
 
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[80] pointer-events-none">
         <div className="mx-auto max-w-7xl px-5 md:px-10 h-[72px] flex items-center justify-between">
           <a
+            ref={anchorRef}
             href="#accueil"
             onClick={(e) => {
               e.preventDefault();
               scrollToHash("#accueil");
             }}
             aria-label="La Patathèque, retour en haut"
-            className={`pointer-events-auto transition-colors duration-500 ${onDark ? "text-paper" : "text-red-600"}`}
+            className={`pointer-events-auto block transition-colors duration-500 ${onDark ? "text-paper" : "text-red-600"}`}
           >
-            <LogoMark className="h-8 md:h-10" />
+            <span ref={logoRef} className="block origin-top-left will-change-transform">
+              <LogoMark className="h-8 md:h-10" />
+            </span>
           </a>
 
           <div className="pointer-events-auto flex items-center gap-3 md:gap-5">
