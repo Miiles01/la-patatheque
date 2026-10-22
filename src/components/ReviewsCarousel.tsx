@@ -15,7 +15,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * an enlarged view with the whole text.
  */
 export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
-  const [emblaRef, embla] = useEmblaCarousel({ loop: true, align: "start" }, [
+  const [emblaRef, embla] = useEmblaCarousel({ loop: true, align: "center" }, [
     Autoplay({ delay: 4500, stopOnInteraction: false, stopOnMouseEnter: true, active: !reducedMotion }),
   ]);
   const [selected, setSelected] = useState(0);
@@ -51,7 +51,12 @@ export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
   return (
     <LayoutGroup>
       <div role="region" aria-roledescription="carrousel" aria-label="Avis de clients">
-        <div ref={emblaRef} className="overflow-hidden cursor-grab active:cursor-grabbing">
+        {/* From tablet up the track bleeds to the screen edges and fades out, so the
+            neighbours of the three centred cards stay visible and the loop reads as endless. */}
+        <div
+          ref={emblaRef}
+          className="overflow-hidden cursor-grab active:cursor-grabbing md:relative md:left-1/2 md:w-screen md:-translate-x-1/2 md:[mask-image:linear-gradient(to_right,transparent,black_16%,black_84%,transparent)]"
+        >
           <div className="flex touch-pan-y -ml-5">
             {reviews.map((t, i) => (
               <div
@@ -59,7 +64,7 @@ export function ReviewsCarousel({ reviews }: { reviews: Testimonial[] }) {
                 role="group"
                 aria-roledescription="diapositive"
                 aria-label={`${i + 1} sur ${reviews.length}`}
-                className="min-w-0 shrink-0 grow-0 basis-full md:basis-1/2 lg:basis-1/3 pl-5"
+                className="min-w-0 shrink-0 grow-0 basis-full md:basis-[42vw] lg:basis-[29vw] xl:basis-[min(29vw,27rem)] pl-5"
               >
                 <ReviewCard
                   review={t}

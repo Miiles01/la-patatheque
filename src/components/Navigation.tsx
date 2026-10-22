@@ -100,7 +100,7 @@ export function Navigation() {
           </a>
 
           {/* Controls sit on their own cream pill, so unlike the logo they never need to change color. */}
-          <div className="pointer-events-auto flex items-center gap-2 md:gap-4 rounded-full bg-paper pl-1.5 md:pl-5 pr-1.5 py-1.5 shadow-[0_2px_14px_rgba(43,28,20,0.08)]">
+          <div className="pointer-events-auto flex items-center gap-2 md:gap-4 rounded-full bg-paper pl-2.5 md:pl-6 pr-2.5 py-2.5">
             <CopyPhone />
             <button
               onClick={openReservation}
