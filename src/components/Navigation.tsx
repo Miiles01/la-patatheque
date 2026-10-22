@@ -56,20 +56,25 @@ function CopyPhone({ dark }: { dark: boolean }) {
     }
   }
 
+  // The copy icon only shows while the pointer (or keyboard focus) is on the number.
   return (
-    <div className={`hidden lg:flex items-center gap-2 text-sm font-semibold transition-colors duration-500 ${dark ? "text-paper" : "text-ink"}`}>
-      <a href={`tel:${restaurant.phone}`} className="tabular-nums hover:opacity-70 transition-opacity">
+    <div
+      className={`group hidden md:flex items-center gap-1 text-sm font-semibold transition-colors duration-500 ${
+        dark ? "text-paper" : "text-ink"
+      }`}
+    >
+      <a href={`tel:${restaurant.phone}`} className="tabular-nums">
         {restaurant.phoneDisplay}
       </a>
       <button
         onClick={copy}
-        aria-label="Copier le numéro de téléphone"
-        className={`relative flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs transition-colors ${
-          dark ? "border-paper/40 hover:bg-paper/10" : "border-ink/20 hover:bg-ink/5"
-        }`}
+        aria-label={copied ? "Numéro copié" : "Copier le numéro de téléphone"}
+        title={copied ? "Copié" : "Copier"}
+        className={`flex h-8 w-8 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 ${
+          copied ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        } ${dark ? "hover:bg-paper/10" : "hover:bg-ink/5"}`}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
-        <span aria-live="polite">{copied ? "Copié" : "Copier"}</span>
       </button>
     </div>
   );

@@ -440,7 +440,7 @@ function Specials() {
 
 function Testimonials() {
   return (
-    <section className="bg-cream py-24 md:py-40">
+    <section className="bg-linear-to-b from-cream to-paper py-24 md:py-40">
       <div className="mx-auto max-w-7xl px-5 md:px-10">
         <h2 data-reveal className="text-center font-display font-extrabold text-ink text-[clamp(2.2rem,4.4vw,4rem)] leading-[1.05] tracking-[-0.02em] mb-16">
           Le quartier <Alt>en parle</Alt>
