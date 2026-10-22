@@ -43,7 +43,7 @@ function useDarkBackdrop() {
   return dark;
 }
 
-function CopyPhone({ dark }: { dark: boolean }) {
+function CopyPhone() {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -59,9 +59,7 @@ function CopyPhone({ dark }: { dark: boolean }) {
   // The copy icon only shows while the pointer (or keyboard focus) is on the number.
   return (
     <div
-      className={`group hidden md:flex items-center gap-1 text-sm font-semibold transition-colors duration-500 ${
-        dark ? "text-paper" : "text-ink"
-      }`}
+      className="group hidden md:flex items-center gap-1 text-sm font-semibold text-ink"
     >
       <a href={`tel:${restaurant.phone}`} className="tabular-nums">
         {restaurant.phoneDisplay}
@@ -72,7 +70,7 @@ function CopyPhone({ dark }: { dark: boolean }) {
         title={copied ? "Copié" : "Copier"}
         className={`flex h-8 w-8 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 ${
           copied ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-        } ${dark ? "hover:bg-paper/10" : "hover:bg-ink/5"}`}
+        } hover:bg-ink/5`}
       >
         {copied ? <CheckIcon /> : <CopyIcon />}
       </button>
@@ -101,13 +99,12 @@ export function Navigation() {
             <LogoMark className="h-8 md:h-10" />
           </a>
 
-          <div className="pointer-events-auto flex items-center gap-3 md:gap-5">
-            <CopyPhone dark={onDark} />
+          {/* Controls sit on their own cream pill, so unlike the logo they never need to change color. */}
+          <div className="pointer-events-auto flex items-center gap-2 md:gap-4 rounded-full bg-paper pl-1.5 md:pl-5 pr-1.5 py-1.5 shadow-[0_2px_14px_rgba(43,28,20,0.08)]">
+            <CopyPhone />
             <button
               onClick={openReservation}
-              className={`rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-500 ${
-                onDark ? "bg-paper text-red-700 hover:bg-cream" : "bg-red-600 text-paper hover:bg-red-700"
-              }`}
+              className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
             >
               Réserver
             </button>
@@ -116,17 +113,15 @@ export function Navigation() {
               aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
               aria-expanded={menuOpen}
               aria-controls="menu-lateral"
-              className={`group relative w-11 h-11 flex items-center justify-center transition-colors duration-500 ${
-                onDark ? "text-paper" : "text-ink"
-              }`}
+              className="group relative w-10 h-10 flex items-center justify-center rounded-full text-ink hover:bg-ink/5 transition-colors"
             >
               <span
-                className={`absolute right-1.5 h-[1.5px] bg-current transition-all duration-300 ${
+                className={`absolute right-[7px] h-[1.5px] bg-current transition-all duration-300 ${
                   menuOpen ? "w-7 rotate-45" : "w-7 -translate-y-[4px] group-hover:w-[18px]"
                 }`}
               />
               <span
-                className={`absolute right-1.5 h-[1.5px] bg-current transition-all duration-300 ${
+                className={`absolute right-[7px] h-[1.5px] bg-current transition-all duration-300 ${
                   menuOpen ? "w-7 -rotate-45" : "w-[18px] translate-y-[4px] group-hover:w-7"
                 }`}
               />
