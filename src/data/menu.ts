@@ -45,6 +45,8 @@ export type Testimonial = {
   lang: string;
   /** Star rating out of 5, only when the review shows one. */
   rating?: number;
+  /** Reviewer's profile photo; falls back to their initial. */
+  avatar?: string;
 };
 
 // Real reviews only, quoted verbatim with first name and last initial.
@@ -52,6 +54,7 @@ export const testimonials: Testimonial[] = [
   {
     name: "Anna S.",
     source: "Avis Google · Local Guide",
+    avatar: "/avatars/anna.webp",
     lang: "en",
     quote:
       "We’ve been living in the area for around a year now and recently tried this place. IT IS THE BEST COMFORT FOOD SPOT EVER. The service is always great, staff is always kind on the phone and delivery is fast. The food is to die for, the poutine is full of flavor and the subs are a good size with lots of meat in it. If you’re ever looking for a good greasy spoon this restaurant is the spot :) as well everything is priced very well. thank you we will be ordering or coming to dine very soon 😊",
@@ -62,6 +65,20 @@ export const testimonials: Testimonial[] = [
     lang: "en",
     quote:
       "Excellent food with extremely friendly service! We really enjoyed the subway sandwich and the poutine, it doesn't get more authentic than this.",
+  },
+  {
+    name: "Justin K.",
+    source: "Avis Google · Local Guide",
+    avatar: "/avatars/justin.webp",
+    lang: "en",
+    quote: "Really enjoyed our meal! The burgers were delicious. Will be going back.",
+  },
+  {
+    name: "Text N.",
+    source: "Avis Google",
+    lang: "en",
+    quote:
+      "Had breakfast with my family, truly loved the vibe, staff was very enthusiastic and energetic. its just funny to see them interact, there is a lot of jokes going around making you feel comfortable like at home.\n\nThe prices for the breakfast was the lowest I could find in the area and they had amazing dishes.\n\nTruly love this unique restaurant, it feels like the classic diners I used to go to as a kid with my dad.",
   },
 ];
 
