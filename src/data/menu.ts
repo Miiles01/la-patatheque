@@ -1,47 +1,40 @@
-export const menuHighlights = [
-  {
-    category: "Pizzas",
-    tagline: "Sauce maison, basilic et huile d'olive",
-    items: [
-      { name: "Toute garnie", desc: "Piments verts, champignons, pepperoni et fromage", price: "13.70" },
-      { name: "Spéciale du chef", desc: "Piments, champignons, pepperoni, bacon ou capicollo, oignons", price: "14.50" },
-      { name: "Super Patathèque", desc: "Sauce à spaghetti, saucisses italiennes, oignons, champignons, piments forts", price: "14.70" },
-    ],
-  },
-  {
-    category: "Poutines",
-    tagline: "La classique québécoise, plusieurs façons",
-    items: [
-      { name: "Poutine régulière", desc: "Fromage en grains, sauce maison", price: "10.95" },
-      { name: "Poutine toute garnie", desc: "Le grand classique, sans compromis", price: "13.95" },
-      { name: "Poutine à la viande fumée", desc: "Généreuse et fumée juste comme il faut", price: "13.95" },
-    ],
-  },
-  {
-    category: "Sous-marins",
-    tagline: "Fromage fondu, oignons frits, laitue, tomates",
-    items: [
-      { name: "Le Super", desc: "Steak, pepperoni, piments et champignons — tout garni", price: "11.45" },
-      { name: "Viande fumée et fromage", desc: "Un classique de comptoir montréalais", price: "12.25" },
-      { name: "Végétarien", desc: "Léger, frais, toujours généreux", price: "11.45" },
-    ],
-  },
-  {
-    category: "Ailes de poulet",
-    tagline: "Servies avec frites, salade de chou et cornichon",
-    items: [
-      { name: "Assiette ailes de poulet", desc: "La formule complète", price: "10.75" },
-      { name: "Hot-chicken", desc: "Sandwich chaud, sauce généreuse", price: "16.95" },
-      { name: "Club à la viande fumée", desc: "Trois étages, comme il se doit", price: "18.95" },
-    ],
-  },
-];
+import menu from "./menu.json";
 
-export const specials = [
-  { id: "Spécial #3", desc: "1 pizza large toute garnie + 2 frites", price: "28.95" },
-  { id: "Spécial #2", desc: "Sous-marin 7\" + poutine + 1 breuvage", price: "19.95" },
-  { id: "Spécial #17", desc: "2 grosses poutines régulières + 2 breuvages", price: "28.50" },
-];
+export type MenuItem = {
+  num?: string;
+  name: string;
+  desc?: string;
+  /** One price per entry in the category's `sizes`; null when that size isn't offered. */
+  prices: (number | null)[];
+  note?: string;
+  /** Unclear on the printed menu; confirm with the restaurant. */
+  verify?: boolean;
+};
+
+export type MenuCategory = {
+  id: string;
+  name: string;
+  note?: string;
+  sizes: string[];
+  items: MenuItem[];
+};
+
+export type Special = {
+  id: string;
+  name: string;
+  desc?: string;
+  price: number;
+  note?: string;
+  featured: boolean;
+};
+
+export const menuCategories = menu.categories as MenuCategory[];
+export const specials = menu.specials.items as Special[];
+export const specialsNote = menu.specials.note;
+export const promos = menu.promos as { name: string; price: number | null }[];
+
+const priceFormat = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
+export const formatPrice = (price: number) => priceFormat.format(price);
 
 export const testimonials = [
   {
@@ -75,8 +68,10 @@ export const restaurant = {
   orderUrl: "https://order.restomenu.com/fr/la-patatheque/menu",
   mapsUrl: "https://www.google.com/maps/place/La+Patathèque/@45.6640343,-73.5063928,17z",
   hours: [
-    { day: "Lundi – Mercredi", time: "11 h – 22 h" },
+    { day: "Dimanche – Mercredi", time: "11 h – 22 h" },
     { day: "Jeudi – Samedi", time: "11 h – 23 h" },
-    { day: "Dimanche", time: "11 h – 22 h" },
+    { day: "Déjeuner, 7 jours", time: "8 h – 13 h" },
   ],
+  delivery: "Livraison gratuite, minimum 10 $ avant taxes",
+  payments: "Interac à domicile, Visa, Mastercard",
 };

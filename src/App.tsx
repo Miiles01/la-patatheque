@@ -5,34 +5,51 @@ import Lenis from "lenis";
 import { useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogoMark } from "./components/LogoMark";
-import { menuHighlights, restaurant, testimonials } from "./data/menu";
+import { openReservation, ReservationModal } from "./components/ReservationModal";
+import {
+  formatPrice,
+  menuCategories,
+  restaurant,
+  specials,
+  specialsNote,
+  testimonials,
+  type MenuCategory,
+} from "./data/menu";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
+// autoSplit re-splits once web fonts load (and on resize), so lines measured
+// against the fallback font don't leave one word per line.
 function revealWords(el: HTMLElement, scrollTrigger?: ScrollTrigger.Vars) {
-  const split = SplitText.create(el, { type: "words" });
-  gsap.from(split.words, {
-    opacity: 0,
-    y: 15,
-    stagger: 0.06,
-    duration: 0.5,
-    ease: "power2.out",
-    scrollTrigger,
+  return SplitText.create(el, {
+    type: "words",
+    autoSplit: true,
+    onSplit: (self) =>
+      gsap.from(self.words, {
+        opacity: 0,
+        y: 15,
+        stagger: 0.06,
+        duration: 0.5,
+        ease: "power2.out",
+        scrollTrigger,
+      }),
   });
-  return split;
 }
 
 function revealLines(el: HTMLElement, scrollTrigger?: ScrollTrigger.Vars) {
-  const split = SplitText.create(el, { type: "lines" });
-  gsap.from(split.lines, {
-    opacity: 0,
-    y: 30,
-    stagger: 0.2,
-    duration: 0.8,
-    ease: "power2.out",
-    scrollTrigger,
+  return SplitText.create(el, {
+    type: "lines",
+    autoSplit: true,
+    onSplit: (self) =>
+      gsap.from(self.lines, {
+        opacity: 0,
+        y: 30,
+        stagger: 0.2,
+        duration: 0.8,
+        ease: "power2.out",
+        scrollTrigger,
+      }),
   });
-  return split;
 }
 
 let lenisInstance: Lenis | null = null;
@@ -80,8 +97,7 @@ function useSmoothScroll() {
   }, []);
 }
 
-const HERO_IMG =
-  "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=1800&q=80";
+const HERO_IMG = "/images/hero.jpg";
 const STORY_IMG = "/images/story-pizza.jpg";
 
 const GALLERY_ITEMS = [
@@ -227,14 +243,12 @@ function Navbar() {
           <a href={`tel:${restaurant.phone}`} className="text-sm font-medium text-ink/80 hover:text-red-600 transition-colors">
             {restaurant.phoneDisplay}
           </a>
-          <a
-            href={restaurant.orderUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={openReservation}
             className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-500 transition-colors"
           >
             Réserver
-          </a>
+          </button>
         </div>
 
         <button
@@ -261,14 +275,12 @@ function Navbar() {
               <a href="#histoire" onClick={(e) => { e.preventDefault(); setOpen(false); scrollToHash("#histoire"); }}>Notre histoire</a>
               <a href="#visite" onClick={(e) => { e.preventDefault(); setOpen(false); scrollToHash("#visite"); }}>Nous trouver</a>
               <a href={`tel:${restaurant.phone}`}>{restaurant.phoneDisplay}</a>
-              <a
-                href={restaurant.orderUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => { setOpen(false); openReservation(); }}
                 className="rounded-full bg-red-600 px-5 py-3 text-center text-sm font-bold text-paper"
               >
                 Réserver une table
-              </a>
+              </button>
             </div>
           </motion.div>
         )}
@@ -325,14 +337,12 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.45 }}
           className="mt-10 flex flex-wrap items-center gap-4"
         >
-          <a
-            href={restaurant.orderUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={openReservation}
             className="rounded-full bg-orange px-7 py-4 text-sm font-bold text-ink hover:bg-orange-soft transition-colors"
           >
             Réserver une table
-          </a>
+          </button>
           <a
             href="#menu"
             onClick={(e) => { e.preventDefault(); scrollToHash("#menu"); }}
@@ -464,6 +474,8 @@ function Story() {
 function MenuSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [categoryId, setCategoryId] = useState(menuCategories[0].id);
+  const category = menuCategories.find((c) => c.id === categoryId) ?? menuCategories[0];
 
   useLayoutEffect(() => {
     const splits: SplitText[] = [];
@@ -471,17 +483,6 @@ function MenuSection() {
       if (headingRef.current) {
         splits.push(revealWords(headingRef.current, { trigger: sectionRef.current, start: "top 80%" }));
       }
-
-      gsap.utils.toArray<HTMLElement>(".menu-card").forEach((el, i) => {
-        gsap.from(el, {
-          opacity: 0,
-          y: 24,
-          duration: 0.6,
-          delay: (i % 4) * 0.08,
-          ease: "power2.out",
-          scrollTrigger: { trigger: el, start: "top 88%" },
-        });
-      });
     }, sectionRef);
     return () => {
       ctx.revert();
@@ -505,39 +506,126 @@ function MenuSection() {
             rel="noreferrer"
             className="shrink-0 rounded-full border-2 border-ink/15 px-6 py-3 text-sm font-bold hover:border-red-600 hover:text-red-600 transition-colors"
           >
-            Menu complet et commande →
+            Commander en ligne →
           </a>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-x-16 gap-y-16">
-          {menuHighlights.map((group) => (
-            <div key={group.category} className="menu-card">
-              <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1 border-b-2 border-red-600/15 pb-4 mb-6">
-                <h3 className="font-display font-extrabold text-2xl text-red-600 shrink-0">{group.category}</h3>
-                <span className="text-sm text-ink/50">{group.tagline}</span>
-              </div>
-              <ul className="flex flex-col gap-5">
-                {group.items.map((item) => (
-                  <li key={item.name} className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold">{item.name}</p>
-                      <p className="text-sm text-ink/55 mt-0.5">{item.desc}</p>
-                    </div>
-                    <span className="font-display font-bold text-lg shrink-0">${item.price}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div
+          role="tablist"
+          aria-label="Catégories du menu"
+          className="-mx-6 px-6 md:mx-0 md:px-0 flex gap-2 overflow-x-auto md:flex-wrap pb-2 mb-10 [scrollbar-width:none]"
+        >
+          {menuCategories.map((c) => (
+            <button
+              key={c.id}
+              role="tab"
+              aria-selected={c.id === category.id}
+              onClick={() => setCategoryId(c.id)}
+              className={`shrink-0 rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${
+                c.id === category.id ? "bg-red-600 text-paper" : "bg-ink/5 text-ink/70 hover:bg-ink/10 hover:text-ink"
+              }`}
+            >
+              {c.name}
+            </button>
           ))}
         </div>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={category.id}
+            role="tabpanel"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <MenuTable category={category} />
+          </motion.div>
+        </AnimatePresence>
+
+        <p className="mt-10 text-xs text-ink/45">
+          Prix sujets à changement sans préavis. Taxes en sus. {restaurant.delivery}.
+        </p>
       </div>
     </section>
+  );
+}
+
+function MenuTable({ category }: { category: MenuCategory }) {
+  const multiSize = category.sizes.length > 1;
+  const columns = `minmax(0,1fr) repeat(${category.sizes.length}, 5.5rem)`;
+
+  return (
+    <div>
+      {category.note && <p className="text-ink/60 mb-6 max-w-2xl">{category.note}</p>}
+
+      {multiSize && (
+        <div
+          className="hidden md:grid gap-x-2 border-b-2 border-red-600/15 pb-3 text-xs font-bold uppercase tracking-wider text-red-600"
+          style={{ gridTemplateColumns: columns }}
+        >
+          <span />
+          {category.sizes.map((s) => (
+            <span key={s} className="text-right">{s}</span>
+          ))}
+        </div>
+      )}
+
+      <ul>
+        {category.items.map((item) => (
+          <li
+            key={`${item.num ?? ""}${item.name}`}
+            className="py-4 border-b border-ink/10 md:grid md:gap-x-2 md:items-baseline"
+            style={{ gridTemplateColumns: multiSize ? columns : undefined }}
+          >
+            <div className={multiSize ? "" : "flex items-baseline justify-between gap-4"}>
+              <div>
+                <p className="font-semibold">
+                  {item.num && <span className="text-red-600 mr-2">{item.num}.</span>}
+                  {item.name}
+                </p>
+                {item.desc && <p className="text-sm text-ink/55 mt-0.5">{item.desc}</p>}
+                {item.note && <p className="text-xs text-ink/45 mt-1">{item.note}</p>}
+              </div>
+              {!multiSize && (
+                <span className="font-display font-bold text-lg shrink-0">
+                  {item.prices[0] === null ? "—" : formatPrice(item.prices[0])}
+                </span>
+              )}
+            </div>
+
+            {multiSize && (
+              <>
+                {/* Mobile: size/price pairs */}
+                <div className="md:hidden mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                  {item.prices.map((price, i) =>
+                    price === null ? null : (
+                      <span key={category.sizes[i]}>
+                        <span className="text-ink/50">{category.sizes[i]}</span>{" "}
+                        <span className="font-semibold">{formatPrice(price)}</span>
+                      </span>
+                    ),
+                  )}
+                </div>
+                {/* Desktop: one column per size */}
+                {item.prices.map((price, i) => (
+                  <span key={category.sizes[i]} className="hidden md:block text-right font-semibold tabular-nums">
+                    {price === null ? <span className="text-ink/25">—</span> : formatPrice(price)}
+                  </span>
+                ))}
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
 function Specials() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useLayoutEffect(() => {
     const splits: SplitText[] = [];
@@ -545,6 +633,15 @@ function Specials() {
       if (headingRef.current) {
         splits.push(revealWords(headingRef.current, { trigger: sectionRef.current, start: "top 80%" }));
       }
+
+      gsap.from(".special-card", {
+        opacity: 0,
+        y: 24,
+        duration: 0.6,
+        stagger: 0.1,
+        ease: "power2.out",
+        scrollTrigger: { trigger: ".special-card", start: "top 88%" },
+      });
     }, sectionRef);
     return () => {
       ctx.revert();
@@ -555,19 +652,63 @@ function Specials() {
   return (
     <section ref={sectionRef} data-bg="#a11f1a" className="relative py-28 md:py-40 overflow-hidden">
       <div className="relative mx-auto max-w-5xl px-6 md:px-10 flex flex-col items-center text-center">
-        <p className="script text-5xl md:text-6xl text-orange mb-4">Spéciaux de la semaine</p>
-        <h2 ref={headingRef} className="font-display font-extrabold text-5xl md:text-7xl leading-[1.05] text-paper mb-12">
+        <p className="script text-5xl md:text-6xl text-orange mb-4">Super spéciaux</p>
+        <h2 ref={headingRef} className="font-display font-extrabold text-5xl md:text-7xl leading-[1.05] text-paper mb-14">
           Bien manger, sans se ruiner.
         </h2>
 
-        <a
-          href={restaurant.orderUrl}
-          target="_blank"
-          rel="noreferrer"
+        <div className="w-full grid sm:grid-cols-3 gap-4 md:gap-6 mb-8 text-left">
+          {specials.filter((s) => s.featured).map((s) => (
+            <div key={s.id} className="special-card rounded-2xl bg-paper p-6 md:p-7 flex flex-col">
+              <p className="font-display font-black text-sm uppercase tracking-wider text-red-600 mb-3">Spécial #{s.id}</p>
+              <p className="text-ink/80 leading-snug mb-6 flex-1">{s.name}</p>
+              <p className="font-display font-black text-3xl text-ink">{formatPrice(s.price)}</p>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+          className="mb-10 text-sm font-bold text-paper/80 underline underline-offset-4 hover:text-paper transition-colors"
+        >
+          {showAll ? "Masquer la liste" : `Voir les ${specials.length} super spéciaux`}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {showAll && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              onAnimationComplete={() => ScrollTrigger.refresh()}
+              className="w-full overflow-hidden mb-14"
+            >
+              <ul className="rounded-2xl bg-paper text-ink text-left px-5 md:px-8 py-2">
+                {specials.map((s) => (
+                  <li key={s.id} className="flex items-baseline gap-4 py-3.5 border-b border-ink/10 last:border-0">
+                    <span className="w-8 shrink-0 font-display font-black text-red-600">#{s.id}</span>
+                    <span className="flex-1">
+                      {s.name}
+                      {s.desc && <span className="block text-sm text-ink/55">{s.desc}</span>}
+                      {s.note && <span className="block text-xs text-ink/45">{s.note}</span>}
+                    </span>
+                    <span className="font-display font-bold shrink-0 tabular-nums">{formatPrice(s.price)}</span>
+                  </li>
+                ))}
+              </ul>
+              {specialsNote && <p className="mt-4 text-xs text-paper/60">{specialsNote}. Les spéciaux ne peuvent être combinés avec d'autres offres.</p>}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <button
+          onClick={openReservation}
           className="rounded-full bg-orange px-9 py-4 text-sm font-bold text-ink hover:bg-orange-soft transition-colors"
         >
-          Réserver
-        </a>
+          Réserver une table
+        </button>
       </div>
     </section>
   );
@@ -694,14 +835,12 @@ function Visit() {
               </ul>
             </div>
 
-            <a
-              href={restaurant.orderUrl}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={openReservation}
               className="mt-4 inline-flex w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-500 transition-colors"
             >
               Réserver une table
-            </a>
+            </button>
           </div>
         </div>
 
@@ -730,23 +869,6 @@ function InstagramIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
-      <path d="M15 8.5h-2c-.83 0-1.5.67-1.5 1.5v2h3.5l-.5 3H11.5v7h-3v-7H6v-3h2.5v-2.3C8.5 6.8 10 5 12.7 5H15v3.5Z" />
-    </svg>
-  );
-}
-
-function TikTokIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
-      <path d="M14 4v10.5a3.2 3.2 0 1 1-2.4-3.1" />
-      <path d="M14 4c.3 2.2 1.9 3.9 4 4.2V11c-1.5 0-2.9-.5-4-1.4" />
-    </svg>
-  );
-}
-
 function Footer() {
   const year = new Date().getFullYear();
 
@@ -765,24 +887,6 @@ function Footer() {
           >
             <InstagramIcon />
           </a>
-          <a
-            href="#"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Facebook"
-            className="w-11 h-11 flex items-center justify-center rounded-full border-2 border-paper/25 text-paper hover:border-orange hover:text-orange transition-colors"
-          >
-            <FacebookIcon />
-          </a>
-          <a
-            href="#"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="TikTok"
-            className="w-11 h-11 flex items-center justify-center rounded-full border-2 border-paper/25 text-paper hover:border-orange hover:text-orange transition-colors"
-          >
-            <TikTokIcon />
-          </a>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 text-sm font-medium text-paper/70">
@@ -796,10 +900,7 @@ function Footer() {
 
         <div className="w-full mt-6 pt-8 border-t border-paper/15 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-paper/50">
           <p>© {year} La Patathèque. Tous droits réservés.</p>
-          <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-orange transition-colors">Politique de confidentialité</a>
-            <a href="#" className="hover:text-orange transition-colors">Conditions d'utilisation</a>
-          </div>
+          <p>{restaurant.payments}</p>
         </div>
       </div>
     </footer>
@@ -845,6 +946,7 @@ export default function App() {
       <Testimonials />
       <Visit />
       <Footer />
+      <ReservationModal />
     </div>
   );
 }

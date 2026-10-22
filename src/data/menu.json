@@ -1,0 +1,1062 @@
+{
+  "categories": [
+    {
+      "id": "notre-delicieuse-pizza",
+      "name": "Notre délicieuse pizza",
+      "note": "Sauce faite maison avec basilic frais et huile d'olive",
+      "items": [
+        {
+          "name": "Fromage",
+          "prices": [
+            12.7,
+            17.95,
+            24.75,
+            25.45,
+            31.25,
+            36.25
+          ]
+        },
+        {
+          "name": "Piments verts",
+          "prices": [
+            12.7,
+            17.95,
+            24.75,
+            25.45,
+            32.75,
+            37.25
+          ]
+        },
+        {
+          "name": "Champignons",
+          "prices": [
+            12.7,
+            17.95,
+            24.75,
+            25.45,
+            32.75,
+            37.25
+          ]
+        },
+        {
+          "name": "Pepperoni",
+          "prices": [
+            12.7,
+            17.95,
+            24.75,
+            25.45,
+            32.75,
+            37.25
+          ]
+        },
+        {
+          "name": "Toute garnie",
+          "prices": [
+            13.7,
+            17.95,
+            25.45,
+            25.45,
+            34.5,
+            39.25
+          ]
+        },
+        {
+          "name": "Viande fumée",
+          "prices": [
+            13.7,
+            18.95,
+            26.45,
+            30.5,
+            35.0,
+            42.0
+          ]
+        },
+        {
+          "name": "Bacon",
+          "prices": [
+            13.7,
+            18.95,
+            26.45,
+            30.5,
+            35.0,
+            42.0
+          ]
+        },
+        {
+          "name": "Capicollo",
+          "prices": [
+            13.7,
+            17.95,
+            25.45,
+            28.2,
+            33.5,
+            39.25
+          ]
+        },
+        {
+          "name": "Steak",
+          "prices": [
+            13.7,
+            17.95,
+            25.45,
+            28.2,
+            33.5,
+            39.25
+          ]
+        },
+        {
+          "name": "Toute garnie avec sauce viande",
+          "prices": [
+            13.75,
+            18.95,
+            27.45,
+            33.75,
+            35.75,
+            44.25
+          ]
+        },
+        {
+          "name": "Saucisses italiennes",
+          "desc": "Fromage et sauce tomate",
+          "prices": [
+            13.7,
+            19.5,
+            27.45,
+            29.45,
+            33.5,
+            39.25
+          ]
+        },
+        {
+          "name": "« Super Patathèque »",
+          "desc": "Saucisses italiennes, oignons, champignons, sauce à spaghetti et piments forts",
+          "prices": [
+            14.7,
+            19.95,
+            29.45,
+            33.0,
+            36.75,
+            44.25
+          ]
+        },
+        {
+          "name": "« Spéciale du chef »",
+          "desc": "Toute garnie plus bacon ou capicollo et oignons",
+          "prices": [
+            14.5,
+            19.95,
+            29.45,
+            33.0,
+            35.75,
+            44.25
+          ]
+        },
+        {
+          "name": "« Mexicaine »",
+          "desc": "Piments forts, champignons et steak haché",
+          "prices": [
+            14.5,
+            19.95,
+            29.45,
+            33.0,
+            35.75,
+            44.25
+          ]
+        },
+        {
+          "name": "Végétarienne",
+          "prices": [
+            13.7,
+            19.95,
+            26.45,
+            33.0,
+            34.5,
+            42.0
+          ]
+        },
+        {
+          "name": "Pepperoni, bacon et fromage",
+          "prices": [
+            13.7,
+            19.95,
+            29.45,
+            33.0,
+            35.75,
+            44.25
+          ]
+        },
+        {
+          "name": "Extra: légume",
+          "prices": [
+            4.0,
+            4.5,
+            7.0,
+            8.0,
+            9.0,
+            9.25
+          ]
+        },
+        {
+          "name": "Extra: viande ou fromage",
+          "prices": [
+            5.0,
+            5.5,
+            7.75,
+            9.0,
+            10.0,
+            11.0
+          ]
+        }
+      ],
+      "sizes": [
+        "Mini 8\"",
+        "Petite 10\"",
+        "Moyenne 12\"",
+        "Large 14\"",
+        "Ex-large 16\"",
+        "Jumbo 18\""
+      ]
+    },
+    {
+      "id": "promos-pizza",
+      "name": "Promos pizza",
+      "items": [
+        {
+          "name": "1 petite pizza toute garnie + liqueur ou frite",
+          "prices": [
+            19.95
+          ]
+        },
+        {
+          "name": "Pizza-ghetti",
+          "prices": [
+            18.95
+          ]
+        }
+      ],
+      "sizes": [
+        "Prix"
+      ]
+    },
+    {
+      "id": "sous-marins",
+      "name": "Sous-marins",
+      "note": "Tous les sous-marins sont préparés avec du fromage fondu, oignons frits, laitue, tomates et un délicieux mélange d'épices de Patathèque (sauf le no 6, pas de laitue et tomates)",
+      "items": [
+        {
+          "name": "Steak et pepperoni",
+          "num": "1",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak et capicollo",
+          "num": "2",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak, piments et capicollo",
+          "num": "3",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Poulet et champignons",
+          "num": "4",
+          "prices": [
+            11.45,
+            16.5,
+            23.5
+          ]
+        },
+        {
+          "name": "Le Super (tout garni)",
+          "num": "5",
+          "desc": "Steak, pepperoni, piments et champignons",
+          "prices": [
+            11.45,
+            16.5,
+            23.5
+          ]
+        },
+        {
+          "name": "Pizza Sub",
+          "num": "6",
+          "desc": "Pepperoni, piments, champignons, sauce aux tomates",
+          "prices": [
+            11.45,
+            16.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak + Steak + Steak",
+          "num": "7",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak et champignons",
+          "num": "8",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak et piments",
+          "num": "9",
+          "prices": [
+            11.25,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Steak, pepperoni, champignons, piments et capicollo",
+          "num": "10",
+          "prices": [
+            12.25,
+            17.5,
+            23.95
+          ]
+        },
+        {
+          "name": "Viandes froides italiennes",
+          "num": "11",
+          "desc": "Capicollo, pepperoni, jambon",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Pepperoni et piments",
+          "num": "12",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Pepperoni, piments et champignons",
+          "num": "12b",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Pepperoni chaud",
+          "num": "13",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Saucisses italiennes",
+          "num": "14",
+          "prices": [
+            12.25,
+            16.7,
+            22.95
+          ]
+        },
+        {
+          "name": "Végétarien",
+          "num": "15",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Pepperoni et champignons",
+          "num": "16",
+          "prices": [
+            11.45,
+            15.5,
+            22.95
+          ]
+        },
+        {
+          "name": "Viande fumée et fromage",
+          "num": "17",
+          "prices": [
+            12.25,
+            15.5,
+            23.95
+          ]
+        },
+        {
+          "name": "Boulettes de viande",
+          "num": "18",
+          "desc": "Avec fromage fondu et sauce spaghetti",
+          "prices": [
+            12.25,
+            15.5,
+            23.95
+          ]
+        },
+        {
+          "name": "Extra: légume",
+          "prices": [
+            4.0,
+            4.5,
+            6.25
+          ]
+        },
+        {
+          "name": "Extra: viande ou fromage",
+          "prices": [
+            4.45,
+            6.0,
+            7.75
+          ]
+        }
+      ],
+      "sizes": [
+        "7\"",
+        "10\"",
+        "14\""
+      ]
+    },
+    {
+      "id": "poutines-speciales",
+      "name": "Poutines spéciales",
+      "items": [
+        {
+          "name": "Avec sauce",
+          "prices": [
+            10.95,
+            13.95
+          ]
+        },
+        {
+          "name": "Avec sauce italienne",
+          "prices": [
+            12.95,
+            15.5
+          ]
+        },
+        {
+          "name": "Avec bacon et sauce",
+          "prices": [
+            12.95,
+            15.5
+          ]
+        },
+        {
+          "name": "Avec pepperoni et sauce",
+          "prices": [
+            12.95,
+            15.5
+          ]
+        },
+        {
+          "name": "Au poulet et sauce",
+          "prices": [
+            13.95,
+            15.5
+          ]
+        },
+        {
+          "name": "Toute garnie",
+          "prices": [
+            13.95,
+            15.95
+          ]
+        },
+        {
+          "name": "À la viande fumée",
+          "prices": [
+            13.95,
+            15.95
+          ]
+        },
+        {
+          "name": "Avec saucisse hot-dog",
+          "prices": [
+            12.95,
+            15.25
+          ]
+        },
+        {
+          "name": "Extra: fromage ou viande",
+          "prices": [
+            3.25,
+            4.5
+          ]
+        }
+      ],
+      "sizes": [
+        "Petite",
+        "Grosse"
+      ]
+    },
+    {
+      "id": "specialites-italiennes",
+      "name": "Spécialités italiennes",
+      "note": "Pain à l'ail 2,50 $ · 10\" gratiné 4,50 $",
+      "items": [
+        {
+          "name": "Spaghetti ou rigatoni avec sauce à la viande",
+          "prices": [
+            11.95,
+            14.5
+          ]
+        },
+        {
+          "name": "Spaghetti ou rigatoni avec champignons",
+          "prices": [
+            13.95,
+            15.95
+          ]
+        },
+        {
+          "name": "Spaghetti ou rigatoni avec pepperoni",
+          "prices": [
+            13.95,
+            15.95
+          ]
+        },
+        {
+          "name": "Spaghetti ou rigatoni avec boulettes de viande",
+          "prices": [
+            14.5,
+            16.95
+          ]
+        },
+        {
+          "name": "Spaghetti ou rigatoni avec viande fumée",
+          "prices": [
+            14.5,
+            16.95
+          ]
+        },
+        {
+          "name": "Extra sauce à la viande",
+          "prices": [
+            3.5,
+            4.5
+          ]
+        },
+        {
+          "name": "Extra gratiné",
+          "prices": [
+            2.95,
+            3.95
+          ]
+        },
+        {
+          "name": "Extra boulettes de viande (2)",
+          "prices": [
+            3.75,
+            null
+          ]
+        },
+        {
+          "name": "Lasagne au four gratinée",
+          "prices": [
+            14.95,
+            16.95
+          ]
+        },
+        {
+          "name": "Lasagne toute garnie au four gratinée",
+          "prices": [
+            15.95,
+            18.45
+          ]
+        }
+      ],
+      "sizes": [
+        "Rég.",
+        "Large"
+      ]
+    },
+    {
+      "id": "sandwichs",
+      "name": "Sandwichs",
+      "items": [
+        {
+          "name": "Club Sandwich",
+          "prices": [
+            17.95
+          ]
+        },
+        {
+          "name": "Club à la viande fumée",
+          "prices": [
+            18.95
+          ]
+        },
+        {
+          "name": "Assiette de viande fumée",
+          "prices": [
+            18.95
+          ]
+        },
+        {
+          "name": "Sandwich à la viande fumée",
+          "prices": [
+            11.95
+          ]
+        },
+        {
+          "name": "Hot-chicken Sandwich",
+          "prices": [
+            16.95
+          ]
+        }
+      ],
+      "sizes": [
+        "Prix"
+      ]
+    },
+    {
+      "id": "ailes-de-poulet",
+      "name": "Ailes de poulet",
+      "note": "Les assiettes sont servies avec frites, salade de chou et cornichon",
+      "items": [
+        {
+          "name": "Ailes de poulet",
+          "prices": [
+            9.5,
+            11.25,
+            15.5,
+            19.75
+          ]
+        },
+        {
+          "name": "Assiette d'ailes",
+          "prices": [
+            10.75,
+            13.25,
+            17.25,
+            21.5
+          ]
+        }
+      ],
+      "sizes": [
+        "(6)",
+        "(8)",
+        "(12)",
+        "(16)"
+      ]
+    },
+    {
+      "id": "les-repas",
+      "name": "Les repas",
+      "items": [
+        {
+          "name": "Brochette de poulet (1 bâton)",
+          "desc": "Servies avec riz, patates et salade",
+          "prices": [
+            17.95
+          ]
+        },
+        {
+          "name": "Brochette de poulet (2 bâtons)",
+          "desc": "Servies avec riz, patates et salade",
+          "prices": [
+            24.95
+          ]
+        },
+        {
+          "name": "Pita au poulet ou gyros",
+          "prices": [
+            9.95
+          ]
+        },
+        {
+          "name": "Hamburger Steak",
+          "prices": [
+            16.95
+          ]
+        },
+        {
+          "name": "Hamburger B.B.Q.",
+          "desc": "Rondelles d'oignon, frites et sauce",
+          "prices": [
+            15.5
+          ]
+        }
+      ],
+      "sizes": [
+        "Prix"
+      ]
+    },
+    {
+      "id": "les-salades",
+      "name": "Les salades",
+      "items": [
+        {
+          "name": "Salade italienne",
+          "prices": [
+            10.95,
+            12.5
+          ]
+        },
+        {
+          "name": "Salade du chef",
+          "desc": "Capicollo et fromage",
+          "prices": [
+            11.95,
+            13.75
+          ]
+        },
+        {
+          "name": "Salade césar au poulet",
+          "prices": [
+            13.95,
+            16.25
+          ]
+        },
+        {
+          "name": "Salade césar",
+          "prices": [
+            11.95,
+            13.5
+          ]
+        },
+        {
+          "name": "Salade au poulet",
+          "prices": [
+            13.95,
+            15.25
+          ]
+        },
+        {
+          "name": "Salade au thon ou saumon",
+          "prices": [
+            13.95,
+            15.25
+          ]
+        }
+      ],
+      "sizes": [
+        "Petite",
+        "Grosse"
+      ]
+    },
+    {
+      "id": "les-casse-croutes",
+      "name": "Les casse-croûtes",
+      "items": [
+        {
+          "name": "Rondelles d'oignon",
+          "prices": [
+            null,
+            4.95
+          ]
+        },
+        {
+          "name": "Frites maison",
+          "prices": [
+            3.95,
+            5.95
+          ]
+        },
+        {
+          "name": "Frites avec sauce",
+          "prices": [
+            6.5,
+            7.5
+          ]
+        },
+        {
+          "name": "Frites sauce italienne",
+          "prices": [
+            7.5,
+            8.5
+          ]
+        },
+        {
+          "name": "Frites familiales",
+          "prices": [
+            null,
+            9.95
+          ]
+        },
+        {
+          "name": "Hamburger",
+          "prices": [
+            null,
+            5.25
+          ]
+        },
+        {
+          "name": "Fromageburger",
+          "prices": [
+            null,
+            6.25
+          ]
+        },
+        {
+          "name": "Hamburger « Spécial du chef »",
+          "desc": "Capicollo, fromage et tomates",
+          "prices": [
+            null,
+            6.25
+          ],
+          "verify": true
+        },
+        {
+          "name": "Burger au poulet",
+          "prices": [
+            null,
+            6.95
+          ],
+          "verify": true
+        },
+        {
+          "name": "Hot-dog grillé",
+          "prices": [
+            null,
+            2.25
+          ]
+        },
+        {
+          "name": "Hot-dog vapeur",
+          "prices": [
+            null,
+            1.95
+          ]
+        },
+        {
+          "name": "Hot-dog « Michigan »",
+          "prices": [
+            null,
+            3.5
+          ],
+          "verify": true
+        },
+        {
+          "name": "Pogo",
+          "prices": [
+            null,
+            3.25
+          ],
+          "verify": true
+        }
+      ],
+      "sizes": [
+        "Petite",
+        "Grosse"
+      ]
+    },
+    {
+      "id": "les-breuvages",
+      "name": "Les breuvages",
+      "items": [
+        {
+          "name": "Liqueur en canette",
+          "prices": [
+            2.5
+          ]
+        }
+      ],
+      "sizes": [
+        "Prix"
+      ]
+    }
+  ],
+  "specials": {
+    "note": "Sous-marins #4 et #10 +1,00 $ dans les combos",
+    "items": [
+      {
+        "id": "1",
+        "name": "Sous-marin 7\" + frites + 1 Pepsi 355 ml",
+        "price": 16.5,
+        "featured": false
+      },
+      {
+        "id": "2",
+        "name": "Sous-marin 7\" + petite poutine rég. + 1 Pepsi 355 ml",
+        "price": 19.95,
+        "featured": true
+      },
+      {
+        "id": "3",
+        "name": "Pizza large (toute garnie) + 2 frites",
+        "price": 28.95,
+        "featured": true
+      },
+      {
+        "id": "4",
+        "name": "2 pizzas larges (toute garnie) + grosse frites + 4 Pepsi 355 ml",
+        "price": 51.95,
+        "featured": false
+      },
+      {
+        "id": "5",
+        "name": "Petite pizza (toute garnie) + frites + 1 Pepsi 355 ml",
+        "price": 20.95,
+        "featured": false
+      },
+      {
+        "id": "6",
+        "name": "Pita au choix (poulet ou gyros) + frites + 1 Pepsi 355 ml",
+        "price": 15.95,
+        "featured": false
+      },
+      {
+        "id": "7",
+        "name": "Pita au choix (poulet ou gyros) + petite poutine rég. + 1 Pepsi 355 ml",
+        "price": 19.95,
+        "featured": false
+      },
+      {
+        "id": "8",
+        "name": "Assiette de brochette de poulet + 1 Pepsi 355 ml",
+        "price": 18.95,
+        "featured": false
+      },
+      {
+        "id": "9",
+        "name": "Assiette de Club Sandwich + 1 Pepsi 355 ml",
+        "price": 18.95,
+        "featured": false
+      },
+      {
+        "id": "10",
+        "name": "Mini-pizza (toute garnie) + frites + 1 Pepsi 355 ml",
+        "price": 17.95,
+        "featured": false
+      },
+      {
+        "id": "11",
+        "name": "2 sous-marins 10\" + 2 frites + 2 Pepsi 355 ml",
+        "price": 33.95,
+        "featured": false
+      },
+      {
+        "id": "12",
+        "name": "Sous-marin 10\" + frites + 1 Pepsi 355 ml",
+        "price": 19.95,
+        "featured": false
+      },
+      {
+        "id": "13",
+        "name": "Sous-marin 10\" + petite poutine rég. + 1 Pepsi 355 ml",
+        "price": 24.95,
+        "featured": false
+      },
+      {
+        "id": "14",
+        "name": "2 hot-dogs vapeur ou 1 cheeseburger + petite poutine rég. + 1 Pepsi 355 ml",
+        "price": 15.95,
+        "featured": false
+      },
+      {
+        "id": "15",
+        "name": "Sandwich à la viande fumée + frites + 1 Pepsi 355 ml",
+        "price": 15.95,
+        "featured": false
+      },
+      {
+        "id": "16",
+        "name": "2 petites poutines rég. + 2 Pepsi 355 ml",
+        "price": 22.5,
+        "featured": false
+      },
+      {
+        "id": "17",
+        "name": "2 grosses poutines rég. + 2 Pepsi 355 ml",
+        "price": 28.5,
+        "featured": true
+      },
+      {
+        "id": "18",
+        "name": "1 assiette viande fumée + 1 Pepsi 355 ml",
+        "desc": "Sandwich avec salade de chou et frites",
+        "price": 17.95,
+        "featured": false
+      },
+      {
+        "id": "19",
+        "name": "2 assiettes de pâtes gratinées au choix",
+        "desc": "Spaghetti, rigatoni ou lasagne",
+        "price": 25.95,
+        "featured": false
+      },
+      {
+        "id": "20",
+        "name": "Assiette de pâtes au choix + pain à l'ail + 1 Pepsi 355 ml",
+        "price": 14.95,
+        "note": "Gratinée +2,95 $",
+        "featured": false
+      },
+      {
+        "id": "A",
+        "name": "Pizza-césar ou pizza-ghetti + 1 Pepsi 355 ml",
+        "price": 19.5,
+        "featured": false
+      },
+      {
+        "id": "B",
+        "name": "2 pizzas moyennes (toute garnie) + 2 frites",
+        "price": 39.95,
+        "featured": false
+      },
+      {
+        "id": "C",
+        "name": "2 pizzas X-large (toute garnie) + 2 frites",
+        "price": 55.95,
+        "featured": false
+      }
+    ]
+  },
+  "promos": [
+    {
+      "name": "2 pizzas larges toute garnie + grosse frites gratuites",
+      "price": 44.95
+    },
+    {
+      "name": "Achetez deux petites pizzas toute garnie",
+      "price": 33.95
+    },
+    {
+      "name": "Achetez un sous-marin 14\" et obtenez un 7\" gratuit",
+      "price": null
+    },
+    {
+      "name": "Achetez une pizza large et payez le prix d'une moyenne",
+      "price": null
+    }
+  ],
+  "info": {
+    "Restaurante": "La Patathèque",
+    "Eslogan": "«La meilleure pizza de l'est» · depuis 40 ans à votre service",
+    "Pedidos en línea": "patatheque.ca",
+    "Teléfono (entrega gratis)": "514-642-2557",
+    "Pedido mínimo": "10 $ (avant taxes)",
+    "Entrega dom. a mié.": "11:00 a 22:00",
+    "Entrega jue. a sáb.": "11:00 a 23:00",
+    "Desayuno": "7 jours, 8 am à 1 pm",
+    "Dirección": "Rue Sherbrooke Est (angle 40e Avenue), Montréal (Québec); número y código postal poco legibles",
+    "Pagos": "Interac à domicile, Visa, Mastercard",
+    "Condiciones": "Prix sujets à changement sans préavis. Taxes en sus. Les spéciaux ne peuvent être combinés avec d'autres offres promotionnelles."
+  }
+}
