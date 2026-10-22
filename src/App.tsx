@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useLayoutEffect, useRef, useState } from "react";
+import { DrawLogo } from "./components/DrawLogo";
 import { LineButton, SweepLink } from "./components/LineLink";
 import { LogoMark } from "./components/LogoMark";
 import { Navigation, SOCIALS } from "./components/Navigation";
@@ -27,8 +28,8 @@ function Hero() {
   return (
     <section id="accueil" className="bg-paper">
       <div className="mx-auto max-w-7xl px-5 md:px-10 pt-32 pb-16 md:pt-40 md:pb-24 min-h-[86svh] flex flex-col items-center justify-center text-center">
-        {/* Slot the navbar logo starts in; it scrubs from here into the bar on scroll. */}
-        <div id="hero-logo" aria-hidden="true" className="w-[min(78vw,36rem)] aspect-[3225/794] mb-10 md:mb-12 text-red-600">
+        {/* Slot the navbar logo starts in (same size as in the bar); it slides into the bar on scroll. */}
+        <div id="hero-logo" aria-hidden="true" className="h-8 md:h-10 aspect-[3225/794] mb-8 md:mb-10 text-red-600">
           {reducedMotion && <LogoMark className="block w-full h-full" />}
         </div>
         <h1
@@ -550,8 +551,8 @@ function Footer() {
   return (
     <footer data-nav="dark" className="bg-red-700 text-paper px-5 md:px-10">
       <div className="mx-auto max-w-7xl">
-        <div className="py-14 md:py-20 border-b border-paper/20 flex justify-center">
-          <LogoMark className="h-16 sm:h-24 md:h-32 max-w-full text-paper" />
+        <div className="py-16 md:py-24 border-b border-paper/20 flex justify-center">
+          <DrawLogo className="w-full max-w-5xl h-auto text-paper" />
         </div>
 
         <div className="grid sm:grid-cols-2 md:grid-cols-[2fr_2fr_1fr] gap-x-4 gap-y-10 py-12 border-b border-paper/20 text-[15px] leading-relaxed">
