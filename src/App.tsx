@@ -5,6 +5,7 @@ import { LineButton, SweepLink } from "./components/LineLink";
 import { Navigation, SOCIALS } from "./components/Navigation";
 import { openPolicy, PolicyModal } from "./components/PolicyModal";
 import { openReservation, ReservationModal } from "./components/ReservationModal";
+import { ReviewsCarousel } from "./components/ReviewsCarousel";
 import {
   formatPrice,
   menuCategories,
@@ -446,57 +447,7 @@ function Testimonials() {
           Le quartier <Alt>en parle</Alt>
         </h2>
 
-        <div
-          className={testimonials.length === 1 ? "mx-auto max-w-3xl" : "md:columns-2 gap-5 max-w-5xl mx-auto"}
-        >
-          {testimonials.map((t, i) => {
-            const featured = testimonials.length === 1;
-            return (
-              <figure
-                key={t.name}
-                data-fade={i * 0.1}
-                className={`rounded-2xl bg-paper flex flex-col ${
-                  featured ? "p-8 md:p-14 text-center items-center" : "p-8 mb-5 break-inside-avoid"
-                }`}
-              >
-                {t.photo && (
-                  <img
-                    src={t.photo.src}
-                    alt={t.photo.alt}
-                    width={t.photo.width}
-                    height={t.photo.height}
-                    loading="lazy"
-                    className="-mx-8 -mt-8 mb-6 w-[calc(100%+4rem)] max-w-none h-auto rounded-t-2xl object-cover"
-                  />
-                )}
-                {t.rating !== undefined && (
-                  <span className="text-orange tracking-[0.2em] mb-5" aria-label={`${t.rating} étoiles sur 5`}>
-                    {"★".repeat(t.rating)}
-                  </span>
-                )}
-                <blockquote
-                  lang={t.lang}
-                  className={`alt leading-snug text-ink flex-1 mb-8 whitespace-pre-line ${featured ? "text-2xl md:text-3xl" : "text-xl"}`}
-                >
-                  « {t.quote} »
-                </blockquote>
-                <figcaption className="flex items-center gap-3 text-left">
-                  {t.avatar ? (
-                    <img src={t.avatar} alt="" width={48} height={48} loading="lazy" className="w-12 h-12 shrink-0" />
-                  ) : (
-                    <span className="w-12 h-12 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
-                      {t.name.charAt(0)}
-                    </span>
-                  )}
-                  <span>
-                    <span className="block font-semibold text-ink text-sm">{t.name}</span>
-                    <span className="block text-ink/50 text-xs">{t.source}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            );
-          })}
-        </div>
+        <ReviewsCarousel reviews={testimonials} />
       </div>
     </section>
   );

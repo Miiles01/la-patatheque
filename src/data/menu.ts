@@ -104,6 +104,13 @@ export const testimonials: Testimonial[] = [
     quote:
       "The perfect spot for a quick and satisfying meal! The food is always fresh, packed with flavor, and served lightning-fast. The staff is friendly and efficient, making every visit a pleasure. This place never disappoints. Great prices, amazing taste, and a welcoming atmosphere.",
   },
+  {
+    name: "Dominic C.",
+    source: "Avis Google",
+    lang: "en",
+    quote:
+      "Food was great and didn’t take long to be ready. The person who was taking my order was very kind and patient to help me find something to eat, since it was my first time. Overall amazing place and amazing ppl.",
+  },
 ];
 
 export const restaurant = {
