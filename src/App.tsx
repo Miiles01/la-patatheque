@@ -459,6 +459,16 @@ function Testimonials() {
                   featured ? "p-8 md:p-14 text-center items-center" : "p-8 mb-5 break-inside-avoid"
                 }`}
               >
+                {t.photo && (
+                  <img
+                    src={t.photo.src}
+                    alt={t.photo.alt}
+                    width={t.photo.width}
+                    height={t.photo.height}
+                    loading="lazy"
+                    className="-mx-8 -mt-8 mb-6 w-[calc(100%+4rem)] max-w-none h-auto rounded-t-2xl object-cover"
+                  />
+                )}
                 {t.rating !== undefined && (
                   <span className="text-orange tracking-[0.2em] mb-5" aria-label={`${t.rating} étoiles sur 5`}>
                     {"★".repeat(t.rating)}

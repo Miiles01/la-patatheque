@@ -47,6 +47,8 @@ export type Testimonial = {
   rating?: number;
   /** Reviewer's profile photo; falls back to their initial. */
   avatar?: string;
+  /** Photo the reviewer posted with the review. */
+  photo?: { src: string; alt: string; width: number; height: number };
 };
 
 // Real reviews only, quoted verbatim with first name and last initial.
@@ -62,6 +64,13 @@ export const testimonials: Testimonial[] = [
   {
     name: "Bagha S.",
     source: "Avis Google · Local Guide",
+    avatar: "/avatars/bagha.webp",
+    photo: {
+      src: "/reviews/bagha-repas.webp",
+      alt: "Sous-marin garni, frites maison et poutine sur une table de La Patathèque",
+      width: 1000,
+      height: 753,
+    },
     lang: "en",
     quote:
       "Excellent food with extremely friendly service! We really enjoyed the subway sandwich and the poutine, it doesn't get more authentic than this.",
