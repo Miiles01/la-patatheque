@@ -88,21 +88,52 @@ export function OrderMenu() {
   );
 }
 
+// Touch screens never hover, so there the "+" stays visible to show the price is tappable.
+const canHover = window.matchMedia("(hover: hover)").matches;
+const SPRING = { type: "spring", stiffness: 600, damping: 28 } as const;
+
+/** Price pill; on hover the "+" slides in from the right. */
 function AddButton({ price, onClick, label, small }: { price: number; onClick: () => void; label: string; small?: boolean }) {
   const formatPrice = useFormatPrice();
+  const [active, setActive] = useState(false);
+  const showPlus = !canHover || active;
+
   return (
-    <button
+    <motion.button
+      layout
       onClick={onClick}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      onFocus={() => setActive(true)}
+      onBlur={() => setActive(false)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      transition={SPRING}
       aria-label={label}
-      className={`group inline-flex items-center gap-2 rounded-full border border-ink/15 font-semibold tabular-nums hover:border-red-600 hover:bg-red-600 hover:text-paper transition-colors ${
-        small ? "pl-3 pr-1 py-1 text-sm" : "pl-4 pr-1.5 py-1.5"
-      }`}
+      style={{ borderRadius: 999 }}
+      className={`inline-flex items-center border font-semibold tabular-nums transition-colors duration-150 ${
+        active ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 text-ink"
+      } ${small ? "h-9 px-3.5 text-sm" : "h-10 px-4"}`}
     >
-      {formatPrice(price)}
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-paper group-hover:bg-paper group-hover:text-red-600 text-lg leading-none">
-        +
-      </span>
-    </button>
+      <motion.span layout="position" transition={SPRING}>
+        {formatPrice(price)}
+      </motion.span>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {showPlus && (
+          <motion.span
+            key="plus"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 10 }}
+            transition={SPRING}
+            aria-hidden="true"
+            className="ml-2 text-lg leading-none"
+          >
+            +
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }
 
