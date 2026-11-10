@@ -259,7 +259,6 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
     applications: data.applications.length,
     catering: data.catering.length,
   };
-  const empty = !data.orders.length && !data.subscribers.length && !data.applications.length && !data.catering.length;
   const current = allowed.find((t) => t.id === tab) ?? allowed[0];
 
   const open = (t: Tab) => {
@@ -352,8 +351,15 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
               )}
               <span className="font-display font-bold text-lg truncate">{current.label}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <span
+                title="Démo : les données sont enregistrées dans ce navigateur. En production, elles iront dans la base de données et par courriel au restaurant."
+                className="rounded-full bg-orange/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-ink/70"
+              >
+                Démo
+              </span>
             {user.owner && (
-              <div className="flex items-center gap-2">
+              <>
                 <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
                   Charger des exemples
                 </button>
@@ -367,18 +373,13 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
                 >
                   Vider
                 </button>
-              </div>
+              </>
             )}
+            </div>
           </div>
         </header>
 
         <main className="mx-auto max-w-6xl px-5 md:px-8 py-8 md:py-10">
-          <p className="mb-6 rounded-xl border border-orange/30 bg-orange/10 px-4 py-3 text-sm text-ink/80">
-            <strong>Démo :</strong> les commandes, courriels et candidatures envoyés depuis le site sont enregistrés dans ce
-            navigateur. En production, ils iront dans la base de données de l'hébergeur et par courriel au restaurant.
-            {empty && user.owner && " Cliquez sur « Charger des exemples » ou passez une commande sur le site pour voir le tableau se remplir."}
-          </p>
-
           {tab === "dashboard" && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} />}
           {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
