@@ -15,6 +15,23 @@ import {
   type Stored,
 } from "../lib/demoStore";
 import { Link } from "../lib/router";
+import {
+  addMember,
+  authenticate,
+  ensureOwner,
+  generatePassword,
+  listTeam,
+  onTeamChange,
+  OWNER_DEMO_PASSWORD,
+  OWNER_EMAIL,
+  removeMember,
+  ROLES,
+  setPassword,
+  updateMember,
+  type AdminTab,
+  type Member,
+  type Role,
+} from "../lib/team";
 
 // The dashboard is French only: it's for the restaurant staff.
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
@@ -28,7 +45,7 @@ const STATUS: Record<OrderStatus, { label: string; cls: string }> = {
   terminee: { label: "Terminée", cls: "bg-ink/10 text-ink/70" },
 };
 
-type Tab = "dashboard" | "orders" | "subscribers" | "applications" | "catering" | "content";
+type Tab = AdminTab;
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
@@ -37,6 +54,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "applications", label: "Candidatures" },
   { id: "catering", label: "Traiteur" },
   { id: "content", label: "Contenu du site" },
+  { id: "team", label: "Équipe" },
 ];
 
 function useStore() {
@@ -53,61 +71,79 @@ function useStore() {
   return data;
 }
 
-// Demo only: the credentials ship pre-filled so the client can walk in. The real
-// panel will check them on the server; nothing here protects any data.
-const DEMO_USER = "admin@patatheque.ca";
-const DEMO_PASSWORD = "Patatheque2026";
-const SESSION = "patatheque-admin-session";
+const SESSION = "patatheque-admin-session"; // sessionStorage: id of the signed-in member
 
-function isSignedIn() {
+function sessionMember(): Member | null {
   try {
-    return sessionStorage.getItem(SESSION) === "1";
+    const id = sessionStorage.getItem(SESSION);
+    const member = listTeam().find((m) => m.id === id);
+    return member?.active ? member : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function useTeam() {
+  const [team, setTeam] = useState(listTeam);
+  useEffect(() => onTeamChange(() => setTeam(listTeam())), []);
+  return team;
 }
 
 export function AdminPage() {
-  const [signedIn, setSignedIn] = useState(isSignedIn);
+  const team = useTeam();
+  const [userId, setUserId] = useState(() => sessionMember()?.id ?? null);
+  // A member who is removed or deactivated is signed out on their next render.
+  const user = team.find((m) => m.id === userId && m.active) ?? null;
 
-  if (!signedIn) return <Login onSuccess={() => setSignedIn(true)} />;
-  return (
-    <Panel
-      onLogout={() => {
-        try {
-          sessionStorage.removeItem(SESSION);
-        } catch {
-          // ignore
-        }
-        setSignedIn(false);
-      }}
-    />
-  );
+  const logout = () => {
+    try {
+      sessionStorage.removeItem(SESSION);
+    } catch {
+      // ignore
+    }
+    setUserId(null);
+  };
+
+  if (!user) {
+    return (
+      <Login
+        onSuccess={(m) => {
+          try {
+            sessionStorage.setItem(SESSION, m.id);
+          } catch {
+            // ignore
+          }
+          setUserId(m.id);
+        }}
+      />
+    );
+  }
+  return <Panel user={user} onLogout={logout} />;
 }
 
-function Login({ onSuccess }: { onSuccess: () => void }) {
-  const [error, setError] = useState(false);
+const inputCls =
+  "w-full rounded-xl border-2 border-ink/15 bg-white px-4 py-3 text-ink focus:border-red-600 focus:outline-none transition-colors";
 
-  function submit(e: React.FormEvent<HTMLFormElement>) {
+function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
+  const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    ensureOwner();
+  }, []);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    if (f.get("user") === DEMO_USER && f.get("password") === DEMO_PASSWORD) {
-      try {
-        sessionStorage.setItem(SESSION, "1");
-      } catch {
-        // ignore
-      }
-      onSuccess();
-    } else {
-      setError(true);
-    }
+    setBusy(true);
+    const member = await authenticate(String(f.get("user")), String(f.get("password")));
+    setBusy(false);
+    if (member) onSuccess(member);
+    else setError(true);
   }
 
-  const field =
-    "w-full rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 text-ink focus:border-red-600 focus:outline-none transition-colors";
-
   return (
-    <div className="min-h-svh bg-cream text-ink flex items-center justify-center px-5 py-12">
+    <div className="min-h-svh bg-white text-ink flex items-center justify-center px-5 py-12">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center text-center mb-8">
           <Link to="/" aria-label="Retour au site" className="text-red-600">
@@ -118,44 +154,96 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
           </span>
         </div>
 
-        <form onSubmit={submit} className="rounded-3xl bg-paper p-7 flex flex-col gap-4 shadow-sm">
+        <form onSubmit={submit} className="rounded-3xl bg-white border border-ink/10 p-7 flex flex-col gap-4">
           <h1 className="font-display font-extrabold text-2xl">Connexion</h1>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Courriel
-            <input name="user" type="email" defaultValue={DEMO_USER} autoComplete="username" required className={field} />
+            <input name="user" type="email" defaultValue={OWNER_EMAIL} autoComplete="username" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
             <input
               name="password"
               type="password"
-              defaultValue={DEMO_PASSWORD}
+              defaultValue={OWNER_DEMO_PASSWORD}
               autoComplete="current-password"
               required
-              className={field}
+              className={inputCls}
             />
           </label>
           {error && (
             <p role="alert" className="text-sm text-red-600">
-              Courriel ou mot de passe incorrect.
+              Courriel ou mot de passe incorrect, ou accès désactivé.
             </p>
           )}
           <button
             type="submit"
-            className="mt-2 rounded-full bg-red-600 px-8 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+            disabled={busy}
+            className="mt-2 rounded-full bg-red-600 px-8 py-4 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60 transition-colors"
           >
-            Se connecter
+            {busy ? "Connexion…" : "Se connecter"}
           </button>
-          <p className="text-xs text-ink/50 text-center">Démo : les identifiants sont déjà remplis.</p>
+          <p className="text-xs text-ink/50 text-center">
+            Démo : les identifiants du propriétaire sont déjà remplis. Les membres de l'équipe entrent avec ceux que le
+            propriétaire leur a créés.
+          </p>
         </form>
       </div>
     </div>
   );
 }
 
-function Panel({ onLogout }: { onLogout: () => void }) {
+const TAB_ICONS: Record<Tab, ReactNode> = {
+  dashboard: <path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 4v4h6V4z" strokeLinejoin="round" />,
+  orders: (
+    <>
+      <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </>
+  ),
+  subscribers: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3.5 6.5 8.5 6.5 8.5-6.5" strokeLinejoin="round" />
+    </>
+  ),
+  applications: (
+    <>
+      <path d="M6 3h9l4 4v14H6z" strokeLinejoin="round" />
+      <path d="M9 12h7M9 16h5" strokeLinecap="round" />
+    </>
+  ),
+  catering: <path d="M4 17h16M6 17a6 6 0 0 1 12 0M12 8V6M10 6h4M3 20h18" strokeLinecap="round" />,
+  content: (
+    <>
+      <path d="M4 20h4L19 9l-4-4L4 16z" strokeLinejoin="round" />
+      <path d="m13 7 4 4" />
+    </>
+  ),
+  team: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" strokeLinecap="round" />
+      <circle cx="17" cy="9" r="2.4" />
+      <path d="M16.5 14.2c2.3.2 4 1.8 4.5 4.3" strokeLinecap="round" />
+    </>
+  ),
+};
+
+function TabIcon({ tab }: { tab: Tab }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5 shrink-0" aria-hidden="true">
+      {TAB_ICONS[tab]}
+    </svg>
+  );
+}
+
+function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const data = useStore();
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const allowed = TABS.filter((t) => ROLES[user.role].tabs.includes(t.id));
+  const [tab, setTab] = useState<Tab>(allowed[0].id);
+  // Open by default on desktop, closed on phones where it slides over the content.
+  const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
   const counts: Partial<Record<Tab, number>> = {
     orders: data.orders.filter((o) => o.status === "nouvelle").length,
     subscribers: data.subscribers.length,
@@ -163,71 +251,132 @@ function Panel({ onLogout }: { onLogout: () => void }) {
     catering: data.catering.length,
   };
   const empty = !data.orders.length && !data.subscribers.length && !data.applications.length && !data.catering.length;
+  const current = allowed.find((t) => t.id === tab) ?? allowed[0];
+
+  const open = (t: Tab) => {
+    if (!allowed.some((a) => a.id === t)) return;
+    setTab(t);
+    if (!window.matchMedia("(min-width: 1024px)").matches) setSidebar(false);
+  };
 
   return (
-    <div className="min-h-svh bg-cream text-ink">
-      <header className="sticky top-0 z-20 bg-paper/95 backdrop-blur border-b border-ink/10">
-        <div className="mx-auto max-w-7xl px-5 md:px-8 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link to="/" aria-label="Retour au site" className="text-red-600">
-              <LogoMark className="h-7" />
-            </Link>
-            <span className="hidden sm:inline rounded-full bg-ink/5 px-3 py-1 text-xs font-bold uppercase tracking-wider text-ink/60">
-              Admin
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
-              Charger des exemples
-            </button>
-            <button
-              onClick={() => {
-                if (window.confirm("Effacer toutes les données de démonstration de ce navigateur ?")) {
-                  (["orders", "subscribers", "applications", "catering", "events"] as Collection[]).forEach(clear);
-                }
-              }}
-              className="rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
-            >
-              Vider
-            </button>
-            <button onClick={onLogout} className="rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5">
-              Déconnexion
-            </button>
-          </div>
+    <div className="min-h-svh bg-white text-ink">
+      {/* Phones: the sidebar slides over a dimmed page. */}
+      {sidebar && <div className="lg:hidden fixed inset-0 z-30 bg-ink/30" onClick={() => setSidebar(false)} />}
+
+      <aside
+        aria-label="Sections de l'admin"
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-ink/10 flex flex-col transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+          sidebar ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-5 border-b border-ink/10">
+          <Link to="/" aria-label="Retour au site" className="text-red-600">
+            <LogoMark className="h-7" />
+          </Link>
+          <button
+            onClick={() => setSidebar(false)}
+            aria-label="Masquer le menu"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-ink/50 hover:bg-ink/5 hover:text-ink"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <path d="M9 4v16M15 10l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
-        <nav className="mx-auto max-w-7xl px-5 md:px-8 flex gap-1 overflow-x-auto [scrollbar-width:none]" aria-label="Sections de l'admin">
-          {TABS.map((t) => (
+
+        <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+          {allowed.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => open(t.id)}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`shrink-0 flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-semibold transition-colors ${
-                tab === t.id ? "border-red-600 text-ink" : "border-transparent text-ink/50 hover:text-ink"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                tab === t.id ? "bg-red-600/8 text-red-600" : "text-ink/65 hover:bg-ink/5 hover:text-ink"
               }`}
             >
-              {t.label}
+              <TabIcon tab={t.id} />
+              <span className="flex-1 text-left">{t.label}</span>
               {!!counts[t.id] && (
                 <span className="rounded-full bg-red-600 px-1.5 min-w-5 text-[11px] leading-5 text-paper text-center">{counts[t.id]}</span>
               )}
             </button>
           ))}
         </nav>
-      </header>
 
-      <main className="mx-auto max-w-7xl px-5 md:px-8 py-8 md:py-10">
-        <p className="mb-6 rounded-xl bg-orange/15 px-4 py-3 text-sm text-ink/80">
-          <strong>Démo :</strong> les commandes, courriels et candidatures envoyés depuis le site sont enregistrés dans ce
-          navigateur. En production, ils iront dans la base de données de l'hébergeur et par courriel au restaurant.
-          {empty && " Cliquez sur « Charger des exemples » ou passez une commande sur le site pour voir le tableau se remplir."}
-        </p>
+        <div className="border-t border-ink/10 p-4">
+          <div className="flex items-center gap-3">
+            <span className="w-9 h-9 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold text-sm">
+              {user.name.charAt(0)}
+            </span>
+            <span className="min-w-0 flex-1 text-xs leading-tight">
+              <span className="block truncate font-semibold text-sm text-ink">{user.name}</span>
+              <span className="block text-ink/50">{ROLES[user.role].label}</span>
+            </span>
+          </div>
+          <button
+            onClick={onLogout}
+            className="mt-3 w-full rounded-xl border border-ink/10 px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5 hover:text-ink"
+          >
+            Déconnexion
+          </button>
+        </div>
+      </aside>
 
-        {tab === "dashboard" && <Dashboard data={data} onOpen={setTab} />}
-        {tab === "orders" && <Orders orders={data.orders} />}
-        {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
-        {tab === "applications" && <Applications rows={data.applications} />}
-        {tab === "catering" && <Catering rows={data.catering} />}
-        {tab === "content" && <Content />}
-      </main>
+      <div className={`transition-[padding] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${sidebar ? "lg:pl-64" : ""}`}>
+        <header className="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur border-b border-ink/10">
+          <div className="h-full px-5 md:px-8 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setSidebar((v) => !v)}
+                aria-label={sidebar ? "Masquer le menu" : "Afficher le menu"}
+                aria-expanded={sidebar}
+                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-ink/60 hover:bg-ink/5 hover:text-ink"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M9 4v16" />
+                </svg>
+              </button>
+              <span className="font-display font-bold text-lg truncate">{current.label}</span>
+            </div>
+            {user.owner && (
+              <div className="flex items-center gap-2">
+                <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
+                  Charger des exemples
+                </button>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Effacer toutes les données de démonstration de ce navigateur ?")) {
+                      (["orders", "subscribers", "applications", "catering", "events"] as Collection[]).forEach(clear);
+                    }
+                  }}
+                  className="hidden sm:block rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
+                >
+                  Vider
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-6xl px-5 md:px-8 py-8 md:py-10">
+          <p className="mb-6 rounded-xl border border-orange/30 bg-orange/10 px-4 py-3 text-sm text-ink/80">
+            <strong>Démo :</strong> les commandes, courriels et candidatures envoyés depuis le site sont enregistrés dans ce
+            navigateur. En production, ils iront dans la base de données de l'hébergeur et par courriel au restaurant.
+            {empty && user.owner && " Cliquez sur « Charger des exemples » ou passez une commande sur le site pour voir le tableau se remplir."}
+          </p>
+
+          {tab === "dashboard" && <Dashboard data={data} onOpen={open} />}
+          {tab === "orders" && <Orders orders={data.orders} />}
+          {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
+          {tab === "applications" && <Applications rows={data.applications} />}
+          {tab === "catering" && <Catering rows={data.catering} />}
+          {tab === "content" && <Content />}
+          {tab === "team" && <Team currentUser={user} />}
+        </main>
+      </div>
     </div>
   );
 }
@@ -235,7 +384,7 @@ function Panel({ onLogout }: { onLogout: () => void }) {
 type Data = ReturnType<typeof useStore>;
 
 function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl bg-paper p-5 md:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-2xl bg-white border border-ink/10 p-5 md:p-6 ${className}`}>{children}</section>;
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -290,7 +439,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
         <Card>
-          <div className="flex items-baseline justify-between mb-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-6">
             <h2 className="font-display font-bold text-lg">Commandes, 7 derniers jours</h2>
             <span className="text-xs text-ink/50">{orders.length ? `${delivery} livraisons · ${orders.length - delivery} pour emporter` : ""}</span>
           </div>
@@ -442,7 +591,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
       ) : (
         <ul className="flex flex-col gap-3">
           {orders.map((o) => (
-            <li key={o.id} className="rounded-2xl bg-paper">
+            <li key={o.id} className="rounded-2xl bg-white border border-ink/10">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 p-4 md:p-5">
                 <button onClick={() => setOpen(open === o.id ? null : o.id)} aria-expanded={open === o.id} className="flex-1 min-w-[200px] text-left">
                   <p className="font-semibold">
@@ -522,7 +671,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
 
 function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   return (
-    <div className="overflow-x-auto rounded-2xl bg-paper">
+    <div className="overflow-x-auto rounded-2xl bg-white border border-ink/10">
       <table className="w-full text-sm text-left">
         <thead className="text-xs uppercase tracking-wider text-ink/45 border-b border-ink/10">
           <tr>
@@ -717,6 +866,239 @@ function Content() {
           </Card>
         ))}
       </div>
+    </>
+  );
+}
+
+const ROLE_OPTIONS = (Object.keys(ROLES) as Role[]).filter((r) => r !== "proprietaire");
+
+function PasswordInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [visible, setVisible] = useState(true);
+  return (
+    <div className="flex gap-2">
+      <input
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        minLength={8}
+        autoComplete="new-password"
+        aria-label="Mot de passe"
+        className={`${inputCls} font-mono`}
+      />
+      <button type="button" onClick={() => setVisible((v) => !v)} className="shrink-0 rounded-xl border border-ink/15 px-3 text-xs font-bold text-ink/60 hover:bg-ink/5">
+        {visible ? "Masquer" : "Afficher"}
+      </button>
+      <button type="button" onClick={() => onChange(generatePassword())} className="shrink-0 rounded-xl bg-ink px-3 text-xs font-bold text-paper">
+        Générer
+      </button>
+    </div>
+  );
+}
+
+function Team({ currentUser }: { currentUser: Member }) {
+  const team = useTeam();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("comptoir");
+  const [password, setPw] = useState(generatePassword);
+  const [error, setError] = useState("");
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+
+  async function create(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    try {
+      const m = await addMember({ name, email, role, password });
+      setCreated({ email: m.email, password });
+      setName("");
+      setEmail("");
+      setPw(generatePassword());
+      setAdding(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur");
+    }
+  }
+
+  const members = [...team].sort((a, b) => Number(!!b.owner) - Number(!!a.owner) || a.name.localeCompare(b.name));
+
+  return (
+    <>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+        <div>
+          <h1 className="font-display font-extrabold text-3xl">Équipe</h1>
+          <p className="text-sm text-ink/55 mt-1 max-w-xl">
+            Donnez un accès à chaque membre : un courriel, un mot de passe et un rôle. Chaque rôle ne voit que les sections
+            dont il a besoin.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setAdding((v) => !v);
+            setCreated(null);
+          }}
+          className="self-start sm:self-auto rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700"
+        >
+          {adding ? "Annuler" : "+ Ajouter un membre"}
+        </button>
+      </div>
+
+      {created && (
+        <div role="status" className="mb-5 rounded-2xl border border-green-700/20 bg-green-700/5 p-5 text-sm">
+          <p className="font-semibold text-green-800">Accès créé. Transmettez ces identifiants au membre :</p>
+          <p className="mt-2 font-mono">
+            {created.email} · {created.password}
+          </p>
+          <p className="mt-1 text-xs text-ink/50">Le mot de passe ne sera plus affiché ensuite.</p>
+        </div>
+      )}
+
+      {adding && (
+        <form onSubmit={create} className="mb-6 rounded-2xl bg-white border border-ink/10 p-5 md:p-6 grid md:grid-cols-2 gap-4">
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Nom
+            <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Courriel d'accès
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Rôle
+            <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputCls}>
+              {ROLE_OPTIONS.map((r) => (
+                <option key={r} value={r}>
+                  {ROLES[r].label}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs font-normal text-ink/50">Accès : {ROLES[role].access}</span>
+          </label>
+          <div className="flex flex-col gap-1.5 text-sm font-medium">
+            Mot de passe
+            <PasswordInput value={password} onChange={setPw} />
+            <span className="text-xs font-normal text-ink/50">8 caractères minimum.</span>
+          </div>
+          {error && (
+            <p role="alert" className="md:col-span-2 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <div className="md:col-span-2">
+            <button type="submit" className="rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper">
+              Créer l'accès
+            </button>
+          </div>
+        </form>
+      )}
+
+      <ul className="flex flex-col gap-3">
+        {members.map((m) => (
+          <li key={m.id} className={`rounded-2xl bg-white border border-ink/10 ${m.active ? "" : "opacity-60"}`}>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3 p-4 md:p-5">
+              <span className="w-10 h-10 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
+                {m.name.charAt(0)}
+              </span>
+              <div className="flex-1 min-w-[180px]">
+                <p className="font-semibold">
+                  {m.name}
+                  {m.id === currentUser.id && <span className="ml-2 text-xs font-normal text-ink/45">(vous)</span>}
+                  {!m.active && <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/50">Désactivé</span>}
+                </p>
+                <p className="text-sm text-ink/55">{m.email}</p>
+                <p className="text-xs text-ink/40 mt-0.5">
+                  {m.lastLogin ? `Dernière connexion : ${dateTime.format(new Date(m.lastLogin))}` : "Jamais connecté"}
+                </p>
+              </div>
+
+              {m.owner ? (
+                <span className="rounded-full bg-ink/5 px-3 py-1.5 text-xs font-bold text-ink/70">{ROLES[m.role].label}</span>
+              ) : (
+                <>
+                  <select
+                    value={m.role}
+                    onChange={(e) => updateMember(m.id, { role: e.target.value as Role })}
+                    aria-label={`Rôle de ${m.name}`}
+                    className="rounded-full border border-ink/15 bg-white px-3 py-2 text-xs font-bold"
+                  >
+                    {ROLE_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {ROLES[r].label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setResetting(resetting === m.id ? null : m.id);
+                        setNewPassword(generatePassword());
+                      }}
+                      className="rounded-full px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
+                    >
+                      Mot de passe
+                    </button>
+                    <button
+                      onClick={() => updateMember(m.id, { active: !m.active })}
+                      className="rounded-full px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
+                    >
+                      {m.active ? "Désactiver" : "Réactiver"}
+                    </button>
+                    <button
+                      onClick={() => window.confirm(`Supprimer l'accès de ${m.name} ?`) && removeMember(m.id)}
+                      className="rounded-full px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-600/5"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {resetting === m.id && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  await setPassword(m.id, newPassword);
+                  setCreated({ email: m.email, password: newPassword });
+                  setResetting(null);
+                }}
+                className="border-t border-ink/10 px-4 md:px-5 py-4 flex flex-col sm:flex-row sm:items-end gap-3"
+              >
+                <div className="flex-1 flex flex-col gap-1.5 text-sm font-medium">
+                  Nouveau mot de passe pour {m.name}
+                  <PasswordInput value={newPassword} onChange={setNewPassword} />
+                </div>
+                <button type="submit" className="rounded-full bg-ink px-5 py-3 text-sm font-bold text-paper">
+                  Enregistrer
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <section className="mt-8">
+        <h2 className="font-display font-bold text-lg mb-3">Rôles et accès</h2>
+        <div className="overflow-x-auto rounded-2xl bg-white border border-ink/10">
+          <table className="w-full text-sm text-left">
+            <tbody>
+              {(Object.keys(ROLES) as Role[]).map((r) => (
+                <tr key={r} className="border-b border-ink/5 last:border-0">
+                  <td className="px-4 md:px-5 py-3 font-semibold whitespace-nowrap">{ROLES[r].label}</td>
+                  <td className="px-4 md:px-5 py-3 text-ink/65">{ROLES[r].access}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-xs text-ink/45">
+          Démo : les accès sont enregistrés dans ce navigateur, avec les mots de passe chiffrés. En production, ils seront
+          vérifiés par le serveur.
+        </p>
+      </section>
     </>
   );
 }
