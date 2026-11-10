@@ -272,67 +272,107 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
       {/* Phones: the sidebar slides over a dimmed page. */}
       {sidebar && <div className="lg:hidden fixed inset-0 z-30 bg-ink/30" onClick={() => setSidebar(false)} />}
 
+      {/* Desktop: hiding the sidebar shrinks it to an icon rail. Phones: it slides away entirely. */}
       <aside
         aria-label="Sections de l'admin"
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-ink/10 flex flex-col transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
-          sidebar ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-ink/10 flex flex-col transition-[width,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+          sidebar ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-[72px] lg:translate-x-0"
         }`}
       >
-        <div className="h-16 flex items-center justify-between px-5 border-b border-ink/10">
-          <Link to="/" aria-label="Retour au site" className="text-red-600">
-            <LogoMark className="h-7" />
-          </Link>
-          <button
-            onClick={() => setSidebar(false)}
-            aria-label="Masquer le menu"
-            className="w-9 h-9 flex items-center justify-center rounded-lg text-ink/50 hover:bg-ink/5 hover:text-ink"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <path d="M9 4v16M15 10l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+        <div className={`h-16 flex items-center border-b border-ink/10 ${sidebar ? "justify-between px-5" : "justify-center px-0"}`}>
+          {sidebar ? (
+            <>
+              <Link to="/" aria-label="Retour au site" className="text-red-600">
+                <LogoMark className="h-7" />
+              </Link>
+              <button
+                onClick={() => setSidebar(false)}
+                aria-label="Masquer le menu"
+                className="w-9 h-9 flex items-center justify-center rounded-lg text-ink/50 hover:bg-ink/5 hover:text-ink"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M9 4v16M15 10l-2 2 2 2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          ) : (
+            <Link to="/" aria-label="Retour au site" title="La Patathèque">
+              <img src={asset("/favicon.svg")} alt="" className="h-9 w-9" />
+            </Link>
+          )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-3 flex flex-col gap-1">
+        <nav className={`flex-1 overflow-y-auto flex flex-col gap-1 ${sidebar ? "p-3" : "p-3 items-center"}`}>
           {allowed.map((t) => (
             <button
               key={t.id}
               onClick={() => open(t.id)}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
-                tab === t.id ? "bg-red-600/8 text-red-600" : "text-ink/65 hover:bg-ink/5 hover:text-ink"
-              }`}
+              aria-label={sidebar ? undefined : t.label}
+              title={sidebar ? undefined : t.label}
+              className={`relative flex items-center rounded-xl text-sm font-semibold transition-colors ${
+                sidebar ? "gap-3 px-3 py-2.5" : "w-11 h-11 justify-center"
+              } ${tab === t.id ? "bg-red-600/8 text-red-600" : "text-ink/65 hover:bg-ink/5 hover:text-ink"}`}
             >
               <TabIcon tab={t.id} />
-              <span className="flex-1 text-left">{t.label}</span>
-              {!!counts[t.id] && (
-                <span className="rounded-full bg-red-600 px-1.5 min-w-5 text-[11px] leading-5 text-paper text-center">{counts[t.id]}</span>
-              )}
+              {sidebar && <span className="flex-1 text-left">{t.label}</span>}
+              {!!counts[t.id] &&
+                (sidebar ? (
+                  <span className="rounded-full bg-red-600 px-1.5 min-w-5 text-[11px] leading-5 text-paper text-center">{counts[t.id]}</span>
+                ) : (
+                  <span className="absolute top-1 right-1 min-w-4 h-4 rounded-full bg-red-600 px-1 text-[9px] font-bold leading-4 text-paper text-center">
+                    {counts[t.id]}
+                  </span>
+                ))}
             </button>
           ))}
         </nav>
 
-        <div className="border-t border-ink/10 p-4">
-          <div className="flex items-center gap-3">
-            <span className="w-9 h-9 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold text-sm">
-              {user.name.charAt(0)}
-            </span>
-            <span className="min-w-0 flex-1 text-xs leading-tight">
-              <span className="block truncate font-semibold text-sm text-ink">{user.name}</span>
-              <span className="block text-ink/50">{ROLES[user.role].label}</span>
-            </span>
-          </div>
-          <button
-            onClick={onLogout}
-            className="mt-3 w-full rounded-xl border border-ink/10 px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5 hover:text-ink"
-          >
-            Déconnexion
-          </button>
+        <div className={`border-t border-ink/10 ${sidebar ? "p-4" : "py-4 flex flex-col items-center gap-2"}`}>
+          {sidebar ? (
+            <>
+              <div className="flex items-center gap-3">
+                <span className="w-9 h-9 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold text-sm">
+                  {user.name.charAt(0)}
+                </span>
+                <span className="min-w-0 flex-1 text-xs leading-tight">
+                  <span className="block truncate font-semibold text-sm text-ink">{user.name}</span>
+                  <span className="block text-ink/50">{ROLES[user.role].label}</span>
+                </span>
+              </div>
+              <button
+                onClick={onLogout}
+                className="mt-3 w-full rounded-xl border border-ink/10 px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5 hover:text-ink"
+              >
+                Déconnexion
+              </button>
+            </>
+          ) : (
+            <>
+              <span
+                title={`${user.name} · ${ROLES[user.role].label}`}
+                className="w-9 h-9 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold text-sm"
+              >
+                {user.name.charAt(0)}
+              </span>
+              <button
+                onClick={onLogout}
+                aria-label="Déconnexion"
+                title="Déconnexion"
+                className="w-11 h-11 flex items-center justify-center rounded-xl text-ink/55 hover:bg-ink/5 hover:text-ink"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+                  <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" strokeLinecap="round" />
+                  <path d="M10 8l-4 4 4 4M6 12h10" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       </aside>
 
-      <div className={`transition-[padding] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${sidebar ? "lg:pl-64" : ""}`}>
+      <div className={`transition-[padding] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${sidebar ? "lg:pl-64" : "lg:pl-[72px]"}`}>
         <header className="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur border-b border-ink/10">
           <div className="h-full px-5 md:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
