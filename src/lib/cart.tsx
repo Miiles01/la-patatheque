@@ -1,16 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { track } from "./analytics";
+import { useSettings } from "./settings";
 
-export type CartLine = { key: string; name: string; size?: string; price: number; qty: number };
+export type CartLine = { key: string; name: string; size?: string; price: number; qty: number; category?: string };
 export type OrderMode = "emporter" | "livraison";
 
 type Cart = {
   lines: CartLine[];
   count: number;
   subtotal: number;
+  /** Active mode; always one the restaurant currently offers. */
   mode: OrderMode;
+  /** Modes switched on in the admin settings. */
+  modes: OrderMode[];
+  deliveryMinimum: number;
   setMode: (m: OrderMode) => void;
-  add: (item: { name: string; size?: string; price: number }) => void;
+  add: (item: { name: string; size?: string; price: number; category?: string }) => void;
   setQty: (key: string, qty: number) => void;
   clear: () => void;
   open: boolean;
@@ -33,6 +38,7 @@ function load(): { lines: CartLine[]; mode: OrderMode } {
 export function CartProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(load);
   const [open, setOpen] = useState(false);
+  const settings = useSettings();
 
   useEffect(() => {
     try {
@@ -43,10 +49,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   const value = useMemo<Cart>(() => {
-    const { lines, mode } = state;
+    const { lines } = state;
+    const modes: OrderMode[] = [...(settings.pickup ? ["emporter" as const] : []), ...(settings.delivery ? ["livraison" as const] : [])];
+    const mode = modes.includes(state.mode) ? state.mode : modes[0];
     return {
       lines,
       mode,
+      modes,
+      deliveryMinimum: settings.deliveryMinimum,
       count: lines.reduce((n, l) => n + l.qty, 0),
       subtotal: lines.reduce((n, l) => n + l.qty * l.price, 0),
       setMode: (m) => setState((s) => ({ ...s, mode: m })),
@@ -72,7 +82,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       open,
       setOpen,
     };
-  }, [state, open]);
+  }, [state, open, settings]);
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

@@ -2,7 +2,7 @@
 // localStorage so the admin dashboard can show it without a backend. The real
 // site will post the same records to the API instead.
 
-export type OrderLine = { name: string; size?: string; price: number; qty: number };
+export type OrderLine = { name: string; size?: string; price: number; qty: number; category?: string };
 
 export type OrderStatus = "nouvelle" | "preparation" | "prete" | "terminee";
 
@@ -20,6 +20,8 @@ export type Order = {
   discount: number;
   total: number;
   status: OrderStatus;
+  /** Paid at the counter or to the driver; there is no online payment. */
+  paid?: boolean;
 };
 
 export type Subscriber = { email: string; consent: boolean; code: string; lang: string };

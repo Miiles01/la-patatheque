@@ -22,7 +22,7 @@ export function OrderMenu() {
     return () => window.clearTimeout(id);
   }, [toast]);
 
-  const add = (item: { name: string; size?: string; price: number }) => {
+  const add = (item: { name: string; size?: string; price: number; category?: string }) => {
     cart.add(item);
     setToast(`${item.name}${item.size ? ` · ${item.size}` : ""}`);
   };
@@ -144,7 +144,7 @@ function CategoryTable({
 }: {
   category: MenuCategory;
   title: string;
-  onAdd: (item: { name: string; size?: string; price: number }) => void;
+  onAdd: (item: { name: string; size?: string; price: number; category?: string }) => void;
 }) {
   const { t, lang } = useI18n();
   const multiSize = category.sizes.length > 1;
@@ -239,7 +239,7 @@ function CategoryTable({
                   <AddButton
                     price={item.prices[0]}
                     label={addLabel(item, 0)}
-                    onClick={() => onAdd({ name: dishName(category.id, item.name), price: item.prices[0]! })}
+                    onClick={() => onAdd({ name: dishName(category.id, item.name), price: item.prices[0]!, category: category.id })}
                   />
                 )}
                 {multiSize && mobilePrice !== null && (
@@ -247,7 +247,7 @@ function CategoryTable({
                     <AddButton
                       price={mobilePrice}
                       label={addLabel(item, mobileIndex)}
-                      onClick={() => onAdd({ name: dishName(category.id, item.name), size: category.sizes[mobileIndex], price: mobilePrice })}
+                      onClick={() => onAdd({ name: dishName(category.id, item.name), size: category.sizes[mobileIndex], price: mobilePrice, category: category.id })}
                     />
                   </span>
                 )}
@@ -263,7 +263,7 @@ function CategoryTable({
                         small
                         price={price}
                         label={addLabel(item, i)}
-                        onClick={() => onAdd({ name: dishName(category.id, item.name), size: category.sizes[i], price })}
+                        onClick={() => onAdd({ name: dishName(category.id, item.name), size: category.sizes[i], price, category: category.id })}
                       />
                     )}
                   </span>
@@ -276,7 +276,7 @@ function CategoryTable({
   );
 }
 
-function SpecialsTable({ onAdd }: { onAdd: (item: { name: string; price: number }) => void }) {
+function SpecialsTable({ onAdd }: { onAdd: (item: { name: string; price: number; category?: string }) => void }) {
   const { t } = useI18n();
   return (
     <div>
@@ -293,7 +293,7 @@ function SpecialsTable({ onAdd }: { onAdd: (item: { name: string; price: number 
             <AddButton
               price={s.price}
               label={`${t("order.add")} ${t("specials.number")} ${s.id}`}
-              onClick={() => onAdd({ name: `${t("specials.number")} ${s.id} — ${s.name}`, price: s.price })}
+              onClick={() => onAdd({ name: `${t("specials.number")} ${s.id} — ${s.name}`, price: s.price, category: SPECIALS_ID })}
             />
           </li>
         ))}

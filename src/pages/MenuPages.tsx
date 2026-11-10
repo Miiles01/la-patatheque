@@ -63,8 +63,12 @@ export function OrderPage() {
   return (
     <>
       <PageHero kicker={t("order.kicker")} title={t("order.title")} alt={t("order.titleAlt")} intro={t("order.intro")}>
-        <div data-fade="0.3" data-intro className="mt-8 inline-grid grid-cols-2 gap-1 rounded-full bg-ink/5 p-1">
-          {(["emporter", "livraison"] as const).map((m) => (
+        <div
+          data-fade="0.3"
+          data-intro
+          className={`mt-8 inline-grid gap-1 rounded-full bg-ink/5 p-1 ${cart.modes.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+        >
+          {cart.modes.map((m) => (
             <button
               key={m}
               onClick={() => cart.setMode(m)}

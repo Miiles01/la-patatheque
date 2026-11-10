@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
-import { menuCategories, specials, testimonials } from "../data/menu";
+import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
+import { asset } from "../lib/asset";
+import { saveSettings, useSettings } from "../lib/settings";
 import { PROMO_CODE } from "../lib/cart";
 import {
   clear,
@@ -53,7 +55,8 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "subscribers", label: "Courriels 10 %" },
   { id: "applications", label: "Candidatures" },
   { id: "catering", label: "Traiteur" },
-  { id: "content", label: "Contenu du site" },
+  // "Contenu du site" (content) is hidden for now; its view stays below for later.
+  { id: "settings", label: "Paramètres" },
   { id: "team", label: "Équipe" },
 ];
 
@@ -220,6 +223,12 @@ const TAB_ICONS: Record<Tab, ReactNode> = {
       <path d="m13 7 4 4" />
     </>
   ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" strokeLinecap="round" />
+    </>
+  ),
   team: (
     <>
       <circle cx="9" cy="8" r="3.2" />
@@ -328,17 +337,19 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
         <header className="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur border-b border-ink/10">
           <div className="h-full px-5 md:px-8 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={() => setSidebar((v) => !v)}
-                aria-label={sidebar ? "Masquer le menu" : "Afficher le menu"}
-                aria-expanded={sidebar}
-                className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-ink/60 hover:bg-ink/5 hover:text-ink"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="16" rx="2" />
-                  <path d="M9 4v16" />
-                </svg>
-              </button>
+              {/* Only shown while the sidebar is hidden; the sidebar has its own hide button. */}
+              {!sidebar && (
+                <button
+                  onClick={() => setSidebar(true)}
+                  aria-label="Afficher le menu"
+                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-ink/60 hover:bg-ink/5 hover:text-ink"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <path d="M9 4v16M13 10l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
               <span className="font-display font-bold text-lg truncate">{current.label}</span>
             </div>
             {user.owner && (
@@ -374,6 +385,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           {tab === "applications" && <Applications rows={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
           {tab === "content" && <Content />}
+          {tab === "settings" && <SettingsView />}
           {tab === "team" && <Team currentUser={user} />}
         </main>
       </div>
@@ -561,109 +573,217 @@ function SampleTag({ show }: { show?: boolean }) {
   return show ? <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span> : null;
 }
 
+const COLUMNS: { status: OrderStatus; title: string }[] = [
+  { status: "nouvelle", title: "Nouvelles" },
+  { status: "preparation", title: "En préparation" },
+  { status: "prete", title: "Prêtes / En livraison" },
+  { status: "terminee", title: "Terminées" },
+];
+
+const NEXT: Record<OrderStatus, OrderStatus | null> = {
+  nouvelle: "preparation",
+  preparation: "prete",
+  prete: "terminee",
+  terminee: null,
+};
+
+/** Label of the button that moves an order to its next step, worded for pickup or delivery. */
+function nextLabel(o: Order) {
+  const pickup = o.mode === "emporter";
+  switch (o.status) {
+    case "nouvelle":
+      return "Commencer la préparation";
+    case "preparation":
+      return pickup ? "Prête à récupérer" : "Partie en livraison";
+    case "prete":
+      return pickup ? "Récupérée par le client" : "Livrée";
+    default:
+      return null;
+  }
+}
+
+function DishThumb({ category, size = "h-11 w-11" }: { category?: string; size?: string }) {
+  const visual = dishVisual(category);
+  return visual.image ? (
+    <img src={asset(visual.image)} alt="" className={`${size} shrink-0 rounded-lg bg-red-700 object-contain p-0.5`} />
+  ) : (
+    <span className={`${size} shrink-0 rounded-lg bg-red-700 text-paper flex items-center justify-center script text-[11px] leading-none text-center px-0.5`}>
+      {visual.word}
+    </span>
+  );
+}
+
+const timeOnly = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-digit" });
+
+function OrderCard({ o }: { o: Stored<Order> }) {
+  const [details, setDetails] = useState(false);
+  const pickup = o.mode === "emporter";
+  const next = NEXT[o.status];
+  const label = nextLabel(o);
+  const items = o.lines.reduce((n, l) => n + l.qty, 0);
+
+  return (
+    <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <span className="font-bold text-ink/80">
+          #{o.id}
+          <SampleTag show={o.sample} />
+        </span>
+        <span className="text-ink/45 tabular-nums">{timeOnly.format(new Date(o.createdAt))}</span>
+      </div>
+
+      <div>
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+            pickup ? "bg-ink/5 text-ink/70" : "bg-orange/15 text-ink"
+          }`}
+        >
+          {pickup ? "Cueillette" : "Livraison"}
+        </span>
+        <p className="mt-2 font-semibold leading-tight">{o.name}</p>
+        <a href={`tel:${o.phone}`} className="text-sm text-red-600 font-semibold">
+          {o.phone}
+        </a>
+        {o.address && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-sm text-ink/65 underline decoration-ink/20 underline-offset-2 mt-0.5"
+          >
+            {o.address}
+          </a>
+        )}
+        <p className="text-xs text-ink/45 mt-1">{o.when}</p>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {o.lines.slice(0, 4).map((l, i) => (
+          <DishThumb key={i} category={l.category} />
+        ))}
+        {o.lines.length > 4 && <span className="text-xs font-bold text-ink/50 pl-1">+{o.lines.length - 4}</span>}
+      </div>
+
+      <button onClick={() => setDetails((v) => !v)} aria-expanded={details} className="text-left text-sm text-ink/70">
+        {details ? (
+          <ul className="flex flex-col gap-2">
+            {o.lines.map((l, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <DishThumb category={l.category} size="h-8 w-8" />
+                <span className="flex-1 leading-tight">
+                  {l.qty}× {l.name}
+                  {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
+                </span>
+                <span className="tabular-nums text-xs">{money.format(l.price * l.qty)}</span>
+              </li>
+            ))}
+            {o.notes && <li className="rounded-lg bg-orange/10 px-2.5 py-2 text-xs">Note : {o.notes}</li>}
+          </ul>
+        ) : (
+          <span>
+            {items} article{items > 1 ? "s" : ""} · <span className="underline underline-offset-2 decoration-ink/20">voir le détail</span>
+          </span>
+        )}
+      </button>
+
+      <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
+        <span className="font-display font-bold tabular-nums">{money.format(o.total)}</span>
+        <button
+          onClick={() => update("orders", o.id, { paid: !o.paid })}
+          aria-pressed={!!o.paid}
+          className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+            o.paid ? "bg-green-700/10 text-green-800" : "bg-orange/15 text-ink hover:bg-orange/25"
+          }`}
+        >
+          {o.paid ? "Payé ✓" : pickup ? "À payer au comptoir" : "À payer au livreur"}
+        </button>
+      </div>
+
+      {next && label && (
+        <button
+          onClick={() => update("orders", o.id, { status: next, ...(next === "terminee" && !o.paid ? { paid: true } : {}) })}
+          className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
+        >
+          {label} →
+        </button>
+      )}
+    </article>
+  );
+}
+
 function Orders({ orders }: { orders: Stored<Order>[] }) {
-  const [open, setOpen] = useState<string | null>(null);
+  const [mode, setMode] = useState<"all" | Order["mode"]>("all");
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const shown = orders.filter((o) => (mode === "all" || o.mode === mode) && (!unpaidOnly || !o.paid));
+
+  const chip = (active: boolean) =>
+    `rounded-full px-4 py-2 text-xs font-bold transition-colors ${active ? "bg-ink text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"}`;
+
   return (
     <>
       <SectionHead
         title="Commandes"
-        desc="Pour emporter et livraison. Aucun paiement en ligne : le client paie au comptoir ou au livreur."
+        desc="Cueillette et livraison. Aucun paiement en ligne : le client paie au comptoir ou au livreur. Avancez chaque commande d'une colonne à l'autre."
         onExport={
           orders.length
             ? () =>
                 downloadCsv("commandes.csv", [
                   ["No", (o: Stored<Order>) => o.id],
                   ["Date", (o: Stored<Order>) => dateTime.format(new Date(o.createdAt))],
-                  ["Mode", (o: Stored<Order>) => o.mode],
+                  ["Mode", (o: Stored<Order>) => (o.mode === "emporter" ? "Cueillette" : "Livraison")],
                   ["Client", (o: Stored<Order>) => o.name],
                   ["Téléphone", (o: Stored<Order>) => o.phone],
                   ["Adresse", (o: Stored<Order>) => o.address],
                   ["Articles", (o: Stored<Order>) => o.lines.map((l) => `${l.qty}× ${l.name}${l.size ? ` ${l.size}` : ""}`).join(" | ")],
                   ["Code promo", (o: Stored<Order>) => o.promoCode],
                   ["Total", (o: Stored<Order>) => o.total.toFixed(2)],
+                  ["Payé", (o: Stored<Order>) => (o.paid ? "oui" : "non")],
                   ["Statut", (o: Stored<Order>) => STATUS[o.status].label],
                 ] as never, orders)
             : undefined
         }
       />
+
       {!orders.length ? (
         <Empty text="Aucune commande. Passez une commande sur le site (bouton Commander) pour la voir apparaître ici." />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {orders.map((o) => (
-            <li key={o.id} className="rounded-2xl bg-white border border-ink/10">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 p-4 md:p-5">
-                <button onClick={() => setOpen(open === o.id ? null : o.id)} aria-expanded={open === o.id} className="flex-1 min-w-[200px] text-left">
-                  <p className="font-semibold">
-                    #{o.id} · {o.name}
-                    <SampleTag show={o.sample} />
-                  </p>
-                  <p className="text-sm text-ink/55">
-                    {dateTime.format(new Date(o.createdAt))} · {o.mode === "livraison" ? "Livraison" : "Pour emporter"} · {o.when}
-                  </p>
-                </button>
-                <span className="font-display font-bold tabular-nums">{money.format(o.total)}</span>
-                <select
-                  value={o.status}
-                  onChange={(e) => update("orders", o.id, { status: e.target.value as OrderStatus })}
-                  aria-label={`Statut de la commande ${o.id}`}
-                  className={`rounded-full px-3 py-2 text-xs font-bold border-0 ${STATUS[o.status].cls}`}
-                >
-                  {Object.entries(STATUS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {open === o.id && (
-                <div className="border-t border-ink/10 px-4 md:px-5 py-4 grid md:grid-cols-2 gap-5 text-sm">
-                  <ul className="flex flex-col gap-1.5">
-                    {o.lines.map((l, i) => (
-                      <li key={i} className="flex justify-between gap-3">
-                        <span>
-                          {l.qty}× {l.name}
-                          {l.size && <span className="text-ink/50"> · {l.size}</span>}
-                        </span>
-                        <span className="tabular-nums">{money.format(l.price * l.qty)}</span>
-                      </li>
+        <>
+          <div className="flex flex-wrap items-center gap-2 mb-5">
+            <button onClick={() => setMode("all")} className={chip(mode === "all")}>
+              Toutes
+            </button>
+            <button onClick={() => setMode("emporter")} className={chip(mode === "emporter")}>
+              Cueillette
+            </button>
+            <button onClick={() => setMode("livraison")} className={chip(mode === "livraison")}>
+              Livraison
+            </button>
+            <span className="mx-1 h-5 w-px bg-ink/10" />
+            <button onClick={() => setUnpaidOnly((v) => !v)} aria-pressed={unpaidOnly} className={chip(unpaidOnly)}>
+              Non payées
+            </button>
+          </div>
+
+          <div className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto pb-2">
+            <div className="grid grid-flow-col auto-cols-[minmax(270px,1fr)] xl:grid-flow-row xl:grid-cols-4 gap-4">
+              {COLUMNS.map((c) => {
+                const rows = shown.filter((o) => o.status === c.status);
+                return (
+                  <section key={c.status} className="rounded-2xl bg-ink/[0.03] p-3 flex flex-col gap-3 min-h-[200px]">
+                    <h2 className="flex items-center justify-between px-1 text-sm font-bold">
+                      {c.title}
+                      <span className="rounded-full bg-white border border-ink/10 px-2 text-xs tabular-nums">{rows.length}</span>
+                    </h2>
+                    {rows.map((o) => (
+                      <OrderCard key={o.id} o={o} />
                     ))}
-                    {o.discount > 0 && (
-                      <li className="flex justify-between text-green-700">
-                        <span>Rabais {o.promoCode}</span>
-                        <span>−{money.format(o.discount)}</span>
-                      </li>
-                    )}
-                  </ul>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-                    <dt className="text-ink/50">Téléphone</dt>
-                    <dd>
-                      <a href={`tel:${o.phone}`} className="font-semibold text-red-600">{o.phone}</a>
-                    </dd>
-                    {o.email && (
-                      <>
-                        <dt className="text-ink/50">Courriel</dt>
-                        <dd>{o.email}</dd>
-                      </>
-                    )}
-                    {o.address && (
-                      <>
-                        <dt className="text-ink/50">Adresse</dt>
-                        <dd>{o.address}</dd>
-                      </>
-                    )}
-                    {o.notes && (
-                      <>
-                        <dt className="text-ink/50">Note</dt>
-                        <dd>{o.notes}</dd>
-                      </>
-                    )}
-                  </dl>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+                    {!rows.length && <p className="px-1 py-6 text-center text-xs text-ink/40">Aucune commande</p>}
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </>
   );
@@ -866,6 +986,76 @@ function Content() {
           </Card>
         ))}
       </div>
+    </>
+  );
+}
+
+function Toggle({ on, onChange, label, desc, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; desc: string; disabled?: boolean }) {
+  return (
+    <label className={`flex items-start justify-between gap-6 py-5 ${disabled ? "opacity-60" : "cursor-pointer"}`}>
+      <span>
+        <span className="block font-semibold">{label}</span>
+        <span className="block text-sm text-ink/55 mt-0.5">{desc}</span>
+      </span>
+      <span className="relative mt-1 shrink-0">
+        <input
+          type="checkbox"
+          checked={on}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.checked)}
+          className="peer sr-only"
+        />
+        <span className="block h-7 w-12 rounded-full bg-ink/15 transition-colors peer-checked:bg-green-700 peer-focus-visible:ring-4 peer-focus-visible:ring-red-600/20" />
+        <span className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+      </span>
+    </label>
+  );
+}
+
+function SettingsView() {
+  const settings = useSettings();
+  const onlyOne = settings.pickup !== settings.delivery;
+
+  return (
+    <>
+      <SectionHead title="Paramètres" desc="Choisissez comment vos clients reçoivent leur commande. Le site s'adapte tout de suite : boutons, panier et page de commande." />
+      <div className="rounded-2xl bg-white border border-ink/10 px-5 md:px-6 divide-y divide-ink/10">
+        <Toggle
+          label="Cueillette (pour emporter)"
+          desc="Le client commande en ligne et passe chercher sa commande au comptoir."
+          on={settings.pickup}
+          disabled={onlyOne && settings.pickup}
+          onChange={(v) => saveSettings({ pickup: v })}
+        />
+        <Toggle
+          label="Livraison"
+          desc="Le restaurant livre à l'adresse du client."
+          on={settings.delivery}
+          disabled={onlyOne && settings.delivery}
+          onChange={(v) => saveSettings({ delivery: v })}
+        />
+        <label className={`flex flex-wrap items-center justify-between gap-4 py-5 ${settings.delivery ? "" : "opacity-50"}`}>
+          <span>
+            <span className="block font-semibold">Minimum pour la livraison</span>
+            <span className="block text-sm text-ink/55 mt-0.5">Sous-total minimum avant taxes.</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={settings.deliveryMinimum}
+              disabled={!settings.delivery}
+              onChange={(e) => saveSettings({ deliveryMinimum: Math.max(0, Number(e.target.value)) })}
+              className="w-24 rounded-xl border-2 border-ink/15 bg-white px-3 py-2 text-right tabular-nums focus:border-red-600 focus:outline-none"
+            />
+            <span className="font-semibold">$</span>
+          </span>
+        </label>
+      </div>
+      <p className="mt-3 text-xs text-ink/45">
+        Au moins un mode doit rester actif. Démo : ces réglages s'appliquent au site ouvert dans ce navigateur.
+      </p>
     </>
   );
 }
@@ -1112,12 +1302,12 @@ function loadSamples() {
     return d.toISOString();
   };
   const sampleOrders: [number, number, Order][] = [
-    [0, 1, { mode: "livraison", name: "Client exemple A", phone: "514 555-0101", address: "12 rue Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 1 }, { name: "Liqueur en canette", price: 2.5, qty: 2 }], subtotal: 30.45, discount: 0, total: 30.45, status: "nouvelle" }],
-    [0, 3, { mode: "emporter", name: "Client exemple B", phone: "514 555-0102", when: "18:30", lines: [{ name: "Sous-marin Le Super (tout garni)", size: '10"', price: 16.5, qty: 2 }], subtotal: 33, discount: 3.3, total: 29.7, promoCode: PROMO_CODE, status: "preparation" }],
-    [1, 2, { mode: "emporter", name: "Client exemple C", phone: "514 555-0103", when: "Dès que possible", lines: [{ name: "Poutine Toute garnie", size: "Petite", price: 13.95, qty: 2 }], subtotal: 27.9, discount: 0, total: 27.9, status: "terminee" }],
-    [2, 4, { mode: "livraison", name: "Client exemple D", phone: "514 555-0104", address: "45 avenue Exemple", when: "Dès que possible", lines: [{ name: "Brochette de poulet (2 bâtons)", price: 24.95, qty: 1 }, { name: "Pizza Toute garnie", size: 'Moyenne 12"', price: 25.45, qty: 1 }], subtotal: 50.4, discount: 0, total: 50.4, status: "terminee" }],
-    [3, 1, { mode: "emporter", name: "Client exemple E", phone: "514 555-0105", when: "12:15", lines: [{ name: "Spécial no 3", price: 28.95, qty: 1 }], subtotal: 28.95, discount: 0, total: 28.95, status: "terminee" }],
-    [5, 5, { mode: "livraison", name: "Client exemple F", phone: "514 555-0106", address: "8 boulevard Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 2 }], subtotal: 50.9, discount: 5.09, total: 45.81, promoCode: PROMO_CODE, status: "terminee" }],
+    [0, 1, { mode: "livraison", name: "Client exemple A", phone: "514 555-0101", address: "12 rue Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }, { name: "Liqueur en canette", price: 2.5, qty: 2, category: "les-breuvages" }], subtotal: 30.45, discount: 0, total: 30.45, status: "nouvelle" }],
+    [0, 3, { mode: "emporter", name: "Client exemple B", phone: "514 555-0102", when: "18:30", lines: [{ name: "Sous-marin Le Super (tout garni)", size: '10"', price: 16.5, qty: 2, category: "sous-marins" }], subtotal: 33, discount: 3.3, total: 29.7, promoCode: PROMO_CODE, status: "preparation" }],
+    [1, 2, { mode: "emporter", name: "Client exemple C", phone: "514 555-0103", when: "Dès que possible", lines: [{ name: "Poutine Toute garnie", size: "Petite", price: 13.95, qty: 2, category: "poutines-speciales" }], subtotal: 27.9, discount: 0, total: 27.9, status: "prete" }],
+    [2, 4, { mode: "livraison", name: "Client exemple D", phone: "514 555-0104", address: "45 avenue Exemple", when: "Dès que possible", lines: [{ name: "Brochette de poulet (2 bâtons)", price: 24.95, qty: 1, category: "les-repas" }, { name: "Pizza Toute garnie", size: 'Moyenne 12"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }], subtotal: 50.4, discount: 0, total: 50.4, status: "terminee", paid: true }],
+    [3, 1, { mode: "emporter", name: "Client exemple E", phone: "514 555-0105", when: "12:15", lines: [{ name: "Spécial no 3", price: 28.95, qty: 1, category: "super-speciaux" }], subtotal: 28.95, discount: 0, total: 28.95, status: "terminee", paid: true }],
+    [5, 5, { mode: "livraison", name: "Client exemple F", phone: "514 555-0106", address: "8 boulevard Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 2, category: "notre-delicieuse-pizza" }], subtotal: 50.9, discount: 5.09, total: 45.81, promoCode: PROMO_CODE, status: "terminee", paid: true }],
   ];
   const write = <T,>(key: string, rows: T[]) => {
     try {

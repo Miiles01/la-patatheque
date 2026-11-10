@@ -46,6 +46,28 @@ export function dishName(categoryId: string, name: string) {
   return prefix ? `${prefix} ${name}` : name;
 }
 
+// Thumbnail for a dish in the admin order cards: the category photo when the
+// restaurant has supplied one, otherwise its name on a red tile. Add a path here
+// as photos arrive.
+const CATEGORY_VISUALS: Record<string, { image?: string; word: string }> = {
+  "notre-delicieuse-pizza": { image: "/images/pizza.webp", word: "Pizza" },
+  "promos-pizza": { image: "/images/pizza.webp", word: "Pizza" },
+  "sous-marins": { word: "Sous-marin" },
+  "poutines-speciales": { word: "Poutine" },
+  "specialites-italiennes": { word: "Pâtes" },
+  sandwichs: { word: "Sandwich" },
+  "ailes-de-poulet": { word: "Ailes" },
+  "les-repas": { word: "Repas" },
+  "les-salades": { word: "Salade" },
+  "les-casse-croutes": { word: "Frites" },
+  "les-breuvages": { word: "Boisson" },
+  "super-speciaux": { word: "Combo" },
+};
+
+export function dishVisual(categoryId?: string) {
+  return (categoryId && CATEGORY_VISUALS[categoryId]) || { word: "Plat" };
+}
+
 const priceFormat = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 export const formatPrice = (price: number) => priceFormat.format(price);
 

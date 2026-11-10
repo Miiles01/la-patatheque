@@ -4,24 +4,24 @@
 // they never sit in plain text, even in the demo's localStorage. The real site
 // checks them on the server.
 
-export type AdminTab = "dashboard" | "orders" | "subscribers" | "applications" | "catering" | "content" | "team";
+export type AdminTab = "dashboard" | "orders" | "subscribers" | "applications" | "catering" | "content" | "settings" | "team";
 
 export type Role = "proprietaire" | "gerant" | "marketing" | "comptoir" | "serveur" | "cuisine" | "livreur";
 
 export const ROLES: Record<Role, { label: string; access: string; tabs: AdminTab[] }> = {
   proprietaire: {
     label: "Propriétaire",
-    access: "Tout le panneau, y compris l'équipe",
-    tabs: ["dashboard", "orders", "subscribers", "applications", "catering", "content", "team"],
+    access: "Tout le panneau, y compris les paramètres et l'équipe",
+    tabs: ["dashboard", "orders", "subscribers", "applications", "catering", "content", "settings", "team"],
   },
   gerant: {
     label: "Gérant(e)",
-    access: "Tableau de bord, commandes, candidatures et traiteur",
-    tabs: ["dashboard", "orders", "applications", "catering"],
+    access: "Tableau de bord, commandes, candidatures, traiteur et paramètres",
+    tabs: ["dashboard", "orders", "applications", "catering", "settings"],
   },
   marketing: {
     label: "Marketing",
-    access: "Tableau de bord, courriels 10 % et contenu du site",
+    access: "Tableau de bord et courriels 10 %",
     tabs: ["dashboard", "subscribers", "content"],
   },
   comptoir: { label: "Comptoir", access: "Commandes", tabs: ["orders"] },

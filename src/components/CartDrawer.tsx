@@ -24,7 +24,7 @@ export function CartDrawer() {
 
   const discount = promoState === "ok" ? Math.round(cart.subtotal * PROMO_RATE * 100) / 100 : 0;
   const total = cart.subtotal - discount;
-  const belowMinimum = cart.mode === "livraison" && cart.subtotal < 10;
+  const belowMinimum = cart.mode === "livraison" && cart.subtotal < cart.deliveryMinimum;
 
   useEffect(() => {
     if (!cart.open) return;
@@ -55,7 +55,7 @@ export function CartDrawer() {
       when: when === "asap" ? t("form.asap") : get("time"),
       notes: get("notes") || undefined,
       promoCode: promoState === "ok" ? PROMO_CODE : undefined,
-      lines: cart.lines.map(({ name, size, price, qty }) => ({ name, size, price, qty })),
+      lines: cart.lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
       subtotal: cart.subtotal,
       discount,
       total,
@@ -139,8 +139,13 @@ export function CartDrawer() {
             ) : (
               <>
                 <div className="px-6 pt-5">
+                  {cart.modes.length === 1 ? (
+                    <p className="rounded-full bg-ink/5 py-2.5 text-center text-sm font-bold text-ink/70">
+                      {cart.mode === "emporter" ? t("cart.emporter") : t("cart.livraison")}
+                    </p>
+                  ) : (
                   <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-full bg-ink/5 p-1">
-                    {(["emporter", "livraison"] as const).map((m) => (
+                    {cart.modes.map((m) => (
                       <button
                         key={m}
                         role="radio"
@@ -154,6 +159,7 @@ export function CartDrawer() {
                       </button>
                     ))}
                   </div>
+                  )}
                 </div>
 
                 {step === "cart" ? (
@@ -257,7 +263,7 @@ export function CartDrawer() {
                       <dd className="tabular-nums">{formatPrice(total)}</dd>
                     </div>
                   </dl>
-                  {belowMinimum && <p className="text-xs text-red-600 mb-3">{t("cart.minDelivery")}</p>}
+                  {belowMinimum && <p className="text-xs text-red-600 mb-3">{t("cart.minDelivery", { n: cart.deliveryMinimum })}</p>}
                   {step === "cart" ? (
                     <button disabled={belowMinimum} onClick={() => setStep("details")} className={`${btnPrimary} w-full`}>
                       {t("cart.checkout")}

@@ -132,7 +132,7 @@ function BestSellers() {
                       </span>
                       <button
                         onClick={() => {
-                          cart.add({ name: dishName(b.category, row!.name), size, price });
+                          cart.add({ name: dishName(b.category, row!.name), size, price, category: b.category });
                           setAdded(b.key);
                           window.setTimeout(() => setAdded((k) => (k === b.key ? null : k)), 1600);
                         }}
@@ -159,11 +159,15 @@ function Modes() {
     cart.setMode(mode);
     commander(`mode-${mode}`);
   };
-  const cards: { title: Key; desc: Key; action: () => void; icon: string }[] = [
+  const all: { title: Key; desc: Key; action: () => void; icon: string }[] = [
     { title: "modes.emporter", desc: "modes.emporterDesc", action: () => go("emporter"), icon: "01" },
     { title: "modes.livraison", desc: "modes.livraisonDesc", action: () => go("livraison"), icon: "02" },
     { title: "modes.surPlace", desc: "modes.surPlaceDesc", action: () => navigate("/sur-place"), icon: "03" },
   ];
+  // Only the ways the restaurant currently offers (admin settings).
+  const cards = all.filter((c) =>
+    c.title === "modes.emporter" ? cart.modes.includes("emporter") : c.title === "modes.livraison" ? cart.modes.includes("livraison") : true,
+  );
 
   return (
     <section className="bg-cream py-24 md:py-36">
@@ -172,7 +176,7 @@ function Modes() {
         <h2 data-reveal className={`${headingLg} mb-12`}>
           {t("modes.title")} <Alt>{t("modes.titleAlt")}</Alt>
         </h2>
-        <div className="grid md:grid-cols-3 gap-4 md:gap-5">
+        <div className={`grid gap-4 md:gap-5 ${cards.length === 3 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
           {cards.map((c, i) => (
             <button
               key={c.title}
