@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { CartDrawer } from "./components/CartDrawer";
 import { Footer } from "./components/Footer";
-import { MobileBar } from "./components/MobileBar";
 import { Navigation } from "./components/Navigation";
 import { PolicyModal } from "./components/PolicyModal";
 import { PromoPopup } from "./components/PromoPopup";
@@ -37,7 +36,6 @@ function Site({ route }: { route: Exclude<Route, "/admin"> }) {
         <Page />
       </main>
       <Footer />
-      <MobileBar />
       <CartDrawer />
       <PromoPopup />
       <ReservationModal />

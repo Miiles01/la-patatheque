@@ -11,7 +11,7 @@ const LINKS: { to: Route; label: Key; alt: Key }[] = [
   { to: "/", label: "nav.home", alt: "home.tagline" },
   { to: "/menu", label: "nav.menu", alt: "menu.title" },
   { to: "/sur-place", label: "nav.surPlace", alt: "surPlace.title" },
-  { to: "/commander", label: "nav.order", alt: "nav.commander" },
+  { to: "/commander", label: "nav.orderShort", alt: "nav.commander" },
   { to: "/traiteur", label: "nav.catering", alt: "catering.badge" },
   { to: "/a-propos", label: "nav.about", alt: "story.kicker" },
   { to: "/carrieres", label: "nav.careers", alt: "careers.titleAlt" },
@@ -110,23 +110,23 @@ export function Navigation() {
             aria-label={t("nav.top")}
             className={`pointer-events-auto block transition-colors duration-500 ${onDark ? "text-paper" : "text-red-600"}`}
           >
-            <LogoMark className="h-8 md:h-10" />
+            <LogoMark className="h-7 md:h-10" />
           </Link>
 
           {/* Controls sit on their own cream pill, so unlike the logo they never need to change color. */}
-          <div className="pointer-events-auto flex items-center gap-1.5 md:gap-3 rounded-full bg-paper pl-2.5 md:pl-6 pr-2.5 py-2.5">
+          <div className="pointer-events-auto flex items-center gap-1.5 md:gap-3 rounded-full bg-paper pl-1.5 md:pl-6 pr-1.5 md:pr-2.5 py-2.5">
             <CopyPhone />
             <button
               onClick={() => setLang(lang === "fr" ? "en" : "fr")}
               aria-label={t("nav.lang")}
-              className="h-10 min-w-10 rounded-full px-2.5 text-xs font-bold tracking-wider text-ink/70 hover:bg-ink/5 hover:text-ink transition-colors"
+              className="hidden md:block h-10 min-w-10 rounded-full px-2.5 text-xs font-bold tracking-wider text-ink/70 hover:bg-ink/5 hover:text-ink transition-colors"
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
             <button
               onClick={() => cart.setOpen(true)}
               aria-label={`${t("nav.cart")} (${cart.count})`}
-              className="relative hidden md:flex w-10 h-10 items-center justify-center rounded-full text-ink hover:bg-ink/5 transition-colors"
+              className="relative flex w-10 h-10 items-center justify-center rounded-full text-ink hover:bg-ink/5 transition-colors"
             >
               <BagIcon />
               {cart.count > 0 && (
@@ -137,7 +137,7 @@ export function Navigation() {
             </button>
             <button
               onClick={() => commander("navbar")}
-              className="hidden md:block rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+              className="rounded-full bg-red-600 px-4 md:px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
             >
               {t("nav.commander")}
             </button>
@@ -170,7 +170,7 @@ export function Navigation() {
 
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const route = useRoute();
   const rootRef = useRef<HTMLDivElement>(null);
   const pending = useRef<(() => void) | null>(null);
@@ -280,6 +280,21 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           </button>
 
           <div className="mt-auto pt-14 grid sm:grid-cols-2 gap-8 text-sm text-ink/75">
+            <div className="sm-item md:hidden">
+              <p className="alt text-lg text-ink mb-2">Langue · Language</p>
+              <div className="inline-grid grid-cols-2 gap-1 rounded-full bg-ink/5 p-1">
+                {(["fr", "en"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    aria-pressed={lang === l}
+                    className={`rounded-full px-5 py-2 text-xs font-bold ${lang === l ? "bg-paper text-ink shadow-sm" : "text-ink/55"}`}
+                  >
+                    {l.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="sm-item">
               <p className="alt text-lg text-ink mb-1">{t("nav.address")}</p>
               <a href={restaurant.mapsUrl} target="_blank" rel="noreferrer" className="hover:text-red-600">

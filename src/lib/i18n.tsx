@@ -8,6 +8,7 @@ const fr = {
   "nav.menu": "Menu",
   "nav.surPlace": "Sur place",
   "nav.order": "Pour emporter / Livraison",
+  "nav.orderShort": "Emporter / Livraison",
   "nav.catering": "Service traiteur",
   "nav.about": "À propos",
   "nav.careers": "Carrières",
@@ -220,7 +221,6 @@ const fr = {
   "promo.title": "10 % de réduction sur votre première commande !",
   "promo.text": "Laissez-nous votre courriel et recevez votre code de bienvenue.",
   "promo.submit": "Obtenir mon code",
-  "promo.later": "Non merci",
   "promo.success": "Voici votre code",
   "promo.howTo": "Entrez-le au moment de commander pour obtenir 10 % de rabais.",
   "promo.order": "Commander maintenant",
@@ -237,12 +237,6 @@ const fr = {
   "footer.delivery": "Livraison gratuite, minimum 10 $",
   "footer.admin": "Espace admin (démo)",
 
-  // Mobile bar
-  "bar.home": "Accueil",
-  "bar.menu": "Menu",
-  "bar.cart": "Panier",
-  "bar.contact": "Contact",
-
   // Hours
   "hours.sunWed": "Dimanche – Mercredi",
   "hours.thuSat": "Jeudi – Samedi",
@@ -256,6 +250,7 @@ const en: Record<Key, string> = {
   "nav.menu": "Menu",
   "nav.surPlace": "Dine-in",
   "nav.order": "Takeout / Delivery",
+  "nav.orderShort": "Takeout / Delivery",
   "nav.catering": "Catering",
   "nav.about": "About",
   "nav.careers": "Careers",
@@ -458,7 +453,6 @@ const en: Record<Key, string> = {
   "promo.title": "10% off your first order!",
   "promo.text": "Leave us your email and get your welcome code.",
   "promo.submit": "Get my code",
-  "promo.later": "No thanks",
   "promo.success": "Here's your code",
   "promo.howTo": "Enter it when you order to get 10% off.",
   "promo.order": "Order now",
@@ -474,10 +468,6 @@ const en: Record<Key, string> = {
   "footer.delivery": "Free delivery, $10 minimum",
   "footer.admin": "Admin area (demo)",
 
-  "bar.home": "Home",
-  "bar.menu": "Menu",
-  "bar.cart": "Cart",
-  "bar.contact": "Contact",
 
   "hours.sunWed": "Sunday – Wednesday",
   "hours.thuSat": "Thursday – Saturday",

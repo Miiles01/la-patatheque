@@ -152,9 +152,6 @@ export function PromoPopup() {
                   >
                     {t("promo.submit")}
                   </button>
-                  <button type="button" onClick={() => setOpen(false)} className="text-sm text-paper/65 underline underline-offset-4 py-1 hover:text-paper">
-                    {t("promo.later")}
-                  </button>
                 </form>
               )}
             </div>

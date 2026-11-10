@@ -20,7 +20,7 @@ export function Footer() {
   ];
 
   return (
-    <footer data-nav="dark" className="bg-red-700 text-paper px-5 md:px-10 pb-24 md:pb-0">
+    <footer data-nav="dark" className="bg-red-700 text-paper px-5 md:px-10">
       <div className="mx-auto max-w-7xl">
         <div className="py-16 md:py-24 border-b border-paper/20 flex justify-center">
           <DrawLogo className="w-full max-w-5xl h-auto text-paper" />
