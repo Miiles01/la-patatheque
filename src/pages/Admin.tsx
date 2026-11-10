@@ -474,7 +474,6 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
     }
     return out;
   }, [orders]);
-  const max = Math.max(1, ...days.map((d) => d.count));
 
   const topItems = useMemo(() => {
     const counts = new Map<string, number>();
@@ -497,33 +496,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
             <h2 className="font-display font-bold text-lg">Commandes, 7 derniers jours</h2>
             <span className="text-xs text-ink/50">{orders.length ? `${delivery} livraisons · ${orders.length - delivery} pour emporter` : ""}</span>
           </div>
-          <div className="flex items-end gap-2 md:gap-3 h-48 border-b border-ink/15" role="list" aria-label="Commandes par jour">
-            {days.map((d) => (
-              <div key={d.date.toISOString()} role="listitem" className="group relative flex-1 h-full flex flex-col justify-end items-center">
-                <span className="mb-1 text-xs font-semibold tabular-nums text-ink/70">{d.count || ""}</span>
-                <div
-                  className="w-full max-w-10 rounded-t-[4px] bg-red-600 group-hover:bg-red-700 transition-colors"
-                  style={{ height: `${(d.count / max) * 85}%`, minHeight: d.count ? 4 : 0 }}
-                />
-                <span className="sr-only">
-                  {dayLabel.format(d.date)} : {d.count} commandes, {money.format(d.total)}
-                </span>
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute bottom-full mb-2 hidden group-hover:block whitespace-nowrap rounded-lg bg-ink px-3 py-2 text-xs text-paper shadow-lg z-10"
-                >
-                  {d.count} commande{d.count > 1 ? "s" : ""} · {money.format(d.total)}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2 md:gap-3 mt-2">
-            {days.map((d) => (
-              <span key={d.date.toISOString()} className="flex-1 text-center text-[11px] text-ink/50 capitalize">
-                {dayLabel.format(d.date)}
-              </span>
-            ))}
-          </div>
+          <OrdersAreaChart days={days} />
         </Card>
 
         <Card>
@@ -572,6 +545,137 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
           ))}
         </Shortcut>
       </div>
+    </div>
+  );
+}
+
+type Day = { date: Date; count: number; total: number };
+
+/** Smooth path through evenly spaced points that never overshoots the data (monotone cubic). */
+function monotonePath(p: { x: number; y: number }[]) {
+  const n = p.length;
+  if (n < 2) return "";
+  const dx = p[1].x - p[0].x;
+  const slope = p.slice(0, -1).map((pt, i) => (p[i + 1].y - pt.y) / dx);
+  const m = p.map((_, i) =>
+    i === 0 ? slope[0] : i === n - 1 ? slope[n - 2] : slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2,
+  );
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) {
+      m[i] = 0;
+      m[i + 1] = 0;
+      continue;
+    }
+    const a = m[i] / slope[i];
+    const b = m[i + 1] / slope[i];
+    const h = a * a + b * b;
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h);
+      m[i] = t * a * slope[i];
+      m[i + 1] = t * b * slope[i];
+    }
+  }
+  let d = `M ${p[0].x} ${p[0].y}`;
+  for (let i = 0; i < n - 1; i++) {
+    d += ` C ${p[i].x + dx / 3} ${p[i].y + (m[i] * dx) / 3} ${p[i + 1].x - dx / 3} ${p[i + 1].y - (m[i + 1] * dx) / 3} ${p[i + 1].x} ${p[i + 1].y}`;
+  }
+  return d;
+}
+
+/** Single-series area chart: soft gradient fill, 2px line, crosshair and tooltip on hover. */
+function OrdersAreaChart({ days }: { days: Day[] }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const W = 600;
+  const H = 200;
+  const TOP = 14;
+  const max = Math.max(1, ...days.map((d) => d.count));
+  const pts = days.map((d, i) => ({ x: (i / (days.length - 1)) * W, y: TOP + (1 - d.count / max) * (H - TOP) }));
+  const line = monotonePath(pts);
+  const active = hover === null ? null : days[hover];
+  const pct = (i: number) => (i / (days.length - 1)) * 100;
+
+  function onMove(e: React.PointerEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const rel = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    setHover(Math.round(rel * (days.length - 1)));
+  }
+
+  return (
+    <div>
+      <div className="relative h-48 touch-none" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible text-red-600" aria-hidden="true">
+          <defs>
+            <linearGradient id="orders-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75, 1].map((f) => (
+            <line
+              key={f}
+              x1="0"
+              x2={W}
+              y1={TOP + (1 - f) * (H - TOP)}
+              y2={TOP + (1 - f) * (H - TOP)}
+              stroke="#2b1c14"
+              strokeOpacity="0.07"
+              strokeDasharray="3 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          <line x1="0" x2={W} y1={H} y2={H} stroke="#2b1c14" strokeOpacity="0.15" vectorEffect="non-scaling-stroke" />
+          <path d={`${line} L ${W} ${H} L 0 ${H} Z`} fill="url(#orders-area)" />
+          <path d={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        </svg>
+
+        {active && hover !== null && (
+          <>
+            <span className="pointer-events-none absolute top-0 bottom-0 w-px bg-ink/20" style={{ left: `${pct(hover)}%` }} />
+            <span
+              className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-600 ring-[3px] ring-white shadow"
+              style={{ left: `${pct(hover)}%`, top: `${(pts[hover].y / H) * 100}%` }}
+            />
+            <span
+              className={`pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-lg bg-ink px-3 py-2 text-xs text-paper shadow-lg ${
+                hover > days.length / 2 ? "-translate-x-[calc(100%+10px)]" : "translate-x-[10px]"
+              }`}
+              style={{ left: `${pct(hover)}%` }}
+            >
+              <span className="block capitalize text-paper/60">{dayLabel.format(active.date)}</span>
+              <span className="block font-semibold">
+                {active.count} commande{active.count > 1 ? "s" : ""} · {money.format(active.total)}
+              </span>
+            </span>
+          </>
+        )}
+      </div>
+
+      <div className="relative mt-2 h-4">
+        {days.map((d, i) => (
+          <span
+            key={d.date.toISOString()}
+            className={`absolute whitespace-nowrap text-[11px] capitalize ${hover === i ? "text-ink font-semibold" : "text-ink/45"} ${
+              i === 0 ? "" : i === days.length - 1 ? "-translate-x-full" : "-translate-x-1/2"
+            }`}
+            style={{ left: `${pct(i)}%` }}
+          >
+            {dayLabel.format(d.date)}
+          </span>
+        ))}
+      </div>
+
+      <table className="sr-only">
+        <caption>Commandes par jour</caption>
+        <tbody>
+          {days.map((d) => (
+            <tr key={d.date.toISOString()}>
+              <th>{dayLabel.format(d.date)}</th>
+              <td>{d.count} commandes</td>
+              <td>{money.format(d.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
