@@ -24,6 +24,11 @@ export function startScroll() {
   lenis?.start();
 }
 
+export function scrollToTop(immediate = true) {
+  if (lenis) lenis.scrollTo(0, { immediate, force: true });
+  else window.scrollTo({ top: 0 });
+}
+
 export function scrollToHash(hash: string) {
   const target = hash === "#accueil" ? 0 : document.querySelector<HTMLElement>(hash);
   if (target === null) return;
@@ -82,7 +87,7 @@ export function useSmoothScroll() {
  * - data-zoom: image eases from scale 1.15 to 1 inside its frame
  * - data-spin: rotates a full turn while it crosses the viewport
  */
-export function useScrollEffects() {
+export function useScrollEffects(pageKey: string) {
   useLayoutEffect(() => {
     if (reducedMotion) return;
     const splits: SplitText[] = [];
@@ -148,9 +153,10 @@ export function useScrollEffects() {
       });
     });
 
+    ScrollTrigger.refresh();
     return () => {
       ctx.revert();
       splits.forEach((s) => s.revert());
     };
-  }, []);
+  }, [pageKey]);
 }

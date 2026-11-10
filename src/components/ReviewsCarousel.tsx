@@ -3,6 +3,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Testimonial } from "../data/menu";
+import { asset } from "../lib/asset";
 import { reducedMotion } from "../lib/motion";
 
 type Photo = NonNullable<Testimonial["photo"]>;
@@ -168,7 +169,7 @@ function ReviewCard({
           className="group relative mb-6 w-28 h-20 overflow-hidden rounded-lg"
         >
           <img
-            src={t.photo.src}
+            src={asset(t.photo.src)}
             alt={t.photo.alt}
             loading="lazy"
             draggable={false}
@@ -251,7 +252,7 @@ function ExpandedReview({
                 aria-label="Agrandir la photo du repas"
                 className="mb-8 overflow-hidden rounded-xl"
               >
-                <img src={t.photo.src} alt={t.photo.alt} width={t.photo.width} height={t.photo.height} className="w-full h-auto" />
+                <img src={asset(t.photo.src)} alt={t.photo.alt} width={t.photo.width} height={t.photo.height} className="w-full h-auto" />
               </motion.button>
             )}
 
@@ -267,7 +268,7 @@ function Reviewer({ review: t }: { review: Testimonial }) {
   return (
     <motion.figcaption layout="position" className="flex items-center gap-3">
       {t.avatar ? (
-        <img src={t.avatar} alt="" width={48} height={48} loading="lazy" draggable={false} className="w-12 h-12 shrink-0" />
+        <img src={asset(t.avatar)} alt="" width={48} height={48} loading="lazy" draggable={false} className="w-12 h-12 shrink-0" />
       ) : (
         <span className="w-12 h-12 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
           {t.name.charAt(0)}
@@ -330,7 +331,7 @@ function PhotoLightbox({ photo, onClose }: { photo: Photo | null; onClose: () =>
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.96, opacity: 0 }}
             transition={{ duration: 0.3, ease: EASE }}
-            src={photo.src}
+            src={asset(photo.src)}
             alt={photo.alt}
             width={photo.width}
             height={photo.height}

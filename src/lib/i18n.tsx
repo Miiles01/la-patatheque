@@ -1,0 +1,567 @@
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+// French is the primary language; English mirrors every key. Dish names stay in
+// French on purpose, as on the printed menu.
+const fr = {
+  // Navigation
+  "nav.home": "Accueil",
+  "nav.menu": "Menu",
+  "nav.surPlace": "Sur place",
+  "nav.order": "Pour emporter / Livraison",
+  "nav.catering": "Service traiteur",
+  "nav.about": "À propos",
+  "nav.careers": "Carrières",
+  "nav.contact": "Nous joindre",
+  "nav.commander": "Commander",
+  "nav.cart": "Panier",
+  "nav.open": "Ouvrir le menu",
+  "nav.close": "Fermer le menu",
+  "nav.address": "Adresse",
+  "nav.follow": "Suivez-nous",
+  "nav.copy": "Copier le numéro de téléphone",
+  "nav.copied": "Numéro copié",
+  "nav.top": "La Patathèque, retour à l'accueil",
+  "nav.lang": "English",
+
+  // Home
+  "home.tagline": "La meilleure pizza de l'Est",
+  "home.title1": "Pizza, poutine",
+  "home.title2": "sous-marins",
+  "home.cta": "Commander maintenant",
+  "home.seeMenu": "Voir le menu",
+  "home.payNote": "Pour emporter ou en livraison · vous payez à la réception",
+  "best.kicker": "Meilleures ventes",
+  "best.title": "Ce qu'on commande",
+  "best.titleAlt": "le plus",
+  "best.add": "Ajouter",
+  "best.from": "à partir de",
+  "best.pizza": "Pizza toute garnie",
+  "best.pizzaDesc": "Piments verts, champignons, pepperoni et fromage",
+  "best.poutine": "Poutine toute garnie",
+  "best.poutineDesc": "Frites maison, fromage en grains et sauce maison",
+  "best.sub": "Le Super (tout garni)",
+  "best.subDesc": "Steak, pepperoni, piments et champignons",
+  "best.brochette": "Brochette de poulet",
+  "best.brochetteDesc": "Servie avec riz, patates et salade",
+  "modes.kicker": "Comment manger",
+  "modes.title": "Trois façons de",
+  "modes.titleAlt": "se régaler",
+  "modes.emporter": "Pour emporter",
+  "modes.emporterDesc": "Commandez en ligne, passez la chercher au comptoir.",
+  "modes.livraison": "Livraison",
+  "modes.livraisonDesc": "Gratuite dans le quartier, minimum 10 $ avant taxes.",
+  "modes.surPlace": "Sur place",
+  "modes.surPlaceDesc": "Nos meilleurs prix, et le déjeuner 7 jours sur 7.",
+  "modes.go": "C'est parti",
+  "specials.kicker": "Super spéciaux",
+  "specials.title": "Bien manger,",
+  "specials.titleAlt": "sans se",
+  "specials.titleEnd": "ruiner.",
+  "specials.number": "Spécial no",
+  "specials.all": "Voir les {n} super spéciaux",
+  "specials.hide": "Masquer la liste",
+  "specials.rule": "Les spéciaux ne peuvent être combinés avec d'autres offres.",
+  "reviews.title": "Le quartier",
+  "reviews.titleAlt": "en parle",
+  "story.kicker": "Notre histoire",
+  "story.title": "Un comptoir de quartier",
+  "story.titleAlt": "qui n'a jamais",
+  "story.titleEnd": "changé de recette.",
+  "story.p1": "Même adresse sur Sherbrooke Est, même sauce, même four toujours chaud. Depuis {n} ans, La Patathèque nourrit les familles de Rivière-des-Prairies – Pointe-aux-Trembles, repas après repas.",
+  "story.p2": "Pas de chichi : des habitués qu'on connaît par leur prénom, des portions qui remplissent et une pizza toute garnie qui goûte encore comme avant.",
+  "story.more": "Notre histoire",
+  "story.years": "années de service",
+  "story.reviews": "{n} avis Google",
+  "story.dishes": "plats au menu",
+
+  // Menu chooser
+  "menu.kicker": "Le menu",
+  "menu.title": "Deux menus,",
+  "menu.titleAlt": "deux prix",
+  "menu.intro": "Nos prix sur place sont plus avantageux que pour emporter et en livraison. Choisissez votre menu pour voir les bons prix.",
+  "menu.orderTitle": "Pour emporter / Livraison",
+  "menu.orderDesc": "Le menu complet à commander en ligne, prix pour emporter et livraison.",
+  "menu.orderCta": "Commander",
+  "menu.surPlaceTitle": "Sur place",
+  "menu.surPlaceDesc": "Le menu en salle et le menu déjeuner, avec nos prix sur place.",
+  "menu.surPlaceCta": "Voir le menu sur place",
+
+  // Ordering
+  "order.kicker": "Commander",
+  "order.title": "Pour emporter",
+  "order.titleAlt": "ou en livraison",
+  "order.intro": "Choisissez vos plats, on s'occupe du reste. Aucun paiement en ligne : vous payez au comptoir ou à la livraison.",
+  "order.format": "Format",
+  "order.add": "Ajouter",
+  "order.added": "Ajouté au panier",
+  "order.specials": "Super spéciaux",
+  "order.prices": "Prix pour emporter et livraison. Taxes en sus. Prix sujets à changement sans préavis.",
+  "order.viewCart": "Voir le panier",
+
+  // Cart & checkout
+  "cart.title": "Votre commande",
+  "cart.empty": "Votre panier est vide.",
+  "cart.browse": "Voir le menu",
+  "cart.emporter": "Pour emporter",
+  "cart.livraison": "Livraison",
+  "cart.subtotal": "Sous-total",
+  "cart.discount": "Rabais de bienvenue (10 %)",
+  "cart.total": "Total avant taxes",
+  "cart.minDelivery": "Livraison : minimum 10 $ avant taxes.",
+  "cart.checkout": "Continuer",
+  "cart.back": "Retour au panier",
+  "cart.close": "Fermer le panier",
+  "cart.remove": "Retirer",
+  "form.name": "Nom",
+  "form.fullName": "Nom complet",
+  "form.phone": "Téléphone",
+  "form.email": "Courriel",
+  "form.optional": "facultatif",
+  "form.address": "Adresse de livraison",
+  "form.when": "Quand ?",
+  "form.asap": "Dès que possible",
+  "form.later": "Plus tard aujourd'hui",
+  "form.time": "Heure",
+  "form.notes": "Note pour la cuisine",
+  "form.notesHint": "Allergies, sans oignons, sonnette brisée…",
+  "form.promo": "Code promo",
+  "form.apply": "Appliquer",
+  "form.promoOk": "Code appliqué : 10 % de rabais",
+  "form.promoBad": "Code invalide",
+  "form.message": "Message",
+  "form.consent": "J'accepte que La Patathèque m'envoie ses offres par courriel. Je peux me désabonner en tout temps.",
+  "form.sending": "Envoi…",
+  "form.required": "Champ obligatoire",
+  "cart.submit": "Envoyer la commande",
+  "cart.payNote": "Aucun paiement en ligne. Vous payez au comptoir ou au livreur (Interac, Visa, Mastercard).",
+  "cart.thanks": "Merci !",
+  "cart.received": "Commande reçue",
+  "cart.number": "Commande no",
+  "cart.confirmPickup": "On vous appelle pour confirmer l'heure de cueillette.",
+  "cart.confirmDelivery": "On vous appelle pour confirmer l'heure de livraison.",
+  "cart.done": "Fermer",
+
+  // Sur place
+  "surPlace.kicker": "Sur place",
+  "surPlace.title": "Venez manger",
+  "surPlace.titleAlt": "au comptoir",
+  "surPlace.intro": "Nos prix sur place sont plus avantageux qu'en livraison. Ambiance de quartier, service rapide et le déjeuner servi 7 jours sur 7.",
+  "surPlace.cheaper": "Prix sur place plus bas qu'à emporter",
+  "surPlace.breakfast": "Menu déjeuner",
+  "surPlace.breakfastHours": "7 jours sur 7, de 8 h à 13 h",
+  "surPlace.dineIn": "Menu en salle",
+  "surPlace.dineInHours": "Tous les jours dès 11 h",
+  "surPlace.soon": "Menu bientôt en ligne",
+  "surPlace.soonText": "Le restaurant nous transmet ce menu et ses prix sur place. En attendant, appelez-nous ou passez nous voir.",
+  "surPlace.reserve": "Réserver une table",
+  "surPlace.directions": "Itinéraire",
+
+  // Catering
+  "catering.kicker": "Service traiteur",
+  "catering.badge": "Bientôt disponible · 2027",
+  "catering.title": "Vos événements,",
+  "catering.titleAlt": "à la Patathèque",
+  "catering.intro": "Fêtes de bureau, anniversaires, matchs entre amis : notre service traiteur arrive en 2027. Laissez-nous vos coordonnées et parlez-nous de votre projet, on vous écrit dès l'ouverture.",
+  "catering.formTitle": "Être informé en premier",
+  "catering.eventType": "Type d'événement",
+  "catering.eventOptions": "Fête familiale|Événement d'entreprise|Anniversaire|Sport et rassemblement|Autre",
+  "catering.date": "Date approximative",
+  "catering.guests": "Nombre de personnes",
+  "catering.submit": "Envoyer ma demande",
+  "catering.thanks": "Merci ! On vous écrit dès que le service traiteur est disponible.",
+
+  // About
+  "about.kicker": "À propos",
+  "about.statement": "{n} ans",
+  "about.statementRest": "de sauce maison, de four toujours chaud",
+  "about.statementAnd": "et",
+  "about.statementEnd": "de portions généreuses.",
+  "about.kitchenKicker": "Notre cuisine",
+  "about.kitchenTitle": "De 8 à 18 pouces,",
+  "about.kitchenAlt": "gratinée",
+  "about.kitchenEnd": "comme il se doit.",
+  "about.kitchenText": "Des pizzas en six formats, des sous-marins garnis d'oignons frits, des poutines à la sauce maison et des pâtes gratinées au four. Livraison gratuite dans le quartier.",
+  "about.sauce": "Une sauce faite maison",
+  "about.dough": "Une recette qui n'a pas changé",
+  "about.bread": "Le pain des sous-marins, livré frais",
+
+  // Careers
+  "careers.kicker": "Carrières",
+  "careers.title": "Rejoignez",
+  "careers.titleAlt": "l'équipe",
+  "careers.intro": "Cuisine, comptoir, livraison : on cherche des gens souriants qui aiment le rythme d'un comptoir de quartier. Envoyez-nous votre candidature.",
+  "careers.perk1": "Horaires flexibles",
+  "careers.perk2": "Repas d'employé",
+  "careers.perk3": "Équipe de quartier",
+  "careers.message": "Parlez-nous de vous",
+  "careers.messageHint": "Poste souhaité, disponibilités, expérience…",
+  "careers.cv": "CV (PDF ou DOCX, 5 Mo max.)",
+  "careers.cvPick": "Choisir un fichier",
+  "careers.cvBadType": "Format accepté : PDF ou DOCX.",
+  "careers.cvTooBig": "Le fichier dépasse 5 Mo.",
+  "careers.submit": "Envoyer ma candidature",
+  "careers.thanks": "Merci ! Votre candidature a bien été envoyée. On vous contacte si votre profil correspond.",
+
+  // Contact
+  "contact.kicker": "Nous joindre",
+  "contact.title": "Sur Sherbrooke Est,",
+  "contact.titleAlt": "comme toujours.",
+  "contact.phone": "Téléphone",
+  "contact.email": "Courriel",
+  "contact.address": "Adresse",
+  "contact.hours": "Heures d'ouverture",
+  "contact.delivery": "Livraison",
+  "contact.call": "Appeler",
+  "contact.directions": "Itinéraire",
+  "contact.mapTitle": "Carte : La Patathèque, 13640 rue Sherbrooke Est",
+
+  // Promo pop-up
+  "promo.kicker": "Bienvenue !",
+  "promo.title": "10 % de réduction sur votre première commande !",
+  "promo.text": "Laissez-nous votre courriel et recevez votre code de bienvenue.",
+  "promo.submit": "Obtenir mon code",
+  "promo.later": "Non merci",
+  "promo.success": "Voici votre code",
+  "promo.howTo": "Entrez-le au moment de commander pour obtenir 10 % de rabais.",
+  "promo.order": "Commander maintenant",
+  "promo.close": "Fermer",
+
+  // Footer
+  "footer.contact": "Contact",
+  "footer.hours": "Heures",
+  "footer.links": "Liens",
+  "footer.where": "Où nous trouver",
+  "footer.payment": "Paiement",
+  "footer.social": "Social",
+  "footer.privacy": "Politique de confidentialité",
+  "footer.delivery": "Livraison gratuite, minimum 10 $",
+  "footer.admin": "Espace admin (démo)",
+
+  // Mobile bar
+  "bar.home": "Accueil",
+  "bar.menu": "Menu",
+  "bar.cart": "Panier",
+  "bar.contact": "Contact",
+
+  // Hours
+  "hours.sunWed": "Dimanche – Mercredi",
+  "hours.thuSat": "Jeudi – Samedi",
+  "hours.breakfast": "Déjeuner, 7 jours",
+};
+
+export type Key = keyof typeof fr;
+
+const en: Record<Key, string> = {
+  "nav.home": "Home",
+  "nav.menu": "Menu",
+  "nav.surPlace": "Dine-in",
+  "nav.order": "Takeout / Delivery",
+  "nav.catering": "Catering",
+  "nav.about": "About",
+  "nav.careers": "Careers",
+  "nav.contact": "Contact us",
+  "nav.commander": "Order",
+  "nav.cart": "Cart",
+  "nav.open": "Open menu",
+  "nav.close": "Close menu",
+  "nav.address": "Address",
+  "nav.follow": "Follow us",
+  "nav.copy": "Copy phone number",
+  "nav.copied": "Number copied",
+  "nav.top": "La Patathèque, back to home",
+  "nav.lang": "Français",
+
+  "home.tagline": "The best pizza in the East",
+  "home.title1": "Pizza, poutine",
+  "home.title2": "subs",
+  "home.cta": "Order now",
+  "home.seeMenu": "See the menu",
+  "home.payNote": "Takeout or delivery · pay when you get it",
+  "best.kicker": "Best sellers",
+  "best.title": "What people order",
+  "best.titleAlt": "the most",
+  "best.add": "Add",
+  "best.from": "from",
+  "best.pizza": "Pizza toute garnie",
+  "best.pizzaDesc": "Green peppers, mushrooms, pepperoni and cheese",
+  "best.poutine": "Poutine toute garnie",
+  "best.poutineDesc": "House fries, cheese curds and house gravy",
+  "best.sub": "Le Super (all dressed)",
+  "best.subDesc": "Steak, pepperoni, peppers and mushrooms",
+  "best.brochette": "Chicken brochette",
+  "best.brochetteDesc": "Served with rice, potatoes and salad",
+  "modes.kicker": "How to eat",
+  "modes.title": "Three ways to",
+  "modes.titleAlt": "dig in",
+  "modes.emporter": "Takeout",
+  "modes.emporterDesc": "Order online, pick it up at the counter.",
+  "modes.livraison": "Delivery",
+  "modes.livraisonDesc": "Free in the neighbourhood, $10 minimum before tax.",
+  "modes.surPlace": "Dine-in",
+  "modes.surPlaceDesc": "Our best prices, and breakfast 7 days a week.",
+  "modes.go": "Let's go",
+  "specials.kicker": "Super specials",
+  "specials.title": "Eat well,",
+  "specials.titleAlt": "without",
+  "specials.titleEnd": "going broke.",
+  "specials.number": "Special no.",
+  "specials.all": "See all {n} super specials",
+  "specials.hide": "Hide the list",
+  "specials.rule": "Specials cannot be combined with other offers.",
+  "reviews.title": "The neighbourhood",
+  "reviews.titleAlt": "talks",
+  "story.kicker": "Our story",
+  "story.title": "A neighbourhood counter",
+  "story.titleAlt": "that never changed",
+  "story.titleEnd": "its recipe.",
+  "story.p1": "Same address on Sherbrooke East, same sauce, same always-hot oven. For {n} years, La Patathèque has been feeding families in Rivière-des-Prairies – Pointe-aux-Trembles, one meal at a time.",
+  "story.p2": "No fuss: regulars we know by name, portions that fill you up and an all-dressed pizza that still tastes like it used to.",
+  "story.more": "Our story",
+  "story.years": "years of service",
+  "story.reviews": "{n} Google reviews",
+  "story.dishes": "dishes on the menu",
+
+  "menu.kicker": "The menu",
+  "menu.title": "Two menus,",
+  "menu.titleAlt": "two prices",
+  "menu.intro": "Our dine-in prices are lower than takeout and delivery. Pick your menu to see the right prices.",
+  "menu.orderTitle": "Takeout / Delivery",
+  "menu.orderDesc": "The full menu to order online, with takeout and delivery prices.",
+  "menu.orderCta": "Order",
+  "menu.surPlaceTitle": "Dine-in",
+  "menu.surPlaceDesc": "The dining room menu and breakfast menu, with our dine-in prices.",
+  "menu.surPlaceCta": "See the dine-in menu",
+
+  "order.kicker": "Order",
+  "order.title": "Takeout",
+  "order.titleAlt": "or delivery",
+  "order.intro": "Pick your dishes, we'll handle the rest. No online payment: you pay at the counter or on delivery.",
+  "order.format": "Size",
+  "order.add": "Add",
+  "order.added": "Added to cart",
+  "order.specials": "Super specials",
+  "order.prices": "Takeout and delivery prices. Taxes extra. Prices subject to change without notice.",
+  "order.viewCart": "View cart",
+
+  "cart.title": "Your order",
+  "cart.empty": "Your cart is empty.",
+  "cart.browse": "See the menu",
+  "cart.emporter": "Takeout",
+  "cart.livraison": "Delivery",
+  "cart.subtotal": "Subtotal",
+  "cart.discount": "Welcome discount (10%)",
+  "cart.total": "Total before tax",
+  "cart.minDelivery": "Delivery: $10 minimum before tax.",
+  "cart.checkout": "Continue",
+  "cart.back": "Back to cart",
+  "cart.close": "Close cart",
+  "cart.remove": "Remove",
+  "form.name": "Name",
+  "form.fullName": "Full name",
+  "form.phone": "Phone",
+  "form.email": "Email",
+  "form.optional": "optional",
+  "form.address": "Delivery address",
+  "form.when": "When?",
+  "form.asap": "As soon as possible",
+  "form.later": "Later today",
+  "form.time": "Time",
+  "form.notes": "Note for the kitchen",
+  "form.notesHint": "Allergies, no onions, broken doorbell…",
+  "form.promo": "Promo code",
+  "form.apply": "Apply",
+  "form.promoOk": "Code applied: 10% off",
+  "form.promoBad": "Invalid code",
+  "form.message": "Message",
+  "form.consent": "I agree that La Patathèque may email me its offers. I can unsubscribe at any time.",
+  "form.sending": "Sending…",
+  "form.required": "Required field",
+  "cart.submit": "Send my order",
+  "cart.payNote": "No online payment. You pay at the counter or to the driver (Interac, Visa, Mastercard).",
+  "cart.thanks": "Thank you!",
+  "cart.received": "Order received",
+  "cart.number": "Order no.",
+  "cart.confirmPickup": "We'll call you to confirm the pickup time.",
+  "cart.confirmDelivery": "We'll call you to confirm the delivery time.",
+  "cart.done": "Close",
+
+  "surPlace.kicker": "Dine-in",
+  "surPlace.title": "Come eat",
+  "surPlace.titleAlt": "at the counter",
+  "surPlace.intro": "Our dine-in prices are lower than delivery. Neighbourhood vibe, quick service and breakfast served 7 days a week.",
+  "surPlace.cheaper": "Dine-in prices lower than takeout",
+  "surPlace.breakfast": "Breakfast menu",
+  "surPlace.breakfastHours": "7 days a week, 8 a.m. to 1 p.m.",
+  "surPlace.dineIn": "Dining room menu",
+  "surPlace.dineInHours": "Every day from 11 a.m.",
+  "surPlace.soon": "Menu online soon",
+  "surPlace.soonText": "The restaurant is sending us this menu and its dine-in prices. Meanwhile, call us or drop by.",
+  "surPlace.reserve": "Book a table",
+  "surPlace.directions": "Directions",
+
+  "catering.kicker": "Catering",
+  "catering.badge": "Coming soon · 2027",
+  "catering.title": "Your events,",
+  "catering.titleAlt": "by la Patathèque",
+  "catering.intro": "Office parties, birthdays, game nights with friends: our catering service arrives in 2027. Leave your details and tell us about your project, we'll write as soon as it opens.",
+  "catering.formTitle": "Be the first to know",
+  "catering.eventType": "Type of event",
+  "catering.eventOptions": "Family party|Corporate event|Birthday|Sports and get-together|Other",
+  "catering.date": "Approximate date",
+  "catering.guests": "Number of guests",
+  "catering.submit": "Send my request",
+  "catering.thanks": "Thank you! We'll write as soon as catering is available.",
+
+  "about.kicker": "About",
+  "about.statement": "{n} years",
+  "about.statementRest": "of homemade sauce, an always-hot oven",
+  "about.statementAnd": "and",
+  "about.statementEnd": "generous portions.",
+  "about.kitchenKicker": "Our kitchen",
+  "about.kitchenTitle": "From 8 to 18 inches,",
+  "about.kitchenAlt": "baked",
+  "about.kitchenEnd": "the way it should be.",
+  "about.kitchenText": "Pizzas in six sizes, subs dressed with fried onions, poutines with house gravy and oven-baked pasta. Free delivery in the neighbourhood.",
+  "about.sauce": "A homemade sauce",
+  "about.dough": "A recipe that never changed",
+  "about.bread": "Sub bread, delivered fresh",
+
+  "careers.kicker": "Careers",
+  "careers.title": "Join",
+  "careers.titleAlt": "the team",
+  "careers.intro": "Kitchen, counter, delivery: we're looking for friendly people who enjoy the pace of a neighbourhood counter. Send us your application.",
+  "careers.perk1": "Flexible hours",
+  "careers.perk2": "Staff meals",
+  "careers.perk3": "Neighbourhood team",
+  "careers.message": "Tell us about yourself",
+  "careers.messageHint": "Position, availability, experience…",
+  "careers.cv": "Resume (PDF or DOCX, 5 MB max)",
+  "careers.cvPick": "Choose a file",
+  "careers.cvBadType": "Accepted formats: PDF or DOCX.",
+  "careers.cvTooBig": "The file is larger than 5 MB.",
+  "careers.submit": "Send my application",
+  "careers.thanks": "Thank you! Your application was sent. We'll contact you if your profile is a match.",
+
+  "contact.kicker": "Contact us",
+  "contact.title": "On Sherbrooke East,",
+  "contact.titleAlt": "as always.",
+  "contact.phone": "Phone",
+  "contact.email": "Email",
+  "contact.address": "Address",
+  "contact.hours": "Opening hours",
+  "contact.delivery": "Delivery",
+  "contact.call": "Call",
+  "contact.directions": "Directions",
+  "contact.mapTitle": "Map: La Patathèque, 13640 Sherbrooke Street East",
+
+  "promo.kicker": "Welcome!",
+  "promo.title": "10% off your first order!",
+  "promo.text": "Leave us your email and get your welcome code.",
+  "promo.submit": "Get my code",
+  "promo.later": "No thanks",
+  "promo.success": "Here's your code",
+  "promo.howTo": "Enter it when you order to get 10% off.",
+  "promo.order": "Order now",
+  "promo.close": "Close",
+
+  "footer.contact": "Contact",
+  "footer.hours": "Hours",
+  "footer.links": "Links",
+  "footer.where": "Find us",
+  "footer.payment": "Payment",
+  "footer.social": "Social",
+  "footer.privacy": "Privacy policy",
+  "footer.delivery": "Free delivery, $10 minimum",
+  "footer.admin": "Admin area (demo)",
+
+  "bar.home": "Home",
+  "bar.menu": "Menu",
+  "bar.cart": "Cart",
+  "bar.contact": "Contact",
+
+  "hours.sunWed": "Sunday – Wednesday",
+  "hours.thuSat": "Thursday – Saturday",
+  "hours.breakfast": "Breakfast, 7 days",
+};
+
+export type Lang = "fr" | "en";
+
+/** English labels for menu categories and their notes, keyed by category id. */
+export const categoryEn: Record<string, { name: string; note?: string }> = {
+  "notre-delicieuse-pizza": { name: "Our pizza", note: "Homemade sauce with fresh basil and olive oil" },
+  "promos-pizza": { name: "Pizza deals" },
+  "sous-marins": {
+    name: "Subs",
+    note: "All subs come with melted cheese, fried onions, lettuce, tomatoes and our spice blend (except no. 6: no lettuce or tomatoes)",
+  },
+  "poutines-speciales": { name: "Special poutines" },
+  "specialites-italiennes": { name: "Italian specialties", note: "Garlic bread $2.50 · 10\" au gratin $4.50" },
+  sandwichs: { name: "Sandwiches" },
+  "ailes-de-poulet": { name: "Chicken wings", note: "Plates come with fries, coleslaw and a pickle" },
+  "les-repas": { name: "Meals" },
+  "les-salades": { name: "Salads" },
+  "les-casse-croutes": { name: "Snacks" },
+  "les-breuvages": { name: "Drinks" },
+};
+
+type I18n = {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (key: Key, vars?: Record<string, string | number>) => string;
+};
+
+const I18nContext = createContext<I18n | null>(null);
+
+function initialLang(): Lang {
+  try {
+    const saved = localStorage.getItem("patatheque-lang");
+    if (saved === "fr" || saved === "en") return saved;
+  } catch {
+    // ignore
+  }
+  return "fr";
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLang] = useState<Lang>(initialLang);
+
+  useEffect(() => {
+    document.documentElement.lang = lang === "fr" ? "fr-CA" : "en-CA";
+    try {
+      localStorage.setItem("patatheque-lang", lang);
+    } catch {
+      // ignore
+    }
+  }, [lang]);
+
+  const value = useMemo<I18n>(() => {
+    const dict = lang === "fr" ? fr : en;
+    return {
+      lang,
+      setLang,
+      t: (key, vars) => {
+        let text: string = dict[key];
+        if (vars) for (const [k, v] of Object.entries(vars)) text = text.replace(`{${k}}`, String(v));
+        return text;
+      },
+    };
+  }, [lang]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n() {
+  const ctx = useContext(I18nContext);
+  if (!ctx) throw new Error("useI18n outside I18nProvider");
+  return ctx;
+}
+
+/** Price in the active language's Canadian format: 12,70 $ or $12.70. */
+export function useFormatPrice() {
+  const { lang } = useI18n();
+  const fmt = useMemo(
+    () => new Intl.NumberFormat(lang === "fr" ? "fr-CA" : "en-CA", { style: "currency", currency: "CAD" }),
+    [lang],
+  );
+  return (n: number) => fmt.format(n);
+}

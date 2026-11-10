@@ -33,6 +33,19 @@ export const specials = menu.specials.items as Special[];
 export const specialsNote = menu.specials.note;
 export const promos = menu.promos as { name: string; price: number | null }[];
 
+// Dish names on the menu assume their section ("Fromage" under pizzas); orders
+// need them spelled out.
+const DISH_PREFIX: Record<string, string> = {
+  "notre-delicieuse-pizza": "Pizza",
+  "sous-marins": "Sous-marin",
+  "poutines-speciales": "Poutine",
+};
+
+export function dishName(categoryId: string, name: string) {
+  const prefix = DISH_PREFIX[categoryId];
+  return prefix ? `${prefix} ${name}` : name;
+}
+
 const priceFormat = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 export const formatPrice = (price: number) => priceFormat.format(price);
 
@@ -119,6 +132,8 @@ export const restaurant = {
   address: "13640 Rue Sherbrooke Est, Rivière-des-Prairies – Pointe-aux-Trembles, QC H1A 4B2",
   phone: "+1 514-642-2557",
   phoneDisplay: "(514) 642-2557",
+  /** Pending from the restaurant; the contact page hides the row while empty. */
+  email: "",
   rating: 4.1,
   reviewCount: 532,
   orderUrl: "https://order.restomenu.com/fr/la-patatheque/menu",

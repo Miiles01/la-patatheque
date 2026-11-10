@@ -1,21 +1,34 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { restaurant } from "../data/menu";
-import { gsap, reducedMotion, ScrollTrigger, scrollToHash, startScroll, stopScroll } from "../lib/motion";
+import { track } from "../lib/analytics";
+import { useCart } from "../lib/cart";
+import { useI18n, type Key } from "../lib/i18n";
+import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
+import { Link, navigate, useRoute, type Route } from "../lib/router";
 import { LogoMark } from "./LogoMark";
-import { openReservation } from "./ReservationModal";
 
-const LINKS = [
-  { hash: "#menu", label: "Le menu", alt: "À la carte" },
-  { hash: "#speciaux", label: "Super spéciaux", alt: "Les combos" },
-  { hash: "#histoire", label: "Notre histoire", alt: "Depuis 45 ans" },
-  { hash: "#visite", label: "Nous trouver", alt: "Sherbrooke Est" },
+const LINKS: { to: Route; label: Key; alt: Key }[] = [
+  { to: "/", label: "nav.home", alt: "home.tagline" },
+  { to: "/menu", label: "nav.menu", alt: "menu.title" },
+  { to: "/sur-place", label: "nav.surPlace", alt: "surPlace.title" },
+  { to: "/commander", label: "nav.order", alt: "nav.commander" },
+  { to: "/traiteur", label: "nav.catering", alt: "catering.badge" },
+  { to: "/a-propos", label: "nav.about", alt: "story.kicker" },
+  { to: "/carrieres", label: "nav.careers", alt: "careers.titleAlt" },
+  { to: "/nous-joindre", label: "nav.contact", alt: "contact.titleAlt" },
 ];
 
 export const SOCIALS = [
+  { label: "Facebook", href: "https://www.facebook.com/patatheque/?locale=fr_CA", icon: <FacebookIcon /> },
   { label: "Instagram", href: "https://www.instagram.com/resto.la.patatheque/", icon: <InstagramIcon /> },
-  { label: "Facebook", href: "https://www.facebook.com/patatheque/", icon: <FacebookIcon /> },
   { label: "TikTok", href: "https://www.tiktok.com/@la.patatheque", icon: <TikTokIcon /> },
+  { label: "YouTube", href: "https://youtube.com/@lapatatheque", icon: <YouTubeIcon /> },
 ];
+
+export function commander(from: string) {
+  track("commander_click", { from });
+  navigate("/commander");
+}
 
 const NAV_LINE = 36; // px from the top where the bar's content sits
 
@@ -23,7 +36,7 @@ const NAV_LINE = 36; // px from the top where the bar's content sits
  * True while the bar sits over a section marked data-nav="dark" (photos, red
  * bands, the footer), so the logo and controls can switch to cream.
  */
-function useDarkBackdrop() {
+function useDarkBackdrop(route: Route) {
   const [dark, setDark] = useState(false);
 
   useLayoutEffect(() => {
@@ -39,12 +52,13 @@ function useDarkBackdrop() {
     const trigger = ScrollTrigger.create({ start: 0, end: "max", onUpdate: update, onRefresh: update });
     update();
     return () => trigger.kill();
-  }, []);
+  }, [route]);
 
   return dark;
 }
 
 function CopyPhone() {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -60,15 +74,15 @@ function CopyPhone() {
   // The copy icon only shows while the pointer (or keyboard focus) is on the number.
   return (
     <div
-      className="group hidden md:flex items-center gap-1 text-sm font-semibold text-ink"
+      className="group hidden lg:flex items-center gap-1 text-sm font-semibold text-ink"
     >
       <a href={`tel:${restaurant.phone}`} className="tabular-nums">
         {restaurant.phoneDisplay}
       </a>
       <button
         onClick={copy}
-        aria-label={copied ? "Numéro copié" : "Copier le numéro de téléphone"}
-        title={copied ? "Copié" : "Copier"}
+        aria-label={copied ? t("nav.copied") : t("nav.copy")}
+        title={copied ? t("nav.copied") : t("nav.copy")}
         className={`flex h-8 w-8 items-center justify-center rounded-full transition-[opacity,background-color] duration-200 ${
           copied ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
         } hover:bg-ink/5`}
@@ -80,38 +94,56 @@ function CopyPhone() {
 }
 
 export function Navigation() {
+  const { t, lang, setLang } = useI18n();
+  const cart = useCart();
+  const route = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
-  const dark = useDarkBackdrop();
+  const dark = useDarkBackdrop(route);
   const onDark = dark && !menuOpen;
 
   return (
     <>
       <header className="fixed inset-x-0 top-0 z-[80] pointer-events-none">
         <div className="mx-auto max-w-7xl px-5 md:px-10 h-[72px] flex items-center justify-between">
-          <a
-            href="#accueil"
-            onClick={(e) => {
-              e.preventDefault();
-              scrollToHash("#accueil");
-            }}
-            aria-label="La Patathèque, retour en haut"
+          <Link
+            to="/"
+            aria-label={t("nav.top")}
             className={`pointer-events-auto block transition-colors duration-500 ${onDark ? "text-paper" : "text-red-600"}`}
           >
             <LogoMark className="h-8 md:h-10" />
-          </a>
+          </Link>
 
           {/* Controls sit on their own cream pill, so unlike the logo they never need to change color. */}
-          <div className="pointer-events-auto flex items-center gap-2 md:gap-4 rounded-full bg-paper pl-2.5 md:pl-6 pr-2.5 py-2.5">
+          <div className="pointer-events-auto flex items-center gap-1.5 md:gap-3 rounded-full bg-paper pl-2.5 md:pl-6 pr-2.5 py-2.5">
             <CopyPhone />
             <button
-              onClick={openReservation}
-              className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+              onClick={() => setLang(lang === "fr" ? "en" : "fr")}
+              aria-label={t("nav.lang")}
+              className="h-10 min-w-10 rounded-full px-2.5 text-xs font-bold tracking-wider text-ink/70 hover:bg-ink/5 hover:text-ink transition-colors"
             >
-              Réserver
+              {lang === "fr" ? "EN" : "FR"}
+            </button>
+            <button
+              onClick={() => cart.setOpen(true)}
+              aria-label={`${t("nav.cart")} (${cart.count})`}
+              className="relative hidden md:flex w-10 h-10 items-center justify-center rounded-full text-ink hover:bg-ink/5 transition-colors"
+            >
+              <BagIcon />
+              {cart.count > 0 && (
+                <span className="absolute top-0.5 right-0 min-w-[18px] h-[18px] rounded-full bg-red-600 px-1 text-[10px] font-bold leading-[18px] text-paper text-center">
+                  {cart.count}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => commander("navbar")}
+              className="hidden md:block rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+            >
+              {t("nav.commander")}
             </button>
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-label={menuOpen ? t("nav.close") : t("nav.open")}
               aria-expanded={menuOpen}
               aria-controls="menu-lateral"
               className="group relative w-10 h-10 flex items-center justify-center rounded-full text-ink hover:bg-ink/5 transition-colors"
@@ -138,6 +170,8 @@ export function Navigation() {
 
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useI18n();
+  const route = useRoute();
   const rootRef = useRef<HTMLDivElement>(null);
   const pending = useRef<(() => void) | null>(null);
   const mounted = useRef(false);
@@ -213,44 +247,47 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="sm-curtain absolute inset-y-0 right-0 w-full md:w-1/2 bg-red-700" />
 
       <div className="sm-panel absolute inset-y-0 right-0 w-full md:w-1/2 bg-cream overflow-y-auto">
-        <div className="min-h-full flex flex-col px-6 md:px-14 pt-28 pb-10">
-          <nav className="flex flex-col gap-1" aria-label="Navigation principale">
+        <div className="min-h-full flex flex-col px-6 md:px-14 pt-24 pb-10">
+          <nav className="flex flex-col gap-0.5" aria-label="Navigation principale">
             {LINKS.map((link) => (
               <a
-                key={link.hash}
-                href={link.hash}
+                key={link.to}
+                href={`#${link.to}`}
+                aria-current={route === link.to ? "page" : undefined}
                 onClick={(e) => {
                   e.preventDefault();
-                  closeThen(() => scrollToHash(link.hash));
+                  closeThen(() => navigate(link.to));
                 }}
-                className="sm-item group relative block h-[1.15em] overflow-hidden font-display font-extrabold text-[clamp(2.2rem,4.4vw,3.75rem)] leading-[1.15] tracking-[-0.02em] text-ink"
+                className={`sm-item group relative block h-[1.15em] overflow-hidden font-display font-extrabold text-[clamp(1.9rem,3.6vw,3rem)] leading-[1.15] tracking-[-0.02em] ${
+                  route === link.to ? "text-red-600" : "text-ink"
+                }`}
               >
                 <span className="block transition-transform duration-300 ease-out group-hover:-translate-y-[110%]">
-                  {link.label}
+                  {t(link.label)}
                 </span>
-                <span className="alt absolute inset-x-0 top-full block font-normal tracking-normal text-red-600 transition-transform duration-300 ease-out group-hover:-translate-y-full">
-                  {link.alt}
+                <span className="alt absolute inset-x-0 top-full block font-normal tracking-normal text-red-600 transition-transform duration-300 ease-out group-hover:-translate-y-full truncate">
+                  {t(link.alt)}
                 </span>
               </a>
             ))}
           </nav>
 
           <button
-            onClick={() => closeThen(openReservation)}
-            className="sm-item mt-10 w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+            onClick={() => closeThen(() => commander("side-menu"))}
+            className="sm-item mt-8 w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
           >
-            Réserver une table
+            {t("nav.commander")}
           </button>
 
           <div className="mt-auto pt-14 grid sm:grid-cols-2 gap-8 text-sm text-ink/75">
             <div className="sm-item">
-              <p className="alt text-lg text-ink mb-1">Adresse</p>
+              <p className="alt text-lg text-ink mb-1">{t("nav.address")}</p>
               <a href={restaurant.mapsUrl} target="_blank" rel="noreferrer" className="hover:text-red-600">
                 13640, rue Sherbrooke Est
               </a>
             </div>
             <div className="sm-item">
-              <p className="alt text-lg text-ink mb-2">Suivez-nous</p>
+              <p className="alt text-lg text-ink mb-2">{t("nav.follow")}</p>
               <div className="flex gap-3">
                 {SOCIALS.map((s) => (
                   <a
@@ -296,6 +333,24 @@ function TikTokIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
       <path d="M14 4v10.5a3.2 3.2 0 1 1-2.4-3.1" />
       <path d="M14 4c.3 2.2 1.9 3.9 4 4.2V11c-1.5 0-2.9-.5-4-1.4" />
+    </svg>
+  );
+}
+
+function YouTubeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+      <rect x="2.5" y="5.5" width="19" height="13" rx="4" />
+      <path d="m10 9.2 5 2.8-5 2.8z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function BagIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+      <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </svg>
   );
 }
