@@ -31,7 +31,9 @@ export type Application = {
   email: string;
   phone: string;
   message: string;
-  cv?: { name: string; size: number; type: string; dataUrl?: string };
+  /** Answers to the extra questions set in the admin, with the label as asked. */
+  answers?: { label: string; value: string }[];
+  cv?: { name: string; size: number; type: string; dataUrl?: string; url?: string };
 };
 
 export type CateringRequest = {

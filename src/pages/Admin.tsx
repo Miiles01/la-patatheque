@@ -3,6 +3,7 @@ import { LogoMark } from "../components/LogoMark";
 import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
 import { asset } from "../lib/asset";
 import { saveSettings, useSettings } from "../lib/settings";
+import { FIELD_TYPES, resetCareersFields, saveCareersFields, useCareersFields, type CareersField, type FieldType } from "../lib/careersForm";
 import { PROMO_CODE } from "../lib/cart";
 import {
   clear,
@@ -897,19 +898,103 @@ function Subscribers({ rows }: { rows: Data["subscribers"] }) {
   );
 }
 
+type Cv = NonNullable<Data["applications"][number]["cv"]>;
+
+/** In-panel CV viewer: PDFs open inline; Word files can only be downloaded. */
+function CvViewer({ cv, name, onClose }: { cv: Cv; name: string; onClose: () => void }) {
+  const src = cv.url ? asset(cv.url) : cv.dataUrl;
+  const isPdf = cv.type === "application/pdf" || cv.name.toLowerCase().endsWith(".pdf");
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  // Browsers block data: URLs in frames, so stored PDFs are shown through a blob URL.
+  useEffect(() => {
+    if (!cv.dataUrl || !isPdf) return;
+    let url: string | null = null;
+    fetch(cv.dataUrl)
+      .then((r) => r.blob())
+      .then((blob) => {
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      });
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [cv.dataUrl, isPdf]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const frameSrc = cv.url ? asset(cv.url) : blobUrl;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 md:p-8" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`CV de ${name}`}
+        onClick={(e) => e.stopPropagation()}
+        className="flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <div className="min-w-0">
+            <p className="font-semibold truncate">CV · {name}</p>
+            <p className="text-xs text-ink/50 truncate">
+              {cv.name} · {Math.round(cv.size / 1024)} Ko
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {src && (
+              <a href={src} download={cv.name} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
+                Télécharger
+              </a>
+            )}
+            <button onClick={onClose} aria-label="Fermer" className="relative h-9 w-9 rounded-full text-ink/60 hover:bg-ink/5">
+              <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
+              <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
+            </button>
+          </div>
+        </div>
+        {isPdf && frameSrc ? (
+          <iframe title={`CV de ${name}`} src={frameSrc} className="flex-1 w-full bg-ink/5" />
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-ink/60">
+            <p>{isPdf ? "Chargement…" : "Aperçu non disponible pour les fichiers Word."}</p>
+            {!isPdf && src && (
+              <a href={src} download={cv.name} className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper">
+                Télécharger le CV
+              </a>
+            )}
+            {!src && <p className="text-sm">Fichier trop lourd pour la démo : en production il est conservé sur le serveur.</p>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Applications({ rows }: { rows: Data["applications"] }) {
+  const [view, setView] = useState<"list" | "form">("list");
+  const [viewing, setViewing] = useState<Data["applications"][number] | null>(null);
+
+  const tabCls = (active: boolean) =>
+    `rounded-full px-4 py-2 text-xs font-bold transition-colors ${active ? "bg-ink text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"}`;
+
   return (
     <>
       <SectionHead
         title="Candidatures"
         desc="Reçues depuis la page Carrières. En production, chaque candidature est aussi envoyée par courriel au restaurant et le CV est stocké de façon privée."
         onExport={
-          rows.length
+          view === "list" && rows.length
             ? () =>
                 downloadCsv("candidatures.csv", [
                   ["Nom", (r: Data["applications"][number]) => r.name],
                   ["Courriel", (r: Data["applications"][number]) => r.email],
                   ["Téléphone", (r: Data["applications"][number]) => r.phone],
+                  ["Réponses", (r: Data["applications"][number]) => (r.answers ?? []).map((a) => `${a.label} : ${a.value}`).join(" | ")],
                   ["Message", (r: Data["applications"][number]) => r.message],
                   ["CV", (r: Data["applications"][number]) => r.cv?.name],
                   ["Date", (r: Data["applications"][number]) => dateTime.format(new Date(r.createdAt))],
@@ -917,39 +1002,181 @@ function Applications({ rows }: { rows: Data["applications"] }) {
             : undefined
         }
       />
-      {!rows.length ? (
+
+      <div className="flex gap-2 mb-5">
+        <button onClick={() => setView("list")} className={tabCls(view === "list")}>
+          Candidatures ({rows.length})
+        </button>
+        <button onClick={() => setView("form")} className={tabCls(view === "form")}>
+          Formulaire
+        </button>
+      </div>
+
+      {view === "form" ? (
+        <CareersFormEditor />
+      ) : !rows.length ? (
         <Empty text="Aucune candidature pour l'instant." />
       ) : (
         <div className="grid md:grid-cols-2 gap-4">
           {rows.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} className="flex flex-col">
               <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">
-                    {r.name}
-                    <SampleTag show={r.sample} />
-                  </p>
-                  <p className="text-xs text-ink/50">{dateTime.format(new Date(r.createdAt))}</p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="w-10 h-10 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
+                    {r.name.charAt(0)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">
+                      {r.name}
+                      <SampleTag show={r.sample} />
+                    </p>
+                    <p className="text-xs text-ink/50">{dateTime.format(new Date(r.createdAt))}</p>
+                  </div>
                 </div>
-                {r.cv &&
-                  (r.cv.dataUrl ? (
-                    <a href={r.cv.dataUrl} download={r.cv.name} className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper">
-                      Télécharger le CV
-                    </a>
-                  ) : (
-                    <span className="shrink-0 rounded-full bg-ink/5 px-3 py-2 text-xs text-ink/60">{r.cv.name}</span>
-                  ))}
+                {r.cv && (
+                  <button onClick={() => setViewing(r)} className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper hover:bg-ink/85">
+                    Voir le CV
+                  </button>
+                )}
               </div>
-              <p className="mt-3 text-sm text-ink/75 whitespace-pre-line">{r.message}</p>
+
+              {!!r.answers?.length && (
+                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-ink/[0.03] p-4 text-sm">
+                  {r.answers.map((a) => (
+                    <div key={a.label}>
+                      <dt className="text-xs text-ink/50">{a.label}</dt>
+                      <dd className="font-semibold">{a.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+
+              <p className="mt-4 text-sm text-ink/75 whitespace-pre-line flex-1">{r.message}</p>
               <p className="mt-4 text-sm">
-                <a href={`mailto:${r.email}`} className="text-red-600 font-semibold">{r.email}</a> ·{" "}
-                <a href={`tel:${r.phone}`} className="text-red-600 font-semibold">{r.phone}</a>
+                <a href={`mailto:${r.email}`} className="text-red-600 font-semibold">
+                  {r.email}
+                </a>{" "}
+                ·{" "}
+                <a href={`tel:${r.phone}`} className="text-red-600 font-semibold">
+                  {r.phone}
+                </a>
               </p>
             </Card>
           ))}
         </div>
       )}
+
+      {viewing?.cv && <CvViewer cv={viewing.cv} name={viewing.name} onClose={() => setViewing(null)} />}
     </>
+  );
+}
+
+function CareersFormEditor() {
+  const fields = useCareersFields();
+  const set = (next: CareersField[]) => saveCareersFields(next);
+  const patch = (id: string, change: Partial<CareersField>) => set(fields.map((f) => (f.id === id ? { ...f, ...change } : f)));
+  const move = (i: number, dir: -1 | 1) => {
+    const next = [...fields];
+    const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    set(next);
+  };
+  const fixed = ["Nom complet", "Courriel", "Téléphone", "Message", "CV (PDF ou DOCX)"];
+  const field = "rounded-xl border-2 border-ink/15 bg-white px-3 py-2 text-sm focus:border-red-600 focus:outline-none";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-sm text-ink/60 max-w-2xl">
+        Choisissez les questions posées aux candidats sur la page Carrières. Les changements s'appliquent tout de suite au
+        formulaire du site.
+      </p>
+
+      <Card>
+        <p className="text-xs font-bold uppercase tracking-wider text-ink/45 mb-3">Toujours demandés</p>
+        <div className="flex flex-wrap gap-2">
+          {fixed.map((f) => (
+            <span key={f} className="rounded-full bg-ink/5 px-3 py-1.5 text-xs font-semibold text-ink/70">
+              {f}
+            </span>
+          ))}
+        </div>
+      </Card>
+
+      <ul className="flex flex-col gap-3">
+        {fields.map((f, i) => (
+          <li key={f.id} className="rounded-2xl bg-white border border-ink/10 p-4 md:p-5">
+            <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Question (FR)
+                <input value={f.label} onChange={(e) => patch(f.id, { label: e.target.value })} className={field} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Question (EN)
+                <input value={f.labelEn ?? ""} onChange={(e) => patch(f.id, { labelEn: e.target.value })} className={field} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Type
+                <select value={f.type} onChange={(e) => patch(f.id, { type: e.target.value as FieldType })} className={field}>
+                  {(Object.keys(FIELD_TYPES) as FieldType[]).map((t) => (
+                    <option key={t} value={t}>
+                      {FIELD_TYPES[t]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {f.type === "select" && (
+              <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Choix (séparés par des virgules)
+                <input
+                  value={(f.options ?? []).join(", ")}
+                  onChange={(e) => patch(f.id, { options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
+                  className={field}
+                />
+              </label>
+            )}
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={f.required} onChange={(e) => patch(f.id, { required: e.target.checked })} className="h-4 w-4 accent-red-600" />
+                Obligatoire
+              </label>
+              <div className="flex items-center gap-1">
+                <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Monter" className="h-8 w-8 rounded-lg text-ink/60 hover:bg-ink/5 disabled:opacity-30">
+                  ↑
+                </button>
+                <button onClick={() => move(i, 1)} disabled={i === fields.length - 1} aria-label="Descendre" className="h-8 w-8 rounded-lg text-ink/60 hover:bg-ink/5 disabled:opacity-30">
+                  ↓
+                </button>
+                <button
+                  onClick={() => set(fields.filter((x) => x.id !== f.id))}
+                  className="rounded-full px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-600/5"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() =>
+            set([...fields, { id: Math.random().toString(36).slice(2, 8), label: "Nouvelle question", type: "text", required: false }])
+          }
+          className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700"
+        >
+          + Ajouter une question
+        </button>
+        <button
+          onClick={() => window.confirm("Revenir aux questions par défaut ?") && resetCareersFields()}
+          className="rounded-full px-4 py-2.5 text-sm font-bold text-ink/60 hover:bg-ink/5"
+        >
+          Questions par défaut
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1364,7 +1591,24 @@ function loadSamples() {
   );
   record("subscribers", { email: "exemple.un@courriel.test", consent: true, code: PROMO_CODE, lang: "fr" }, true);
   record("subscribers", { email: "example.two@email.test", consent: true, code: PROMO_CODE, lang: "en" }, true);
-  record("applications", { name: "Candidat exemple", email: "candidat@courriel.test", phone: "514 555-0199", message: "Disponible les soirs et fins de semaine, expérience au comptoir.", cv: { name: "cv-exemple.pdf", size: 120000, type: "application/pdf" } }, true);
+  record(
+    "applications",
+    {
+      name: "Candidat exemple",
+      email: "candidat@courriel.test",
+      phone: "514 555-0199",
+      message: "Disponible les soirs et fins de semaine, expérience au comptoir.",
+      answers: [
+        { label: "Poste souhaité", value: "Comptoir" },
+        { label: "Disponibilités", value: "Soirs" },
+        { label: "Date de début possible", value: "2026-12-01" },
+        { label: "Expérience en restauration", value: "1 à 3 ans" },
+        { label: "Permis de conduire valide", value: "Non" },
+      ],
+      cv: { name: "cv-exemple.pdf", size: 1336, type: "application/pdf", url: "/demo/cv-exemple.pdf" },
+    },
+    true,
+  );
   record("catering", { name: "Entreprise exemple", email: "evenements@courriel.test", phone: "514 555-0177", eventType: "Événement d'entreprise", date: "2027-03", guests: "40", message: "Dîner d'équipe, pizzas et salades." }, true);
   for (let i = 0; i < 9; i++) record("events", { event: "commander_click", from: "exemple" }, true);
 }

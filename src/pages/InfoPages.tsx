@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useCareersFields, type CareersField } from "../lib/careersForm";
 import { LineButton } from "../components/LineLink";
 import { commander } from "../components/Navigation";
 import { Alt, btnOutline, btnPrimary, headingLg, PageHero, Success, TextArea, TextField } from "../components/ui";
@@ -141,8 +142,64 @@ export function AboutPage() {
 const MAX_CV = 5 * 1024 * 1024;
 const CV_TYPES = [".pdf", ".docx"];
 
+const careersInput =
+  "w-full rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 text-ink placeholder:text-ink/35 focus:border-red-600 focus:outline-none transition-colors";
+
+/** One of the extra questions the restaurant configured in the admin. */
+function CareersQuestion({ field }: { field: CareersField }) {
+  const { t, lang } = useI18n();
+  const label = lang === "en" && field.labelEn ? field.labelEn : field.label;
+  const name = `q-${field.id}`;
+  const optional = field.required ? null : <span className="text-ink/45 font-normal"> ({t("form.optional")})</span>;
+
+  if (field.type === "yesno") {
+    return (
+      <fieldset className="flex flex-col gap-1.5 text-sm font-medium">
+        <legend className="mb-1.5">
+          {label}
+          {optional}
+        </legend>
+        <div className="flex gap-2">
+          {[t("form.yes"), t("form.no")].map((v) => (
+            <label key={v} className="flex items-center gap-2 rounded-xl border-2 border-ink/15 bg-paper px-4 py-2.5 cursor-pointer has-[:checked]:border-red-600">
+              <input type="radio" name={name} value={v} required={field.required} className="accent-red-600" />
+              {v}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    );
+  }
+
+  return (
+    <label className="flex flex-col gap-1.5 text-sm font-medium">
+      <span>
+        {label}
+        {optional}
+      </span>
+      {field.type === "select" ? (
+        <select name={name} required={field.required} defaultValue="" className={careersInput}>
+          <option value="" disabled>
+            {t("form.choose")}
+          </option>
+          {(field.options ?? []).map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : field.type === "textarea" ? (
+        <textarea name={name} required={field.required} rows={3} className={careersInput} />
+      ) : (
+        <input name={name} type={field.type === "date" ? "date" : "text"} required={field.required} className={careersInput} />
+      )}
+    </label>
+  );
+}
+
 export function CareersPage() {
   const { t } = useI18n();
+  const fields = useCareersFields();
   const [sent, setSent] = useState(false);
   const [cv, setCv] = useState<File | null>(null);
   const [cvError, setCvError] = useState("");
@@ -182,7 +239,10 @@ export function CareersPage() {
           : undefined;
       cvRecord = { name: cv.name, size: cv.size, type: cv.type, dataUrl };
     }
-    record("applications", { name: get("name"), email: get("email"), phone: get("phone"), message: get("message"), cv: cvRecord });
+    const answers = fields
+      .map((field) => ({ label: field.label, value: get(`q-${field.id}`) }))
+      .filter((a) => a.value);
+    record("applications", { name: get("name"), email: get("email"), phone: get("phone"), message: get("message"), answers, cv: cvRecord });
     track("job_application");
     setSent(true);
   }
@@ -210,6 +270,15 @@ export function CareersPage() {
                   <TextField label={t("form.email")} name="email" type="email" required autoComplete="email" />
                   <TextField label={t("form.phone")} name="phone" type="tel" required autoComplete="tel" />
                 </div>
+                {fields.length > 0 && (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {fields.map((field) => (
+                      <div key={field.id} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
+                        <CareersQuestion field={field} />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <TextArea label={t("careers.message")} name="message" required rows={4} placeholder={t("careers.messageHint")} />
                 <div>
                   <span className="text-sm font-medium">{t("careers.cv")}</span>
