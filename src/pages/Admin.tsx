@@ -53,7 +53,107 @@ function useStore() {
   return data;
 }
 
+// Demo only: the credentials ship pre-filled so the client can walk in. The real
+// panel will check them on the server; nothing here protects any data.
+const DEMO_USER = "admin@patatheque.ca";
+const DEMO_PASSWORD = "Patatheque2026";
+const SESSION = "patatheque-admin-session";
+
+function isSignedIn() {
+  try {
+    return sessionStorage.getItem(SESSION) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function AdminPage() {
+  const [signedIn, setSignedIn] = useState(isSignedIn);
+
+  if (!signedIn) return <Login onSuccess={() => setSignedIn(true)} />;
+  return (
+    <Panel
+      onLogout={() => {
+        try {
+          sessionStorage.removeItem(SESSION);
+        } catch {
+          // ignore
+        }
+        setSignedIn(false);
+      }}
+    />
+  );
+}
+
+function Login({ onSuccess }: { onSuccess: () => void }) {
+  const [error, setError] = useState(false);
+
+  function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    if (f.get("user") === DEMO_USER && f.get("password") === DEMO_PASSWORD) {
+      try {
+        sessionStorage.setItem(SESSION, "1");
+      } catch {
+        // ignore
+      }
+      onSuccess();
+    } else {
+      setError(true);
+    }
+  }
+
+  const field =
+    "w-full rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 text-ink focus:border-red-600 focus:outline-none transition-colors";
+
+  return (
+    <div className="min-h-svh bg-cream text-ink flex items-center justify-center px-5 py-12">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center text-center mb-8">
+          <Link to="/" aria-label="Retour au site" className="text-red-600">
+            <LogoMark className="h-10" />
+          </Link>
+          <span className="mt-4 rounded-full bg-ink/5 px-3 py-1 text-xs font-bold uppercase tracking-wider text-ink/60">
+            Espace admin
+          </span>
+        </div>
+
+        <form onSubmit={submit} className="rounded-3xl bg-paper p-7 flex flex-col gap-4 shadow-sm">
+          <h1 className="font-display font-extrabold text-2xl">Connexion</h1>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Courriel
+            <input name="user" type="email" defaultValue={DEMO_USER} autoComplete="username" required className={field} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Mot de passe
+            <input
+              name="password"
+              type="password"
+              defaultValue={DEMO_PASSWORD}
+              autoComplete="current-password"
+              required
+              className={field}
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-sm text-red-600">
+              Courriel ou mot de passe incorrect.
+            </p>
+          )}
+          <button
+            type="submit"
+            className="mt-2 rounded-full bg-red-600 px-8 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+          >
+            Se connecter
+          </button>
+          <p className="text-xs text-ink/50 text-center">Démo : les identifiants sont déjà remplis.</p>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ onLogout }: { onLogout: () => void }) {
   const data = useStore();
   const [tab, setTab] = useState<Tab>("dashboard");
   const counts: Partial<Record<Tab, number>> = {
@@ -89,6 +189,9 @@ export function AdminPage() {
               className="rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
             >
               Vider
+            </button>
+            <button onClick={onLogout} className="rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5">
+              Déconnexion
             </button>
           </div>
         </div>
