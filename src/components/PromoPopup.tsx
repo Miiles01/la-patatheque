@@ -83,19 +83,20 @@ export function PromoPopup() {
             exit={{ y: 48, opacity: 0 }}
             transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full h-[92svh] md:h-auto md:w-[min(92vw,1100px)] md:aspect-[1800/1004] overflow-hidden rounded-t-3xl md:rounded-3xl bg-red-700 text-paper shadow-2xl"
+            className="relative w-full h-[92svh] md:h-auto md:w-[min(94vw,1180px)] md:aspect-[1800/1004] md:min-h-[480px] overflow-hidden rounded-t-3xl md:rounded-3xl bg-[#6a030a] text-paper shadow-2xl"
           >
             <picture>
               <source media="(min-width: 768px)" srcSet={asset("/promo/promo-desktop.webp")} />
               <img
                 src={asset("/promo/promo-mobile.webp")}
                 alt=""
-                className="absolute inset-x-0 top-0 h-[52%] w-full object-cover object-[50%_64%] md:inset-0 md:h-full md:object-left"
+                className="absolute inset-x-0 top-0 h-[56%] w-full object-cover object-[50%_64%] md:inset-0 md:h-full md:object-[30%_50%]"
               />
             </picture>
-            {/* On phones the photo fills the top and fades into solid red under the copy;
-                on desktop the red deepens on the right, behind the text. */}
-            <div className="absolute inset-0 bg-linear-to-t from-red-700 from-40% via-red-700/60 via-46% to-transparent to-54% md:bg-linear-to-r md:from-transparent md:from-45% md:via-red-700/60 md:via-60% md:to-red-700/90" />
+            {/* One gradient, 0 % to 100 %, in the photo's own wine red (#6a030a, sampled from the
+                shot) so it melts into the picture. Phones: transparent at the top to solid under
+                the copy. Desktop: transparent on the left to solid behind the text on the right. */}
+            <div className="absolute inset-0 bg-linear-to-t from-[#6a030a] from-40% to-[#6a030a]/0 to-62% md:bg-linear-to-r md:from-[#6a030a]/0 md:from-35% md:to-[#6a030a] md:to-100%" />
 
             <button
               onClick={() => setOpen(false)}
@@ -106,7 +107,7 @@ export function PromoPopup() {
               <span className="absolute h-[1.5px] w-5 bg-current -rotate-45" />
             </button>
 
-            <div className="absolute inset-x-0 bottom-0 md:inset-y-0 md:left-auto md:right-0 md:w-[44%] flex flex-col justify-end md:justify-center px-6 pb-8 pt-10 md:px-12 md:py-12">
+            <div className="absolute inset-x-0 bottom-0 md:inset-y-0 md:left-auto md:right-0 md:w-[48%] lg:w-[44%] flex flex-col justify-end md:justify-center px-6 pb-8 pt-10 md:px-12 md:py-12">
               <p className="script text-orange-soft text-3xl md:text-5xl mb-1 md:mb-2">{t("promo.kicker")}</p>
               <h2 id="promo-title" className="font-display font-extrabold text-[1.75rem] md:text-[clamp(2rem,3.4vw,3rem)] leading-[1.02] tracking-[-0.02em]">
                 {t("promo.title")}
