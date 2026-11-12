@@ -35,12 +35,20 @@ export type Member = {
   name: string;
   email: string;
   role: Role;
+  /** Panel pages this member can open; set per member, starting from the role's defaults. */
+  tabs?: AdminTab[];
   passwordHash: string;
   active: boolean;
   owner?: boolean;
   createdAt: string;
   lastLogin?: string;
 };
+
+/** Pages a member can open. The owner sees everything; only the owner manages the team. */
+export function memberTabs(m: Member): AdminTab[] {
+  if (m.owner) return ROLES.proprietaire.tabs;
+  return (m.tabs ?? ROLES[m.role].tabs).filter((t) => t !== "team");
+}
 
 export const OWNER_EMAIL = "admin@patatheque.ca";
 /** Demo only: pre-filled on the login screen so the client can walk in. */
@@ -59,7 +67,9 @@ export async function hashPassword(email: string, password: string) {
 
 export function listTeam(): Member[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    const rows: Member[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    // Drop duplicates an earlier double owner seed may have left behind.
+    return rows.filter((m, i) => rows.findIndex((x) => x.id === m.id) === i);
   } catch {
     return [];
   }
@@ -83,8 +93,18 @@ export function onTeamChange(fn: () => void) {
   };
 }
 
+let seeding: Promise<void> | null = null;
+
 /** Creates the owner account the first time the panel is opened in this browser. */
-export async function ensureOwner() {
+export function ensureOwner() {
+  // Hashing is async, so concurrent callers share one run instead of each adding an owner.
+  seeding ??= seedOwner();
+  return seeding;
+}
+
+async function seedOwner() {
+  if (listTeam().some((m) => m.owner)) return;
+  const passwordHash = await hashPassword(OWNER_EMAIL, OWNER_DEMO_PASSWORD);
   if (listTeam().some((m) => m.owner)) return;
   save([
     {
@@ -92,7 +112,7 @@ export async function ensureOwner() {
       name: "Propriétaire",
       email: OWNER_EMAIL,
       role: "proprietaire",
-      passwordHash: await hashPassword(OWNER_EMAIL, OWNER_DEMO_PASSWORD),
+      passwordHash,
       active: true,
       owner: true,
       createdAt: new Date().toISOString(),
@@ -110,7 +130,7 @@ export async function authenticate(email: string, password: string): Promise<Mem
   return member;
 }
 
-export async function addMember(input: { name: string; email: string; role: Role; password: string }) {
+export async function addMember(input: { name: string; email: string; role: Role; password: string; tabs: AdminTab[] }) {
   const email = normalize(input.email);
   if (listTeam().some((m) => m.email === email)) throw new Error("Ce courriel a déjà un accès.");
   const member: Member = {
@@ -118,6 +138,7 @@ export async function addMember(input: { name: string; email: string; role: Role
     name: input.name.trim(),
     email,
     role: input.role,
+    tabs: input.tabs.filter((t) => t !== "team"),
     passwordHash: await hashPassword(email, input.password),
     active: true,
     createdAt: new Date().toISOString(),

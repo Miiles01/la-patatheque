@@ -24,6 +24,7 @@ import {
   ensureOwner,
   generatePassword,
   listTeam,
+  memberTabs,
   onTeamChange,
   OWNER_DEMO_PASSWORD,
   OWNER_EMAIL,
@@ -250,8 +251,9 @@ function TabIcon({ tab }: { tab: Tab }) {
 
 function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const data = useStore();
-  const allowed = TABS.filter((t) => ROLES[user.role].tabs.includes(t.id));
-  const [tab, setTab] = useState<Tab>(allowed[0].id);
+  const permitted = memberTabs(user);
+  const allowed = TABS.filter((t) => permitted.includes(t.id));
+  const [tab, setTab] = useState<Tab>(allowed[0]?.id ?? "dashboard");
   // Open by default on desktop, closed on phones where it slides over the content.
   const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
   const counts: Partial<Record<Tab, number>> = {
@@ -260,7 +262,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
     applications: data.applications.length,
     catering: data.catering.length,
   };
-  const current = allowed.find((t) => t.id === tab) ?? allowed[0];
+  const current = allowed.find((t) => t.id === tab) ?? allowed[0] ?? { id: "dashboard" as Tab, label: "Aucun accès" };
 
   const open = (t: Tab) => {
     if (!allowed.some((a) => a.id === t)) return;
@@ -421,7 +423,10 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
         </header>
 
         <main className="mx-auto max-w-6xl px-5 md:px-8 py-8 md:py-10">
-          {tab === "dashboard" && <Dashboard data={data} onOpen={open} />}
+          {!allowed.length && (
+            <Empty text="Votre compte n'a accès à aucune page pour l'instant. Demandez au propriétaire de vous en attribuer dans Équipe." />
+          )}
+          {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} />}
           {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
           {tab === "applications" && <Applications rows={data.applications} />}
@@ -1432,6 +1437,35 @@ function SettingsView() {
   );
 }
 
+/** Checkbox grid of the panel pages a member may open. Équipe stays with the owner. */
+function PermissionPicker({ value, onChange }: { value: Tab[]; onChange: (tabs: Tab[]) => void }) {
+  const assignable = TABS.filter((t) => t.id !== "team");
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {assignable.map((t) => {
+        const on = value.includes(t.id);
+        return (
+          <label
+            key={t.id}
+            className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+              on ? "border-red-600/40 bg-red-600/5 text-ink" : "border-ink/10 text-ink/60 hover:bg-ink/[0.03]"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={on}
+              onChange={(e) => onChange(e.target.checked ? [...value, t.id] : value.filter((x) => x !== t.id))}
+              className="h-4 w-4 accent-red-600"
+            />
+            <TabIcon tab={t.id} />
+            <span className="font-semibold">{t.label}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 const ROLE_OPTIONS = (Object.keys(ROLES) as Role[]).filter((r) => r !== "proprietaire");
 
 function PasswordInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -1464,7 +1498,9 @@ function Team({ currentUser }: { currentUser: Member }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("comptoir");
+  const [tabs, setTabs] = useState<Tab[]>(ROLES.comptoir.tabs);
   const [password, setPw] = useState(generatePassword);
+  const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [resetting, setResetting] = useState<string | null>(null);
@@ -1474,7 +1510,7 @@ function Team({ currentUser }: { currentUser: Member }) {
     e.preventDefault();
     setError("");
     try {
-      const m = await addMember({ name, email, role, password });
+      const m = await addMember({ name, email, role, password, tabs });
       setCreated({ email: m.email, password });
       setName("");
       setEmail("");
@@ -1530,19 +1566,31 @@ function Team({ currentUser }: { currentUser: Member }) {
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Rôle
-            <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputCls}>
+            <select
+              value={role}
+              onChange={(e) => {
+                const r = e.target.value as Role;
+                setRole(r);
+                setTabs(ROLES[r].tabs);
+              }}
+              className={inputCls}
+            >
               {ROLE_OPTIONS.map((r) => (
                 <option key={r} value={r}>
                   {ROLES[r].label}
                 </option>
               ))}
             </select>
-            <span className="text-xs font-normal text-ink/50">Accès : {ROLES[role].access}</span>
+            <span className="text-xs font-normal text-ink/50">Le rôle propose des permissions ; ajustez-les ci-dessous.</span>
           </label>
           <div className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
             <PasswordInput value={password} onChange={setPw} />
             <span className="text-xs font-normal text-ink/50">8 caractères minimum.</span>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm font-medium mb-2">Pages visibles dans le panneau</p>
+            <PermissionPicker value={tabs} onChange={setTabs} />
           </div>
           {error && (
             <p role="alert" className="md:col-span-2 text-sm text-red-600">
@@ -1550,7 +1598,7 @@ function Team({ currentUser }: { currentUser: Member }) {
             </p>
           )}
           <div className="md:col-span-2">
-            <button type="submit" className="rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper">
+            <button type="submit" disabled={!tabs.length} className="rounded-full bg-ink px-6 py-3 text-sm font-bold text-paper disabled:opacity-40">
               Créer l'accès
             </button>
           </div>
@@ -1574,6 +1622,16 @@ function Team({ currentUser }: { currentUser: Member }) {
                 <p className="text-xs text-ink/40 mt-0.5">
                   {m.lastLogin ? `Dernière connexion : ${dateTime.format(new Date(m.lastLogin))}` : "Jamais connecté"}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {TABS.filter((t) => memberTabs(m).includes(t.id)).map((t) => (
+                    <span key={t.id} className="rounded-full bg-ink/5 px-2 py-0.5 text-[11px] font-semibold text-ink/60">
+                      {t.label}
+                    </span>
+                  ))}
+                  {!m.owner && !TABS.some((t) => memberTabs(m).includes(t.id)) && (
+                    <span className="text-[11px] text-red-600">Aucune page</span>
+                  )}
+                </div>
               </div>
 
               {m.owner ? (
@@ -1582,7 +1640,10 @@ function Team({ currentUser }: { currentUser: Member }) {
                 <>
                   <select
                     value={m.role}
-                    onChange={(e) => updateMember(m.id, { role: e.target.value as Role })}
+                    onChange={(e) => {
+                      const r = e.target.value as Role;
+                      updateMember(m.id, { role: r, tabs: ROLES[r].tabs });
+                    }}
                     aria-label={`Rôle de ${m.name}`}
                     className="rounded-full border border-ink/15 bg-white px-3 py-2 text-xs font-bold"
                   >
@@ -1593,6 +1654,13 @@ function Team({ currentUser }: { currentUser: Member }) {
                     ))}
                   </select>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setEditing(editing === m.id ? null : m.id)}
+                      aria-expanded={editing === m.id}
+                      className="rounded-full px-3 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
+                    >
+                      Permissions
+                    </button>
                     <button
                       onClick={() => {
                         setResetting(resetting === m.id ? null : m.id);
@@ -1619,6 +1687,14 @@ function Team({ currentUser }: { currentUser: Member }) {
               )}
             </div>
 
+            {editing === m.id && (
+              <div className="border-t border-ink/10 px-4 md:px-5 py-4">
+                <p className="text-sm font-medium mb-2">Pages visibles pour {m.name}</p>
+                <PermissionPicker value={memberTabs(m)} onChange={(next) => updateMember(m.id, { tabs: next })} />
+                <p className="mt-2 text-xs text-ink/45">Enregistré automatiquement. Le membre voit le changement à sa prochaine action.</p>
+              </div>
+            )}
+
             {resetting === m.id && (
               <form
                 onSubmit={async (e) => {
@@ -1643,7 +1719,7 @@ function Team({ currentUser }: { currentUser: Member }) {
       </ul>
 
       <section className="mt-8">
-        <h2 className="font-display font-bold text-lg mb-3">Rôles et accès</h2>
+        <h2 className="font-display font-bold text-lg mb-3">Permissions suggérées par rôle</h2>
         <div className="overflow-x-auto rounded-2xl bg-white border border-ink/10">
           <table className="w-full text-sm text-left">
             <tbody>
