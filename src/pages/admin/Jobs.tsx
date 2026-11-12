@@ -289,8 +289,32 @@ function JobEditor({ job: initial, onCancel, onSaved }: { job: Job; onCancel: ()
 
         <Card className="flex flex-col gap-3">
           <h2 className="font-display font-bold text-lg">Documents demandés</h2>
-          <Switch on={job.requestCv} onChange={(v) => set({ requestCv: v })} label="CV (PDF ou DOCX)" hint="Activé par défaut." />
-          {job.requestCv && <Switch on={job.cvRequired} onChange={(v) => set({ cvRequired: v })} label="CV obligatoire" />}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3">
+            <span className="text-sm font-semibold">CV (PDF ou DOCX)</span>
+            <div role="radiogroup" aria-label="CV" className="flex gap-1 rounded-full bg-ink/5 p-1">
+              {(
+                [
+                  ["required", "Obligatoire"],
+                  ["optional", "Facultatif"],
+                  ["off", "Non demandé"],
+                ] as const
+              ).map(([value, label]) => {
+                const current = !job.requestCv ? "off" : job.cvRequired ? "required" : "optional";
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={current === value}
+                    onClick={() => set({ requestCv: value !== "off", cvRequired: value === "required" })}
+                    className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${current === value ? "bg-white text-ink shadow-sm" : "text-ink/55"}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <Switch on={job.requestCoverLetter} onChange={(v) => set({ requestCoverLetter: v })} label="Lettre de présentation" hint="Suggestion : utile pour les postes de gestion." />
           <Switch on={job.requestPortfolio} onChange={(v) => set({ requestPortfolio: v })} label="Portfolio ou lien en ligne" hint="Suggestion : pour la cuisine (photos de plats) ou le marketing." />
         </Card>
