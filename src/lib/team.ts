@@ -45,6 +45,8 @@ export type Member = {
   id: string;
   name: string;
   email: string;
+  /** Short number staff can sign in with instead of their email. */
+  employeeNumber: string;
   role: Role;
   /** Panel pages this member can open; set per member, starting from the role's defaults. */
   tabs?: AdminTab[];
@@ -62,6 +64,13 @@ export function memberTabs(m: Member): AdminTab[] {
 }
 
 export const OWNER_EMAIL = "admin@patatheque.ca";
+export const OWNER_NUMBER = "100";
+
+/** Next number after the highest one in use (owner is 100, staff 101, 102…). */
+export function nextEmployeeNumber(team: Pick<Member, "employeeNumber">[]) {
+  const used = team.map((m) => Number(m.employeeNumber)).filter((n) => Number.isFinite(n));
+  return String(Math.max(Number(OWNER_NUMBER), ...used) + 1);
+}
 /** Demo only: pre-filled on the login screen so the client can walk in. */
 export const OWNER_DEMO_PASSWORD = "Patatheque2026";
 
@@ -80,7 +89,10 @@ export function listTeam(): Member[] {
   try {
     const rows: Member[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
     // Drop duplicates an earlier double owner seed may have left behind.
-    return rows.filter((m, i) => rows.findIndex((x) => x.id === m.id) === i);
+    const unique = rows.filter((m, i) => rows.findIndex((x) => x.id === m.id) === i);
+    // Accounts made before employee numbers existed get the next free one.
+    for (const m of unique) if (!m.employeeNumber) m.employeeNumber = m.owner ? OWNER_NUMBER : nextEmployeeNumber(unique);
+    return unique;
   } catch {
     return [];
   }
@@ -122,6 +134,7 @@ async function seedOwner() {
       id: "owner",
       name: "Propriétaire",
       email: OWNER_EMAIL,
+      employeeNumber: OWNER_NUMBER,
       role: "proprietaire",
       passwordHash,
       active: true,
@@ -132,22 +145,34 @@ async function seedOwner() {
   ]);
 }
 
-export async function authenticate(email: string, password: string): Promise<Member | null> {
+/** Signs in with an email or an employee number. */
+export async function authenticate(login: string, password: string): Promise<Member | null> {
   await ensureOwner();
-  const member = listTeam().find((m) => m.email === normalize(email));
+  const id = login.trim();
+  const member = listTeam().find((m) => (id.includes("@") ? m.email === normalize(id) : m.employeeNumber === id));
   if (!member || !member.active) return null;
   if (member.passwordHash !== (await hashPassword(member.email, password))) return null;
   updateMember(member.id, { lastLogin: new Date().toISOString() });
   return member;
 }
 
-export async function addMember(input: { name: string; email: string; role: Role; password: string; tabs: AdminTab[] }) {
+export async function addMember(input: {
+  name: string;
+  email: string;
+  employeeNumber: string;
+  role: Role;
+  password: string;
+  tabs: AdminTab[];
+}) {
   const email = normalize(input.email);
+  const employeeNumber = input.employeeNumber.trim();
   if (listTeam().some((m) => m.email === email)) throw new Error("Ce courriel a déjà un accès.");
+  if (listTeam().some((m) => m.employeeNumber === employeeNumber)) throw new Error(`Le numéro ${employeeNumber} est déjà utilisé.`);
   const member: Member = {
     id: Math.random().toString(36).slice(2, 10),
     name: input.name.trim(),
     email,
+    employeeNumber,
     role: input.role,
     tabs: input.tabs.filter((t) => t !== "team"),
     passwordHash: await hashPassword(email, input.password),

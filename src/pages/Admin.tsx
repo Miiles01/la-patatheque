@@ -30,6 +30,7 @@ import {
   generatePassword,
   listTeam,
   memberTabs,
+  nextEmployeeNumber,
   onTeamChange,
   OWNER_DEMO_PASSWORD,
   OWNER_EMAIL,
@@ -168,8 +169,8 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
         <form onSubmit={submit} className="rounded-3xl bg-white border border-ink/10 p-7 flex flex-col gap-4">
           <h1 className="font-display font-extrabold text-2xl">Connexion</h1>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Courriel
-            <input name="user" type="email" defaultValue={OWNER_EMAIL} autoComplete="username" required className={inputCls} />
+            Courriel ou no d'employé
+            <input name="user" type="text" inputMode="email" defaultValue={OWNER_EMAIL} autoComplete="username" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
@@ -184,7 +185,7 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
           </label>
           {error && (
             <p role="alert" className="text-sm text-red-600">
-              Courriel ou mot de passe incorrect, ou accès désactivé.
+              Identifiant ou mot de passe incorrect, ou accès désactivé.
             </p>
           )}
           <button
@@ -195,8 +196,8 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
             {busy ? "Connexion…" : "Se connecter"}
           </button>
           <p className="text-xs text-ink/50 text-center">
-            Démo : les identifiants du propriétaire sont déjà remplis. Les membres de l'équipe entrent avec ceux que le
-            propriétaire leur a créés.
+            Entrez avec votre courriel ou votre numéro d'employé. Démo : les identifiants du propriétaire sont déjà
+            remplis.
           </p>
         </form>
       </div>
@@ -1241,7 +1242,8 @@ function Team({ currentUser }: { currentUser: Member }) {
   const [password, setPw] = useState(generatePassword);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
+  const [created, setCreated] = useState<{ email: string; number: string; password: string } | null>(null);
+  const [employeeNumber, setEmployeeNumber] = useState(() => nextEmployeeNumber(listTeam()));
   const [resetting, setResetting] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
@@ -1249,8 +1251,9 @@ function Team({ currentUser }: { currentUser: Member }) {
     e.preventDefault();
     setError("");
     try {
-      const m = await addMember({ name, email, role, password, tabs });
-      setCreated({ email: m.email, password });
+      const m = await addMember({ name, email, employeeNumber, role, password, tabs });
+      setCreated({ email: m.email, number: m.employeeNumber, password });
+      setEmployeeNumber(nextEmployeeNumber(listTeam()));
       setName("");
       setEmail("");
       setPw(generatePassword());
@@ -1287,7 +1290,7 @@ function Team({ currentUser }: { currentUser: Member }) {
         <div role="status" className="mb-5 rounded-2xl border border-green-700/20 bg-green-700/5 p-5 text-sm">
           <p className="font-semibold text-green-800">Accès créé. Transmettez ces identifiants au membre :</p>
           <p className="mt-2 font-mono">
-            {created.email} · {created.password}
+            No d'employé {created.number} · {created.email} · mot de passe {created.password}
           </p>
           <p className="mt-1 text-xs text-ink/50">Le mot de passe ne sera plus affiché ensuite.</p>
         </div>
@@ -1299,10 +1302,22 @@ function Team({ currentUser }: { currentUser: Member }) {
             Nom
             <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
           </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Courriel d'accès
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
-          </label>
+          <div className="grid grid-cols-[1fr_7rem] gap-3">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Courriel d'accès
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              No d'employé
+              <input
+                value={employeeNumber}
+                onChange={(e) => setEmployeeNumber(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                required
+                className={`${inputCls} font-mono text-center`}
+              />
+            </label>
+          </div>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Rôle
             <select
@@ -1357,7 +1372,10 @@ function Team({ currentUser }: { currentUser: Member }) {
                   {m.id === currentUser.id && <span className="ml-2 text-xs font-normal text-ink/45">(vous)</span>}
                   {!m.active && <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/50">Désactivé</span>}
                 </p>
-                <p className="text-sm text-ink/55">{m.email}</p>
+                <p className="text-sm text-ink/55">
+                  <span className="mr-2 rounded bg-ink/5 px-1.5 py-0.5 font-mono text-xs font-bold text-ink/70">No {m.employeeNumber}</span>
+                  {m.email}
+                </p>
                 <p className="text-xs text-ink/40 mt-0.5">
                   {m.lastLogin ? `Dernière connexion : ${dateTime.format(new Date(m.lastLogin))}` : "Jamais connecté"}
                 </p>
@@ -1439,7 +1457,7 @@ function Team({ currentUser }: { currentUser: Member }) {
                 onSubmit={async (e) => {
                   e.preventDefault();
                   await setPassword(m.id, newPassword);
-                  setCreated({ email: m.email, password: newPassword });
+                  setCreated({ email: m.email, number: m.employeeNumber, password: newPassword });
                   setResetting(null);
                 }}
                 className="border-t border-ink/10 px-4 md:px-5 py-4 flex flex-col sm:flex-row sm:items-end gap-3"
