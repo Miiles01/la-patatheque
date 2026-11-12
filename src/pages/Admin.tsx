@@ -1218,7 +1218,7 @@ function PasswordInput({ value, onChange }: { value: string; onChange: (v: strin
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required
-        minLength={8}
+        minLength={4}
         autoComplete="new-password"
         aria-label="Mot de passe"
         className={`${inputCls} font-mono`}
@@ -1327,7 +1327,7 @@ function Team({ currentUser }: { currentUser: Member }) {
           <div className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
             <PasswordInput value={password} onChange={setPw} />
-            <span className="text-xs font-normal text-ink/50">8 caractères minimum.</span>
+            <span className="text-xs font-normal text-ink/50">4 caractères minimum.</span>
           </div>
           <div className="md:col-span-2">
             <p className="text-sm font-medium mb-2">Pages visibles dans le panneau</p>
