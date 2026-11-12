@@ -372,11 +372,9 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const [tab, setTab] = useState<Tab>(allowed[0]?.id ?? "dashboard");
   // Open by default on desktop, closed on phones where it slides over the content.
   const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
+  // Only new orders get a counter: they are the one thing staff must act on right away.
   const counts: Partial<Record<Tab, number>> = {
     orders: data.orders.filter((o) => o.status === "nouvelle").length,
-    subscribers: data.subscribers.length,
-    applications: data.applications.length,
-    catering: data.catering.length,
   };
   const current = allowed.find((t) => t.id === tab) ?? allowed[0] ?? { id: "dashboard" as Tab, label: "Aucun accès" };
 
