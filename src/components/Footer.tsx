@@ -1,4 +1,5 @@
 import { restaurant } from "../data/menu";
+import { businessInfo, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
 import { navigate, type Route } from "../lib/router";
 import { useHours } from "../pages/InfoPages";
@@ -10,6 +11,7 @@ import { openPolicy } from "./PolicyModal";
 export function Footer() {
   const { t } = useI18n();
   const hours = useHours();
+  const info = businessInfo.use();
   const year = new Date().getFullYear();
   const links: [Route, Parameters<typeof t>[0]][] = [
     ["/commander", "nav.order"],
@@ -29,7 +31,7 @@ export function Footer() {
         <div className="grid sm:grid-cols-2 md:grid-cols-[2fr_2fr_1fr] gap-x-4 gap-y-10 py-12 border-b border-paper/20 text-[15px] leading-relaxed">
           <div>
             <p className="alt text-lg mb-4">{t("footer.contact")}</p>
-            <SweepLink href={`tel:${restaurant.phone}`}>{restaurant.phoneDisplay}</SweepLink>
+            <SweepLink href={telHref(info.phoneDisplay)}>{info.phoneDisplay}</SweepLink>
             <p className="text-paper/70">{t("footer.delivery")}</p>
           </div>
           <div>

@@ -12,13 +12,14 @@ export type Settings = {
   deliveryMinimum: number;
 };
 
-const DEFAULTS: Settings = { pickup: true, delivery: true, deliveryMinimum: 10 };
+const DEFAULTS: Settings = { pickup: true, delivery: false, deliveryMinimum: 10 };
 const KEY = "patatheque-demo-settings";
 const CHANGE = "patatheque-settings-change";
 
 export function getSettings(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}") };
+    // Pickup only for now: delivery stays off whatever an older demo session saved.
+    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}"), pickup: true, delivery: false };
   } catch {
     return DEFAULTS;
   }

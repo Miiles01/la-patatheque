@@ -27,6 +27,11 @@ export type Order = {
 export type Subscriber = { email: string; consent: boolean; code: string; lang: string };
 
 export type Application = {
+  /** Opening applied to; missing for a spontaneous application. */
+  jobId?: string;
+  jobTitle?: string;
+  portfolio?: string;
+  coverLetter?: string;
   name: string;
   email: string;
   phone: string;

@@ -3,8 +3,11 @@ import { useState } from "react";
 import { LineButton } from "../components/LineLink";
 import { commander } from "../components/Navigation";
 import { ReviewsCarousel } from "../components/ReviewsCarousel";
-import { Alt, btnLight, btnPrimary, headingLg } from "../components/ui";
-import { dishName, menuCategories, specials, specialsNote, testimonials } from "../data/menu";
+import { openReservation } from "../components/ReservationModal";
+import { Alt, btnLight, btnOutline, btnPrimary, headingLg } from "../components/ui";
+import { reservationSettings } from "../lib/reservations";
+import { dishName, specialsNote, testimonials } from "../data/menu";
+import { useMenu } from "../lib/menuStore";
 import { asset } from "../lib/asset";
 import { useCart, type OrderMode } from "../lib/cart";
 import { useFormatPrice, useI18n, type Key } from "../lib/i18n";
@@ -12,6 +15,7 @@ import { navigate } from "../lib/router";
 
 function Hero() {
   const { t } = useI18n();
+  const reservations = reservationSettings.use();
   return (
     <section className="bg-paper">
       <div className="mx-auto max-w-7xl px-5 md:px-10 pt-36 pb-16 md:pt-44 md:pb-24 min-h-[78svh] flex flex-col items-center justify-center text-center">
@@ -31,6 +35,11 @@ function Hero() {
           <button onClick={() => commander("hero")} className={btnPrimary}>
             {t("home.cta")}
           </button>
+          {reservations.enabled && (
+            <button onClick={openReservation} className={btnOutline}>
+              {t("book.cta")}
+            </button>
+          )}
           <LineButton href="#/menu" onClick={() => navigate("/menu")} className="text-ink">
             {t("home.seeMenu")}
           </LineButton>
@@ -76,6 +85,7 @@ const BEST_SELLERS: BestSeller[] = [
 
 function BestSellers() {
   const { t } = useI18n();
+  const { categories: menuCategories } = useMenu();
   const formatPrice = useFormatPrice();
   const cart = useCart();
   const [added, setAdded] = useState<string | null>(null);
@@ -105,7 +115,9 @@ function BestSellers() {
             return (
               <article key={b.key} data-fade={i * 0.08} className="group flex flex-col rounded-2xl bg-cream overflow-hidden">
                 <div className="relative aspect-square overflow-hidden bg-red-700">
-                  {b.image ? (
+                  {row?.photo ? (
+                    <img src={row.photo} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  ) : b.image ? (
                     <img
                       src={asset(b.image)}
                       alt={name}
@@ -198,6 +210,7 @@ function Modes() {
 
 function Specials() {
   const { t } = useI18n();
+  const { specials } = useMenu();
   const formatPrice = useFormatPrice();
   const [showAll, setShowAll] = useState(false);
 

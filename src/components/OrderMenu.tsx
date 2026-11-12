@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
-import { dishName, menuCategories, specials, type MenuCategory, type MenuItem } from "../data/menu";
+import { dishName, type MenuCategory, type MenuItem, type Special } from "../data/menu";
+import { useMenu } from "../lib/menuStore";
 import { useCart } from "../lib/cart";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 
@@ -9,7 +10,8 @@ const SPECIALS_ID = "super-speciaux";
 /** Takeout/delivery menu: every price is a button that drops that dish and size into the cart. */
 export function OrderMenu() {
   const { t, lang } = useI18n();
-  const [categoryId, setCategoryId] = useState(menuCategories[0].id);
+  const { categories: menuCategories, specials } = useMenu();
+  const [categoryId, setCategoryId] = useState(menuCategories[0]?.id ?? SPECIALS_ID);
   const [toast, setToast] = useState<string | null>(null);
   const cart = useCart();
 
@@ -60,7 +62,7 @@ export function OrderMenu() {
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
-          {category ? <CategoryTable category={category} title={label(category)} onAdd={add} /> : <SpecialsTable onAdd={add} />}
+          {category ? <CategoryTable category={category} title={label(category)} onAdd={add} /> : <SpecialsTable specials={specials} onAdd={add} />}
         </motion.div>
       </AnimatePresence>
 
@@ -223,7 +225,9 @@ function CategoryTable({
               style={{ gridTemplateColumns: multiSize ? columns : undefined }}
             >
               <div className={`flex items-center justify-between gap-4 ${multiSize ? "md:block" : ""}`}>
-                <div>
+                <div className="flex items-start gap-3">
+                  {item.photo && <img src={item.photo} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />}
+                  <div>
                   <p className="font-semibold">
                     {item.num && <span className="text-red-600 mr-2">{item.num}.</span>}
                     {item.name}
@@ -233,6 +237,7 @@ function CategoryTable({
                   {multiSize && mobileIndex !== size && mobileIndex !== -1 && (
                     <p className="md:hidden text-xs text-ink/50 mt-1">{category.sizes[mobileIndex]}</p>
                   )}
+                  </div>
                 </div>
 
                 {!multiSize && item.prices[0] !== null && (
@@ -276,7 +281,7 @@ function CategoryTable({
   );
 }
 
-function SpecialsTable({ onAdd }: { onAdd: (item: { name: string; price: number; category?: string }) => void }) {
+function SpecialsTable({ specials, onAdd }: { specials: Special[]; onAdd: (item: { name: string; price: number; category?: string }) => void }) {
   const { t } = useI18n();
   return (
     <div>

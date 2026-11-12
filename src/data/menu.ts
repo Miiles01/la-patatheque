@@ -9,6 +9,10 @@ export type MenuItem = {
   note?: string;
   /** Unclear on the printed menu; confirm with the restaurant. */
   verify?: boolean;
+  /** Hidden from the site (set in the admin menu editor). */
+  hidden?: boolean;
+  /** Dish photo uploaded from the admin (a data URL in the demo). */
+  photo?: string;
 };
 
 export type MenuCategory = {
@@ -17,6 +21,7 @@ export type MenuCategory = {
   note?: string;
   sizes: string[];
   items: MenuItem[];
+  hidden?: boolean;
 };
 
 export type Special = {
@@ -26,6 +31,7 @@ export type Special = {
   price: number;
   note?: string;
   featured: boolean;
+  hidden?: boolean;
 };
 
 export const menuCategories = menu.categories as MenuCategory[];

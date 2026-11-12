@@ -5,6 +5,8 @@ import { openReservation } from "../components/ReservationModal";
 import { Alt, btnOutline, btnPrimary, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
+import { businessInfo, telHref } from "../lib/business";
+import { reservationSettings } from "../lib/reservations";
 import { asset } from "../lib/asset";
 import { useCart } from "../lib/cart";
 import { record } from "../lib/demoStore";
@@ -93,13 +95,21 @@ export function OrderPage() {
 
 export function SurPlacePage() {
   const { t } = useI18n();
+  const reservations = reservationSettings.use();
+  const info = businessInfo.use();
   return (
     <>
       <PageHero kicker={t("surPlace.kicker")} title={t("surPlace.title")} alt={t("surPlace.titleAlt")} intro={t("surPlace.intro")}>
         <div data-fade="0.3" data-intro className="mt-10 flex flex-wrap gap-3">
-          <button onClick={openReservation} className={btnPrimary}>
-            {t("surPlace.reserve")}
-          </button>
+          {reservations.enabled ? (
+            <button onClick={openReservation} className={btnPrimary}>
+              {t("surPlace.reserve")}
+            </button>
+          ) : (
+            <a href={telHref(info.phoneDisplay)} onClick={() => track("call_click", { from: "sur-place" })} className={btnPrimary}>
+              {t("contact.call")} · {info.phoneDisplay}
+            </a>
+          )}
           <a
             href={restaurant.mapsUrl}
             target="_blank"

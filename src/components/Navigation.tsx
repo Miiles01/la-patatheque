@@ -1,11 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
+import { businessInfo, telHref } from "../lib/business";
 import { useCart } from "../lib/cart";
 import { useI18n, type Key } from "../lib/i18n";
 import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
 import { Link, navigate, useRoute, type Route } from "../lib/router";
+import { reservationSettings } from "../lib/reservations";
 import { LogoMark } from "./LogoMark";
+import { openReservation } from "./ReservationModal";
 
 const LINKS: { to: Route; label: Key; alt: Key }[] = [
   { to: "/", label: "nav.home", alt: "home.tagline" },
@@ -59,15 +62,16 @@ function useDarkBackdrop(route: Route) {
 
 function CopyPhone() {
   const { t } = useI18n();
+  const { phoneDisplay } = businessInfo.use();
   const [copied, setCopied] = useState(false);
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(restaurant.phoneDisplay);
+      await navigator.clipboard.writeText(phoneDisplay);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      window.location.href = `tel:${restaurant.phone}`;
+      window.location.href = telHref(phoneDisplay);
     }
   }
 
@@ -76,8 +80,8 @@ function CopyPhone() {
     <div
       className="group hidden lg:flex items-center gap-1 text-sm font-semibold text-ink"
     >
-      <a href={`tel:${restaurant.phone}`} className="tabular-nums">
-        {restaurant.phoneDisplay}
+      <a href={telHref(phoneDisplay)} className="tabular-nums">
+        {phoneDisplay}
       </a>
       <button
         onClick={copy}
@@ -171,6 +175,7 @@ export function Navigation() {
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t, lang, setLang } = useI18n();
+  const reservations = reservationSettings.use();
   const route = useRoute();
   const rootRef = useRef<HTMLDivElement>(null);
   const pending = useRef<(() => void) | null>(null);
@@ -272,12 +277,22 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             ))}
           </nav>
 
-          <button
-            onClick={() => closeThen(() => commander("side-menu"))}
-            className="sm-item mt-8 w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
-          >
-            {t("nav.commander")}
-          </button>
+          <div className="sm-item mt-8 flex flex-wrap gap-3">
+            <button
+              onClick={() => closeThen(() => commander("side-menu"))}
+              className="w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+            >
+              {t("nav.commander")}
+            </button>
+            {reservations.enabled && (
+              <button
+                onClick={() => closeThen(openReservation)}
+                className="w-fit rounded-full border border-ink/20 px-7 py-4 text-sm font-bold text-ink hover:border-red-600 hover:text-red-600 transition-colors"
+              >
+                {t("book.cta")}
+              </button>
+            )}
+          </div>
 
           <div className="mt-auto pt-14 grid sm:grid-cols-2 gap-8 text-sm text-ink/75">
             <div className="sm-item md:hidden">

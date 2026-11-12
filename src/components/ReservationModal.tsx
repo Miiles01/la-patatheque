@@ -1,38 +1,52 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState, type FormEvent } from "react";
-import { restaurant } from "../data/menu";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { businessInfo } from "../lib/business";
+import { useI18n } from "../lib/i18n";
+import {
+  addBooking,
+  bookingsStore,
+  findTable,
+  reservationSettings,
+  slotsFor,
+  tablesStore,
+  todayIso,
+  type Booking,
+} from "../lib/reservations";
 
 const OPEN_EVENT = "open-reservation";
-const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 export function openReservation() {
   window.dispatchEvent(new Event(OPEN_EVENT));
 }
 
-type Status = "idle" | "sending" | "sent" | "error";
-
-function today() {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
-
-// Half-hour slots from 11:00 to 21:30; the kitchen closes at 22:00 at the earliest.
-const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => {
-  const minutes = 11 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
-});
-
 const fieldClass =
   "w-full rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 text-ink placeholder:text-ink/35 focus:border-red-600 focus:outline-none transition-colors";
 
+function shiftDay(iso: string, days: number) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Table booking: day, party size, then a time that still has a free table that fits. */
 export function ReservationModal() {
+  const { t, lang } = useI18n();
+  const settings = reservationSettings.use();
+  const tables = tablesStore.use();
+  const bookings = bookingsStore.use();
+  const info = businessInfo.use();
   const [open, setOpen] = useState(false);
-  const [status, setStatus] = useState<Status>("idle");
+  const [date, setDate] = useState(todayIso);
+  const [party, setParty] = useState(2);
+  const [time, setTime] = useState<string | null>(null);
+  const [highChairs, setHighChairs] = useState(0);
+  const [accessible, setAccessible] = useState(false);
+  const [booked, setBooked] = useState<Booking | null>(null);
 
   useEffect(() => {
     const onOpen = () => {
-      setStatus("idle");
+      setBooked(null);
+      setTime(null);
       setOpen(true);
     };
     window.addEventListener(OPEN_EVENT, onOpen);
@@ -46,21 +60,40 @@ export function ReservationModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+  // Each time is offered only while a suitable table is still free then.
+  const slots = useMemo(
+    () =>
+      slotsFor(date, settings).map((s) => ({
+        time: s,
+        free: !!findTable({ date, time: s, party, highChairs, accessible }, tables, bookings, settings),
+      })),
+    [date, party, highChairs, accessible, settings, tables, bookings],
+  );
+  const anyFree = slots.some((s) => s.free);
+  const selectedFree = slots.find((s) => s.time === time)?.free;
+
+  function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setStatus("sending");
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    try {
-      const res = await fetch(`${API_URL}/reservations.php`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      setStatus(res.ok ? "sent" : "error");
-    } catch {
-      setStatus("error");
-    }
+    if (!time || !selectedFree) return;
+    const f = new FormData(e.currentTarget);
+    const get = (k: string) => String(f.get(k) ?? "").trim();
+    const booking = addBooking({
+      date,
+      time,
+      party,
+      name: get("name"),
+      phone: get("phone"),
+      email: get("email") || undefined,
+      highChairs,
+      accessible,
+      occasion: get("occasion") || undefined,
+      notes: get("notes") || undefined,
+    });
+    if (booking) setBooked(booking);
   }
+
+  const dateLabel = (iso: string) =>
+    new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-CA", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${iso}T12:00:00`));
 
   return (
     <AnimatePresence>
@@ -92,89 +125,145 @@ export function ReservationModal() {
               ×
             </button>
 
-            {status === "sent" ? (
-              <div className="py-10 text-center">
-                <p className="script text-5xl text-red-600 mb-3">Merci !</p>
-                <h2 id="reservation-title" className="font-display font-extrabold text-3xl mb-4">
-                  Demande reçue.
-                </h2>
-                <p className="text-ink/65 mb-8">
-                  On vous confirme votre table par téléphone sous peu. Pour un changement, appelez-nous au{" "}
-                  <a href={`tel:${restaurant.phone}`} className="font-semibold text-red-600">{restaurant.phoneDisplay}</a>.
+            {booked ? (
+              <div className="py-8 text-center">
+                <p className="script text-5xl text-red-600 mb-3">{t("book.thanks")}</p>
+                <p className="text-ink/75 mb-2">
+                  {t("book.confirmed", { n: booked.party, date: dateLabel(booked.date), time: booked.time })}
                 </p>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="rounded-full bg-red-600 px-7 py-3.5 text-sm font-bold text-paper hover:bg-red-500 transition-colors"
-                >
-                  Fermer
+                <p className="text-sm text-ink/55 mb-8">{t("book.change", { phone: info.phoneDisplay })}</p>
+                <button onClick={() => setOpen(false)} className="rounded-full bg-red-600 px-7 py-3.5 text-sm font-bold text-paper hover:bg-red-700">
+                  {t("cart.done")}
                 </button>
               </div>
             ) : (
-              <form onSubmit={onSubmit} className="flex flex-col gap-4">
-                <div className="mb-2 pr-8">
-                  <p className="script text-4xl text-red-600 mb-1">Réserver</p>
+              <form onSubmit={submit} className="flex flex-col gap-5">
+                <div className="pr-8">
+                  <p className="script text-4xl text-red-600 mb-1">{t("book.kicker")}</p>
                   <h2 id="reservation-title" className="font-display font-extrabold text-3xl leading-tight">
-                    Une table à La Patathèque
+                    {t("book.title")}
                   </h2>
                 </div>
 
-                <label className="flex flex-col gap-1.5 text-sm font-medium">
-                  Nom
-                  <input name="name" required autoComplete="name" className={fieldClass} placeholder="Votre nom" />
-                </label>
+                <div className="grid grid-cols-[1fr_auto] gap-3">
+                  <label className="flex flex-col gap-1.5 text-sm font-medium">
+                    {t("book.date")}
+                    <input
+                      type="date"
+                      required
+                      min={todayIso()}
+                      max={shiftDay(todayIso(), settings.daysAhead)}
+                      value={date}
+                      onChange={(e) => {
+                        setDate(e.target.value);
+                        setTime(null);
+                      }}
+                      className={fieldClass}
+                    />
+                  </label>
+                  <div className="flex flex-col gap-1.5 text-sm font-medium">
+                    {t("book.party")}
+                    <div className="flex items-center rounded-xl border-2 border-ink/15 bg-paper">
+                      <button type="button" onClick={() => setParty((p) => Math.max(1, p - 1))} className="h-[46px] w-11 text-xl" aria-label="−1">
+                        −
+                      </button>
+                      <span className="w-8 text-center font-display font-bold text-lg tabular-nums">{party}</span>
+                      <button type="button" onClick={() => setParty((p) => Math.min(settings.maxParty, p + 1))} className="h-[46px] w-11 text-xl" aria-label="+1">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p className="-mt-3 text-xs text-ink/45">{t("book.maxParty", { n: settings.maxParty })}</p>
 
+                {(settings.askHighChair || settings.askAccessible) && (
+                  <fieldset className="flex flex-col gap-2">
+                    <legend className="text-sm font-medium mb-1.5">{t("book.needs")}</legend>
+                    {settings.askHighChair && (
+                      <div className="flex items-center justify-between rounded-xl border-2 border-ink/10 bg-paper px-4 py-2.5 text-sm">
+                        <span>👶 {t("book.highChairs")}</span>
+                        <span className="flex items-center gap-1">
+                          <button type="button" onClick={() => setHighChairs((n) => Math.max(0, n - 1))} className="h-8 w-8 rounded-full hover:bg-ink/5" aria-label="−1">
+                            −
+                          </button>
+                          <span className="w-5 text-center font-bold tabular-nums">{highChairs}</span>
+                          <button type="button" onClick={() => setHighChairs((n) => Math.min(4, n + 1))} className="h-8 w-8 rounded-full hover:bg-ink/5" aria-label="+1">
+                            +
+                          </button>
+                        </span>
+                      </div>
+                    )}
+                    {settings.askAccessible && (
+                      <label className="flex items-center justify-between rounded-xl border-2 border-ink/10 bg-paper px-4 py-3 text-sm cursor-pointer">
+                        <span>♿ {t("book.accessible")}</span>
+                        <input type="checkbox" checked={accessible} onChange={(e) => setAccessible(e.target.checked)} className="h-5 w-5 accent-red-600" />
+                      </label>
+                    )}
+                  </fieldset>
+                )}
+
+                <div>
+                  <p className="text-sm font-medium mb-1.5">{t("book.time")}</p>
+                  {anyFree ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {slots.map((s) => (
+                        <button
+                          key={s.time}
+                          type="button"
+                          disabled={!s.free}
+                          onClick={() => setTime(s.time)}
+                          aria-pressed={time === s.time}
+                          className={`rounded-xl py-2.5 text-sm font-bold tabular-nums transition-colors ${
+                            time === s.time
+                              ? "bg-red-600 text-paper"
+                              : s.free
+                                ? "bg-paper border-2 border-ink/10 hover:border-red-600"
+                                : "bg-ink/5 text-ink/25 line-through cursor-not-allowed"
+                          }`}
+                          title={s.free ? undefined : t("book.full")}
+                        >
+                          {s.time.replace(":", " h ")}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">{t("book.noSlots")}</p>
+                  )}
+                </div>
+
+                <label className="flex flex-col gap-1.5 text-sm font-medium">
+                  {t("form.name")}
+                  <input name="name" required autoComplete="name" className={fieldClass} />
+                </label>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
-                    Téléphone
-                    <input name="phone" type="tel" required autoComplete="tel" className={fieldClass} placeholder="(514) 000-0000" />
+                    {t("form.phone")}
+                    <input name="phone" type="tel" required autoComplete="tel" className={fieldClass} />
                   </label>
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
-                    Courriel
-                    <input name="email" type="email" autoComplete="email" className={fieldClass} placeholder="Facultatif" />
+                    {t("form.email")}
+                    <input name="email" type="email" autoComplete="email" placeholder={t("form.optional")} className={fieldClass} />
                   </label>
                 </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <label className="col-span-3 sm:col-span-1 flex flex-col gap-1.5 text-sm font-medium">
-                    Date
-                    <input name="date" type="date" required min={today()} defaultValue={today()} className={fieldClass} />
-                  </label>
-                  <label className="col-span-2 sm:col-span-1 flex flex-col gap-1.5 text-sm font-medium">
-                    Heure
-                    <select name="time" required defaultValue="18:00" className={fieldClass}>
-                      {TIME_SLOTS.map((t) => (
-                        <option key={t} value={t}>{t.replace(":", " h ")}</option>
-                      ))}
-                    </select>
-                  </label>
+                {settings.askOccasion && (
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
-                    Personnes
-                    <input name="guests" type="number" required min={1} max={20} defaultValue={2} className={fieldClass} />
+                    🎉 {t("book.occasion")}
+                    <input name="occasion" placeholder={t("book.occasionHint")} className={fieldClass} />
                   </label>
-                </div>
-
-                <label className="flex flex-col gap-1.5 text-sm font-medium">
-                  Note <span className="sr-only">(facultatif)</span>
-                  <textarea name="notes" rows={2} className={fieldClass} placeholder="Allergies, chaise haute, occasion spéciale… (facultatif)" />
-                </label>
-
-                {status === "error" && (
-                  <p role="alert" className="rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">
-                    La demande n'a pas pu être envoyée. Réessayez ou appelez-nous au{" "}
-                    <a href={`tel:${restaurant.phone}`} className="font-semibold underline">{restaurant.phoneDisplay}</a>.
-                  </p>
                 )}
+                <label className="flex flex-col gap-1.5 text-sm font-medium">
+                  {t("form.notes")}
+                  <textarea name="notes" rows={2} placeholder={t("form.optional")} className={fieldClass} />
+                </label>
 
                 <button
                   type="submit"
-                  disabled={status === "sending"}
-                  className="mt-2 rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-500 disabled:opacity-60 transition-colors"
+                  disabled={!time || !selectedFree}
+                  className="rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-50 transition-colors"
                 >
-                  {status === "sending" ? "Envoi…" : "Envoyer la demande"}
+                  {t("book.submit")}
+                  {time && ` · ${time.replace(":", " h ")}`}
                 </button>
-                <p className="text-xs text-ink/50 text-center">
-                  Votre table est confirmée par téléphone. Pour plus de 20 personnes, appelez-nous.
-                </p>
               </form>
             )}
           </motion.div>

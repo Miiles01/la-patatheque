@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { useCareersFields, type CareersField } from "../lib/careersForm";
+import { jobsStore, type Job, type JobQuestion } from "../lib/jobs";
 import { LineButton } from "../components/LineLink";
 import { commander } from "../components/Navigation";
 import { Alt, btnOutline, btnPrimary, headingLg, PageHero, Success, TextArea, TextField } from "../components/ui";
@@ -7,14 +7,14 @@ import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
 import { asset } from "../lib/asset";
 import { record, type Application } from "../lib/demoStore";
-import { useI18n, type Key } from "../lib/i18n";
+import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
+import { useI18n } from "../lib/i18n";
 import { gsap, reducedMotion } from "../lib/motion";
 
-const HOUR_KEYS: Key[] = ["hours.sunWed", "hours.thuSat", "hours.breakfast"];
-
+/** Opening hours as set in the admin, grouped for display. */
 export function useHours() {
-  const { t } = useI18n();
-  return restaurant.hours.map((h, i) => ({ day: HOUR_KEYS[i] ? t(HOUR_KEYS[i]) : h.day, time: h.time }));
+  const { lang } = useI18n();
+  return groupedHours(openingHours.use(), lang);
 }
 
 export function AboutPage() {
@@ -145,64 +145,47 @@ const CV_TYPES = [".pdf", ".docx"];
 const careersInput =
   "w-full rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 text-ink placeholder:text-ink/35 focus:border-red-600 focus:outline-none transition-colors";
 
-/** One of the extra questions the restaurant configured in the admin. */
-function CareersQuestion({ field }: { field: CareersField }) {
-  const { t, lang } = useI18n();
-  const label = lang === "en" && field.labelEn ? field.labelEn : field.label;
-  const name = `q-${field.id}`;
-  const optional = field.required ? null : <span className="text-ink/45 font-normal"> ({t("form.optional")})</span>;
+/** A job's own question: open text or one answer among choices. */
+function JobQuestionField({ q }: { q: JobQuestion }) {
+  const { t } = useI18n();
+  const name = `q-${q.id}`;
+  const optional = q.required ? null : <span className="text-ink/45 font-normal"> ({t("form.optional")})</span>;
 
-  if (field.type === "yesno") {
+  if (q.type === "choice") {
     return (
-      <fieldset className="flex flex-col gap-1.5 text-sm font-medium">
+      <fieldset className="flex flex-col gap-2 text-sm font-medium">
         <legend className="mb-1.5">
-          {label}
+          {q.label}
           {optional}
         </legend>
-        <div className="flex gap-2">
-          {[t("form.yes"), t("form.no")].map((v) => (
-            <label key={v} className="flex items-center gap-2 rounded-xl border-2 border-ink/15 bg-paper px-4 py-2.5 cursor-pointer has-[:checked]:border-red-600">
-              <input type="radio" name={name} value={v} required={field.required} className="accent-red-600" />
-              {v}
+        <div className="flex flex-wrap gap-2">
+          {q.options.map((o) => (
+            <label key={o} className="flex items-center gap-2 rounded-xl border-2 border-ink/15 bg-paper px-4 py-2.5 cursor-pointer has-[:checked]:border-red-600 has-[:checked]:text-red-700">
+              <input type="radio" name={name} value={o} required={q.required} className="accent-red-600" />
+              {o}
             </label>
           ))}
         </div>
       </fieldset>
     );
   }
-
   return (
     <label className="flex flex-col gap-1.5 text-sm font-medium">
       <span>
-        {label}
+        {q.label}
         {optional}
       </span>
-      {field.type === "select" ? (
-        <select name={name} required={field.required} defaultValue="" className={careersInput}>
-          <option value="" disabled>
-            {t("form.choose")}
-          </option>
-          {(field.options ?? []).map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : field.type === "textarea" ? (
-        <textarea name={name} required={field.required} rows={3} className={careersInput} />
-      ) : (
-        <input name={name} type={field.type === "date" ? "date" : "text"} required={field.required} className={careersInput} />
-      )}
+      <textarea name={name} required={q.required} rows={3} className={careersInput} />
     </label>
   );
 }
 
-export function CareersPage() {
+function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
   const { t } = useI18n();
-  const fields = useCareersFields();
-  const [sent, setSent] = useState(false);
   const [cv, setCv] = useState<File | null>(null);
   const [cvError, setCvError] = useState("");
+  const askCv = job ? job.requestCv : true;
+  const cvRequired = job ? job.requestCv && job.cvRequired : false;
 
   function pickCv(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -223,12 +206,16 @@ export function CareersPage() {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (cvRequired && !cv) {
+      setCvError(t("form.required"));
+      return;
+    }
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? "").trim();
     let cvRecord: Application["cv"];
     if (cv) {
-      // The demo keeps small files so the dashboard can download them; the real
-      // site uploads them to private storage on the server.
+      // The demo keeps small files so the dashboard can show them; the real site
+      // uploads them to private storage on the server.
       const dataUrl =
         cv.size < 1.5 * 1024 * 1024
           ? await new Promise<string>((resolve) => {
@@ -239,13 +226,73 @@ export function CareersPage() {
           : undefined;
       cvRecord = { name: cv.name, size: cv.size, type: cv.type, dataUrl };
     }
-    const answers = fields
-      .map((field) => ({ label: field.label, value: get(`q-${field.id}`) }))
-      .filter((a) => a.value);
-    record("applications", { name: get("name"), email: get("email"), phone: get("phone"), message: get("message"), answers, cv: cvRecord });
-    track("job_application");
-    setSent(true);
+    const answers = (job?.questions ?? []).map((q) => ({ label: q.label, value: get(`q-${q.id}`) })).filter((a) => a.value);
+    record("applications", {
+      jobId: job?.id,
+      jobTitle: job?.title,
+      name: get("name"),
+      email: get("email"),
+      phone: get("phone"),
+      message: get("message"),
+      portfolio: get("portfolio") || undefined,
+      coverLetter: get("coverLetter") || undefined,
+      answers,
+      cv: cvRecord,
+    });
+    track("job_application", { job: job?.title ?? "spontanée" });
+    onSent();
   }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <TextField label={t("form.fullName")} name="name" required autoComplete="name" />
+      <div className="grid sm:grid-cols-2 gap-4">
+        <TextField label={t("form.email")} name="email" type="email" required autoComplete="email" />
+        <TextField label={t("form.phone")} name="phone" type="tel" required autoComplete="tel" />
+      </div>
+      {job?.questions.map((q) => <JobQuestionField key={q.id} q={q} />)}
+      <TextArea label={t("careers.message")} name="message" required rows={4} placeholder={t("careers.messageHint")} />
+      {job?.requestCoverLetter && <TextArea label={t("jobs.coverLetter")} name="coverLetter" optional={t("form.optional")} rows={5} />}
+      {job?.requestPortfolio && <TextField label={t("jobs.portfolio")} name="portfolio" type="url" optional={t("form.optional")} placeholder="https://" />}
+      {askCv && (
+        <div>
+          <span className="text-sm font-medium">
+            {t("careers.cv")}
+            {!cvRequired && <span className="text-ink/45 font-normal"> ({t("form.optional")})</span>}
+          </span>
+          <label className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-ink/20 bg-paper px-4 py-4 hover:border-red-600 transition-colors">
+            <span className="rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper">{t("careers.cvPick")}</span>
+            <span className="text-sm text-ink/60 truncate">{cv ? `${cv.name} · ${(cv.size / 1024).toFixed(0)} Ko` : "PDF · DOCX"}</span>
+            <input
+              type="file"
+              name="cv"
+              accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={pickCv}
+              className="sr-only"
+            />
+          </label>
+          {cvError && (
+            <p role="alert" className="mt-1.5 text-sm text-red-600">
+              {cvError}
+            </p>
+          )}
+        </div>
+      )}
+      <button type="submit" className={`${btnPrimary} mt-2`}>
+        {t("careers.submit")}
+      </button>
+    </form>
+  );
+}
+
+const SPONTANEOUS = "__spontaneous";
+
+export function CareersPage() {
+  const { t } = useI18n();
+  const jobs = jobsStore.use().filter((j) => j.status === "published");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
+  const job = jobs.find((j) => j.id === selected);
 
   return (
     <>
@@ -258,47 +305,87 @@ export function CareersPage() {
           ))}
         </ul>
       </PageHero>
+
       <section className="bg-paper pb-24 md:pb-36">
-        <div className="mx-auto max-w-3xl px-5 md:px-10">
-          <div data-fade className="rounded-3xl bg-cream p-6 md:p-10">
-            {sent ? (
-              <Success title={t("cart.thanks")} text={t("careers.thanks")} />
-            ) : (
-              <form onSubmit={submit} className="flex flex-col gap-4">
-                <TextField label={t("form.fullName")} name="name" required autoComplete="name" />
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <TextField label={t("form.email")} name="email" type="email" required autoComplete="email" />
-                  <TextField label={t("form.phone")} name="phone" type="tel" required autoComplete="tel" />
-                </div>
-                {fields.length > 0 && (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {fields.map((field) => (
-                      <div key={field.id} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
-                        <CareersQuestion field={field} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <TextArea label={t("careers.message")} name="message" required rows={4} placeholder={t("careers.messageHint")} />
+        <div className="mx-auto max-w-5xl px-5 md:px-10">
+          {sent ? (
+            <Success title={t("cart.thanks")} text={t("careers.thanks")} />
+          ) : selected ? (
+            <div>
+              <button onClick={() => setSelected(null)} className="mb-6 text-sm font-bold text-ink/60 hover:text-red-600">
+                ← {t("jobs.back")}
+              </button>
+              <div className="grid lg:grid-cols-[1fr_1.1fr] gap-8 items-start">
                 <div>
-                  <span className="text-sm font-medium">{t("careers.cv")}</span>
-                  <label className="mt-1.5 flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-ink/20 bg-paper px-4 py-4 hover:border-red-600 transition-colors">
-                    <span className="rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper">{t("careers.cvPick")}</span>
-                    <span className="text-sm text-ink/60 truncate">{cv ? `${cv.name} · ${(cv.size / 1024).toFixed(0)} Ko` : "PDF · DOCX"}</span>
-                    <input type="file" name="cv" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={pickCv} className="sr-only" />
-                  </label>
-                  {cvError && (
-                    <p role="alert" className="mt-1.5 text-sm text-red-600">
-                      {cvError}
-                    </p>
+                  <h2 className="font-display font-extrabold text-3xl md:text-4xl tracking-[-0.02em]">
+                    {job ? job.title : t("jobs.spontaneous")}
+                  </h2>
+                  {job && (
+                    <>
+                      <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                        <span className="rounded-full bg-cream px-3 py-1.5 font-semibold">{job.area}</span>
+                        <span className="rounded-full bg-cream px-3 py-1.5 font-semibold">{job.schedule}</span>
+                        {job.showSalary && job.salary && (
+                          <span className="rounded-full bg-red-600/10 px-3 py-1.5 font-semibold text-red-700">{job.salary}</span>
+                        )}
+                      </div>
+                      <div className="mt-6 leading-relaxed text-ink/75">
+                        {job.description.split("\n").map((line, i) =>
+                          // Short lines without a bullet read as section titles (Le poste, Exigences…).
+                          line.trim() && !line.trim().startsWith("-") && line.trim().length < 40 && !line.trim().endsWith(".") ? (
+                            <p key={i} className="mt-5 first:mt-0 font-display font-bold text-ink">
+                              {line}
+                            </p>
+                          ) : (
+                            <p key={i} className={line.trim() ? "" : "h-1"}>
+                              {line}
+                            </p>
+                          ),
+                        )}
+                      </div>
+                    </>
                   )}
+                  {!job && <p className="mt-3 text-ink/70">{t("jobs.spontaneousDesc")}</p>}
                 </div>
-                <button type="submit" className={`${btnPrimary} mt-2`}>
-                  {t("careers.submit")}
+                <div className="rounded-3xl bg-cream p-6 md:p-8">
+                  <ApplicationForm job={job} onSent={() => setSent(true)} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="font-display font-extrabold text-2xl mb-5">{t("jobs.open")}</h2>
+              {!jobs.length && <p className="mb-6 max-w-2xl text-ink/65">{t("jobs.none")}</p>}
+              <div className="grid md:grid-cols-2 gap-4">
+                {jobs.map((j) => (
+                  <button
+                    key={j.id}
+                    onClick={() => setSelected(j.id)}
+                    className="group text-left rounded-3xl bg-cream p-6 md:p-8 flex flex-col hover:bg-red-600 hover:text-paper transition-colors"
+                  >
+                    <span className="flex flex-wrap gap-2 text-xs font-bold">
+                      <span className="rounded-full bg-paper/70 px-3 py-1 text-ink">{j.area}</span>
+                      <span className="rounded-full bg-paper/70 px-3 py-1 text-ink">{j.schedule}</span>
+                    </span>
+                    <span className="mt-5 font-display font-extrabold text-2xl md:text-3xl">{j.title}</span>
+                    {j.showSalary && j.salary && <span className="mt-1 text-sm font-semibold opacity-80">{j.salary}</span>}
+                    <span className="mt-3 text-sm text-ink/60 group-hover:text-paper/80 line-clamp-2">
+                      {j.description.split("\n").filter((l) => l.trim() && !/^(Le poste|Responsabilités|Exigences|Ce qu'on offre)$/.test(l.trim()))[0]}
+                    </span>
+                    <span className="mt-6 text-sm font-bold">{t("jobs.apply")} →</span>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSelected(SPONTANEOUS)}
+                  className="text-left rounded-3xl border-2 border-dashed border-ink/15 p-6 md:p-8 flex flex-col hover:border-red-600 transition-colors"
+                >
+                  <span className="font-display font-extrabold text-2xl">{t("jobs.spontaneous")}</span>
+                  <span className="mt-2 text-sm text-ink/60">{t("jobs.spontaneousDesc")}</span>
+                  <span className="mt-6 text-sm font-bold text-red-600">{t("jobs.apply")} →</span>
                 </button>
-              </form>
-            )}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </>
@@ -308,14 +395,15 @@ export function CareersPage() {
 export function ContactPage() {
   const { t } = useI18n();
   const hours = useHours();
-  const mapQuery = encodeURIComponent(restaurant.address);
+  const info = businessInfo.use();
+  const mapQuery = encodeURIComponent(info.address);
 
   return (
     <>
       <PageHero kicker={t("contact.kicker")} title={t("contact.title")} alt={t("contact.titleAlt")}>
         <div data-fade="0.3" data-intro className="mt-10 flex flex-wrap gap-3">
-          <a href={`tel:${restaurant.phone}`} onClick={() => track("call_click", { from: "contact" })} className={btnPrimary}>
-            {t("contact.call")} · {restaurant.phoneDisplay}
+          <a href={telHref(info.phoneDisplay)} onClick={() => track("call_click", { from: "contact" })} className={btnPrimary}>
+            {t("contact.call")} · {info.phoneDisplay}
           </a>
           <a
             href={restaurant.mapsUrl}
@@ -334,22 +422,22 @@ export function ContactPage() {
           <dl className="grid sm:grid-cols-2 gap-x-10 gap-y-8 content-start">
             <div data-fade className="sm:col-span-2">
               <dt className="alt text-lg text-ink/60 mb-1">{t("contact.address")}</dt>
-              <dd className="text-lg font-semibold">{restaurant.address}</dd>
+              <dd className="text-lg font-semibold">{info.address}</dd>
             </div>
             <div data-fade>
               <dt className="alt text-lg text-ink/60 mb-1">{t("contact.phone")}</dt>
               <dd>
-                <a href={`tel:${restaurant.phone}`} className="text-lg font-semibold hover:text-red-600">
-                  {restaurant.phoneDisplay}
+                <a href={telHref(info.phoneDisplay)} className="text-lg font-semibold hover:text-red-600">
+                  {info.phoneDisplay}
                 </a>
               </dd>
             </div>
-            {restaurant.email && (
+            {info.email && (
               <div data-fade>
                 <dt className="alt text-lg text-ink/60 mb-1">{t("contact.email")}</dt>
                 <dd>
-                  <a href={`mailto:${restaurant.email}`} className="text-lg font-semibold hover:text-red-600">
-                    {restaurant.email}
+                  <a href={`mailto:${info.email}`} className="text-lg font-semibold hover:text-red-600">
+                    {info.email}
                   </a>
                 </dd>
               </div>

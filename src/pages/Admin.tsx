@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
 import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
 import { asset } from "../lib/asset";
-import { saveSettings, useSettings } from "../lib/settings";
-import { FIELD_TYPES, resetCareersFields, saveCareersFields, useCareersFields, type CareersField, type FieldType } from "../lib/careersForm";
 import { PROMO_CODE } from "../lib/cart";
 import {
   clear,
@@ -18,6 +16,13 @@ import {
   type Stored,
 } from "../lib/demoStore";
 import { Link } from "../lib/router";
+import { ESSENTIALS, essentialsStore } from "../lib/essentials";
+import { addBooking, todayIso } from "../lib/reservations";
+import { JobsView } from "./admin/Jobs";
+import { MenuEditor } from "./admin/MenuEditor";
+import { ReservationsView } from "./admin/Reservations";
+import { HoursView, SettingsView } from "./admin/SettingsHours";
+import { Card, Empty, inputCls, SectionHead } from "./admin/ui";
 import {
   addMember,
   authenticate,
@@ -54,6 +59,9 @@ type Tab = AdminTab;
 const TABS: { id: Tab; label: string }[] = [
   { id: "dashboard", label: "Tableau de bord" },
   { id: "orders", label: "Commandes" },
+  { id: "reservations", label: "Réservations" },
+  { id: "menu", label: "Menu" },
+  { id: "hours", label: "Horaires" },
   { id: "subscribers", label: "Courriels 10 %" },
   { id: "applications", label: "Candidatures" },
   { id: "catering", label: "Traiteur" },
@@ -126,8 +134,6 @@ export function AdminPage() {
   return <Panel user={user} onLogout={logout} />;
 }
 
-const inputCls =
-  "w-full rounded-xl border-2 border-ink/15 bg-white px-4 py-3 text-ink focus:border-red-600 focus:outline-none transition-colors";
 
 function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
   const [error, setError] = useState(false);
@@ -206,6 +212,24 @@ const TAB_ICONS: Record<Tab, ReactNode> = {
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
+  reservations: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M9 3v4M15 3v4M9 15l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M6 3h12v18H6z" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6M9 16h4" strokeLinecap="round" />
+    </>
+  ),
+  hours: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
   subscribers: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -246,6 +270,98 @@ function TabIcon({ tab }: { tab: Tab }) {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5 shrink-0" aria-hidden="true">
       {TAB_ICONS[tab]}
     </svg>
+  );
+}
+
+/**
+ * Red "Essentiels" button above the profile: progress through the basics a
+ * restaurant should set up before going live, each linking to its section.
+ * It turns into a small green badge once everything is checked.
+ */
+function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allowed: Tab[]; onOpen: (t: Tab) => void }) {
+  const done = essentialsStore.use();
+  const [open, setOpen] = useState(false);
+  const items = ESSENTIALS.filter((e) => allowed.includes(e.tab));
+  if (!items.length) return null;
+  const count = items.filter((e) => done[e.id]).length;
+  const complete = count === items.length;
+  const pct = Math.round((count / items.length) * 100);
+
+  return (
+    <div className={`relative ${compact ? "flex justify-center py-3" : "px-3 pb-3"}`}>
+      {open && (
+        <div
+          className={`absolute z-50 w-72 rounded-2xl border border-ink/10 bg-white p-4 shadow-xl ${
+            compact ? "left-full bottom-2 ml-2" : "left-3 right-3 bottom-full mb-2 w-auto"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <p className="font-display font-bold">Essentiels</p>
+            <button onClick={() => setOpen(false)} aria-label="Fermer" className="h-7 w-7 rounded-full text-ink/50 hover:bg-ink/5">
+              ×
+            </button>
+          </div>
+          <p className="text-xs text-ink/55 mb-3">
+            {complete ? "Tout est prêt ! Explorez maintenant les autres sections." : "Vérifiez ces points avant d'ouvrir les commandes en ligne."}
+          </p>
+          <ol className="flex flex-col gap-1.5">
+            {items.map((e, i) => (
+              <li key={e.id}>
+                <button
+                  onClick={() => {
+                    onOpen(e.tab);
+                    setOpen(false);
+                  }}
+                  className="w-full flex items-start gap-3 rounded-xl p-2 text-left hover:bg-ink/5"
+                >
+                  <span
+                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      done[e.id] ? "bg-green-700 text-paper" : "border-2 border-red-600 text-red-600"
+                    }`}
+                  >
+                    {done[e.id] ? "✓" : i + 1}
+                  </span>
+                  <span>
+                    <span className={`block text-sm font-semibold ${done[e.id] ? "text-ink/45 line-through" : ""}`}>{e.title}</span>
+                    {!done[e.id] && <span className="block text-xs text-ink/50">{e.why}</span>}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {compact ? (
+        <button
+          onClick={() => setOpen((v) => !v)}
+          title={`Essentiels ${count}/${items.length}`}
+          aria-label={`Essentiels : ${count} sur ${items.length}`}
+          className={`relative flex h-11 w-11 items-center justify-center rounded-xl text-xs font-black ${complete ? "bg-green-700/10 text-green-800" : "bg-red-600 text-paper"}`}
+        >
+          {complete ? "✓" : `${count}/${items.length}`}
+        </button>
+      ) : complete ? (
+        <button onClick={() => setOpen((v) => !v)} className="w-full rounded-xl bg-green-700/10 px-3 py-2 text-left text-xs font-bold text-green-800">
+          ✓ Essentiels complétés
+        </button>
+      ) : (
+        <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="w-full rounded-xl bg-red-600 p-3 text-left text-paper hover:bg-red-700 transition-colors">
+          <span className="flex items-center justify-between text-sm font-bold">
+            Essentiels
+            <span className="tabular-nums text-paper/80">
+              {count}/{items.length}
+            </span>
+          </span>
+          <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-paper/25">
+            <span className="block h-full rounded-full bg-paper transition-all" style={{ width: `${pct}%` }} />
+          </span>
+          <span className="mt-2 block text-[11px] text-paper/80">
+            Prochaine étape : {items.find((e) => !done[e.id])?.title}
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -332,6 +448,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           ))}
         </nav>
 
+        <EssentialsButton compact={!sidebar} allowed={permitted} onOpen={open} />
         <div className={`border-t border-ink/10 ${sidebar ? "p-4" : "py-4 flex flex-col items-center gap-2"}`}>
           {sidebar ? (
             <>
@@ -429,10 +546,13 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} />}
           {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
-          {tab === "applications" && <Applications rows={data.applications} />}
+          {tab === "applications" && <JobsView applications={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
           {tab === "content" && <Content />}
-          {tab === "settings" && <SettingsView />}
+          {tab === "reservations" && <ReservationsView />}
+          {tab === "menu" && <MenuEditor />}
+          {tab === "hours" && <HoursView />}
+          {tab === "settings" && <SettingsView onOpen={open} />}
           {tab === "team" && <Team currentUser={user} />}
         </main>
       </div>
@@ -442,9 +562,6 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
 
 type Data = ReturnType<typeof useStore>;
 
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-2xl bg-white border border-ink/10 p-5 md:p-6 ${className}`}>{children}</section>;
-}
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -460,7 +577,6 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
   const { orders, subscribers, applications, catering, events } = data;
   const revenue = orders.reduce((n, o) => n + o.total, 0);
   const clicks = events.filter((e) => e.event === "commander_click").length;
-  const delivery = orders.filter((o) => o.mode === "livraison").length;
   const conversion = clicks ? Math.round((orders.length / clicks) * 100) : 0;
 
   const days = useMemo(() => {
@@ -499,7 +615,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
         <Card>
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-6">
             <h2 className="font-display font-bold text-lg">Commandes, 7 derniers jours</h2>
-            <span className="text-xs text-ink/50">{orders.length ? `${delivery} livraisons · ${orders.length - delivery} pour emporter` : ""}</span>
+            <span className="text-xs text-ink/50">Pour emporter</span>
           </div>
           <OrdersAreaChart days={days} />
         </Card>
@@ -700,25 +816,7 @@ function Shortcut({ title, count, onOpen, children }: { title: string; count: nu
   );
 }
 
-function SectionHead({ title, desc, onExport }: { title: string; desc?: string; onExport?: () => void }) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
-      <div>
-        <h1 className="font-display font-extrabold text-3xl">{title}</h1>
-        {desc && <p className="text-sm text-ink/55 mt-1 max-w-xl">{desc}</p>}
-      </div>
-      {onExport && (
-        <button onClick={onExport} className="self-start sm:self-auto rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper hover:bg-ink/85">
-          Exporter en CSV
-        </button>
-      )}
-    </div>
-  );
-}
 
-function Empty({ text }: { text: string }) {
-  return <Card className="text-center text-ink/50 py-14">{text}</Card>;
-}
 
 function SampleTag({ show }: { show?: boolean }) {
   return show ? <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span> : null;
@@ -727,7 +825,7 @@ function SampleTag({ show }: { show?: boolean }) {
 const COLUMNS: { status: OrderStatus; title: string }[] = [
   { status: "nouvelle", title: "Nouvelles" },
   { status: "preparation", title: "En préparation" },
-  { status: "prete", title: "Prêtes / En livraison" },
+  { status: "prete", title: "Prêtes à récupérer" },
   { status: "terminee", title: "Terminées" },
 ];
 
@@ -874,7 +972,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
     <>
       <SectionHead
         title="Commandes"
-        desc="Cueillette et livraison. Aucun paiement en ligne : le client paie au comptoir ou au livreur. Avancez chaque commande d'une colonne à l'autre."
+        desc="Commandes pour emporter. Aucun paiement en ligne : le client paie au comptoir. Avancez chaque commande d'une colonne à l'autre."
         onExport={
           orders.length
             ? () =>
@@ -903,13 +1001,6 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
             <button onClick={() => setMode("all")} className={chip(mode === "all")}>
               Toutes
             </button>
-            <button onClick={() => setMode("emporter")} className={chip(mode === "emporter")}>
-              Cueillette
-            </button>
-            <button onClick={() => setMode("livraison")} className={chip(mode === "livraison")}>
-              Livraison
-            </button>
-            <span className="mx-1 h-5 w-px bg-ink/10" />
             <button onClick={() => setUnpaidOnly((v) => !v)} aria-pressed={unpaidOnly} className={chip(unpaidOnly)}>
               Non payées
             </button>
@@ -1007,288 +1098,6 @@ function Subscribers({ rows }: { rows: Data["subscribers"] }) {
   );
 }
 
-type Cv = NonNullable<Data["applications"][number]["cv"]>;
-
-/** In-panel CV viewer: PDFs open inline; Word files can only be downloaded. */
-function CvViewer({ cv, name, onClose }: { cv: Cv; name: string; onClose: () => void }) {
-  const src = cv.url ? asset(cv.url) : cv.dataUrl;
-  const isPdf = cv.type === "application/pdf" || cv.name.toLowerCase().endsWith(".pdf");
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
-  // Browsers block data: URLs in frames, so stored PDFs are shown through a blob URL.
-  useEffect(() => {
-    if (!cv.dataUrl || !isPdf) return;
-    let url: string | null = null;
-    fetch(cv.dataUrl)
-      .then((r) => r.blob())
-      .then((blob) => {
-        url = URL.createObjectURL(blob);
-        setBlobUrl(url);
-      });
-    return () => {
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [cv.dataUrl, isPdf]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  const frameSrc = cv.url ? asset(cv.url) : blobUrl;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-3 md:p-8" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`CV de ${name}`}
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white"
-      >
-        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
-          <div className="min-w-0">
-            <p className="font-semibold truncate">CV · {name}</p>
-            <p className="text-xs text-ink/50 truncate">
-              {cv.name} · {Math.round(cv.size / 1024)} Ko
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {src && (
-              <a href={src} download={cv.name} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
-                Télécharger
-              </a>
-            )}
-            <button onClick={onClose} aria-label="Fermer" className="relative h-9 w-9 rounded-full text-ink/60 hover:bg-ink/5">
-              <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current" />
-              <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current" />
-            </button>
-          </div>
-        </div>
-        {isPdf && frameSrc ? (
-          <iframe title={`CV de ${name}`} src={frameSrc} className="flex-1 w-full bg-ink/5" />
-        ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-ink/60">
-            <p>{isPdf ? "Chargement…" : "Aperçu non disponible pour les fichiers Word."}</p>
-            {!isPdf && src && (
-              <a href={src} download={cv.name} className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper">
-                Télécharger le CV
-              </a>
-            )}
-            {!src && <p className="text-sm">Fichier trop lourd pour la démo : en production il est conservé sur le serveur.</p>}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Applications({ rows }: { rows: Data["applications"] }) {
-  const [view, setView] = useState<"list" | "form">("list");
-  const [viewing, setViewing] = useState<Data["applications"][number] | null>(null);
-
-  const tabCls = (active: boolean) =>
-    `rounded-full px-4 py-2 text-xs font-bold transition-colors ${active ? "bg-ink text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"}`;
-
-  return (
-    <>
-      <SectionHead
-        title="Candidatures"
-        desc="Reçues depuis la page Carrières. En production, chaque candidature est aussi envoyée par courriel au restaurant et le CV est stocké de façon privée."
-        onExport={
-          view === "list" && rows.length
-            ? () =>
-                downloadCsv("candidatures.csv", [
-                  ["Nom", (r: Data["applications"][number]) => r.name],
-                  ["Courriel", (r: Data["applications"][number]) => r.email],
-                  ["Téléphone", (r: Data["applications"][number]) => r.phone],
-                  ["Réponses", (r: Data["applications"][number]) => (r.answers ?? []).map((a) => `${a.label} : ${a.value}`).join(" | ")],
-                  ["Message", (r: Data["applications"][number]) => r.message],
-                  ["CV", (r: Data["applications"][number]) => r.cv?.name],
-                  ["Date", (r: Data["applications"][number]) => dateTime.format(new Date(r.createdAt))],
-                ] as never, rows)
-            : undefined
-        }
-      />
-
-      <div className="flex gap-2 mb-5">
-        <button onClick={() => setView("list")} className={tabCls(view === "list")}>
-          Candidatures ({rows.length})
-        </button>
-        <button onClick={() => setView("form")} className={tabCls(view === "form")}>
-          Formulaire
-        </button>
-      </div>
-
-      {view === "form" ? (
-        <CareersFormEditor />
-      ) : !rows.length ? (
-        <Empty text="Aucune candidature pour l'instant." />
-      ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {rows.map((r) => (
-            <Card key={r.id} className="flex flex-col">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-10 h-10 shrink-0 rounded-full bg-red-600 text-paper flex items-center justify-center font-display font-bold">
-                    {r.name.charAt(0)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">
-                      {r.name}
-                      <SampleTag show={r.sample} />
-                    </p>
-                    <p className="text-xs text-ink/50">{dateTime.format(new Date(r.createdAt))}</p>
-                  </div>
-                </div>
-                {r.cv && (
-                  <button onClick={() => setViewing(r)} className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper hover:bg-ink/85">
-                    Voir le CV
-                  </button>
-                )}
-              </div>
-
-              {!!r.answers?.length && (
-                <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-ink/[0.03] p-4 text-sm">
-                  {r.answers.map((a) => (
-                    <div key={a.label}>
-                      <dt className="text-xs text-ink/50">{a.label}</dt>
-                      <dd className="font-semibold">{a.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-
-              <p className="mt-4 text-sm text-ink/75 whitespace-pre-line flex-1">{r.message}</p>
-              <p className="mt-4 text-sm">
-                <a href={`mailto:${r.email}`} className="text-red-600 font-semibold">
-                  {r.email}
-                </a>{" "}
-                ·{" "}
-                <a href={`tel:${r.phone}`} className="text-red-600 font-semibold">
-                  {r.phone}
-                </a>
-              </p>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {viewing?.cv && <CvViewer cv={viewing.cv} name={viewing.name} onClose={() => setViewing(null)} />}
-    </>
-  );
-}
-
-function CareersFormEditor() {
-  const fields = useCareersFields();
-  const set = (next: CareersField[]) => saveCareersFields(next);
-  const patch = (id: string, change: Partial<CareersField>) => set(fields.map((f) => (f.id === id ? { ...f, ...change } : f)));
-  const move = (i: number, dir: -1 | 1) => {
-    const next = [...fields];
-    const j = i + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[i], next[j]] = [next[j], next[i]];
-    set(next);
-  };
-  const fixed = ["Nom complet", "Courriel", "Téléphone", "Message", "CV (PDF ou DOCX)"];
-  const field = "rounded-xl border-2 border-ink/15 bg-white px-3 py-2 text-sm focus:border-red-600 focus:outline-none";
-
-  return (
-    <div className="flex flex-col gap-5">
-      <p className="text-sm text-ink/60 max-w-2xl">
-        Choisissez les questions posées aux candidats sur la page Carrières. Les changements s'appliquent tout de suite au
-        formulaire du site.
-      </p>
-
-      <Card>
-        <p className="text-xs font-bold uppercase tracking-wider text-ink/45 mb-3">Toujours demandés</p>
-        <div className="flex flex-wrap gap-2">
-          {fixed.map((f) => (
-            <span key={f} className="rounded-full bg-ink/5 px-3 py-1.5 text-xs font-semibold text-ink/70">
-              {f}
-            </span>
-          ))}
-        </div>
-      </Card>
-
-      <ul className="flex flex-col gap-3">
-        {fields.map((f, i) => (
-          <li key={f.id} className="rounded-2xl bg-white border border-ink/10 p-4 md:p-5">
-            <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-                Question (FR)
-                <input value={f.label} onChange={(e) => patch(f.id, { label: e.target.value })} className={field} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-                Question (EN)
-                <input value={f.labelEn ?? ""} onChange={(e) => patch(f.id, { labelEn: e.target.value })} className={field} />
-              </label>
-              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-                Type
-                <select value={f.type} onChange={(e) => patch(f.id, { type: e.target.value as FieldType })} className={field}>
-                  {(Object.keys(FIELD_TYPES) as FieldType[]).map((t) => (
-                    <option key={t} value={t}>
-                      {FIELD_TYPES[t]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {f.type === "select" && (
-              <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-ink/60">
-                Choix (séparés par des virgules)
-                <input
-                  value={(f.options ?? []).join(", ")}
-                  onChange={(e) => patch(f.id, { options: e.target.value.split(",").map((o) => o.trim()).filter(Boolean) })}
-                  className={field}
-                />
-              </label>
-            )}
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input type="checkbox" checked={f.required} onChange={(e) => patch(f.id, { required: e.target.checked })} className="h-4 w-4 accent-red-600" />
-                Obligatoire
-              </label>
-              <div className="flex items-center gap-1">
-                <button onClick={() => move(i, -1)} disabled={i === 0} aria-label="Monter" className="h-8 w-8 rounded-lg text-ink/60 hover:bg-ink/5 disabled:opacity-30">
-                  ↑
-                </button>
-                <button onClick={() => move(i, 1)} disabled={i === fields.length - 1} aria-label="Descendre" className="h-8 w-8 rounded-lg text-ink/60 hover:bg-ink/5 disabled:opacity-30">
-                  ↓
-                </button>
-                <button
-                  onClick={() => set(fields.filter((x) => x.id !== f.id))}
-                  className="rounded-full px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-600/5"
-                >
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() =>
-            set([...fields, { id: Math.random().toString(36).slice(2, 8), label: "Nouvelle question", type: "text", required: false }])
-          }
-          className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700"
-        >
-          + Ajouter une question
-        </button>
-        <button
-          onClick={() => window.confirm("Revenir aux questions par défaut ?") && resetCareersFields()}
-          className="rounded-full px-4 py-2.5 text-sm font-bold text-ink/60 hover:bg-ink/5"
-        >
-          Questions par défaut
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function Catering({ rows }: { rows: Data["catering"] }) {
   return (
     <>
@@ -1367,75 +1176,7 @@ function Content() {
   );
 }
 
-function Toggle({ on, onChange, label, desc, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; desc: string; disabled?: boolean }) {
-  return (
-    <label className={`flex items-start justify-between gap-6 py-5 ${disabled ? "opacity-60" : "cursor-pointer"}`}>
-      <span>
-        <span className="block font-semibold">{label}</span>
-        <span className="block text-sm text-ink/55 mt-0.5">{desc}</span>
-      </span>
-      <span className="relative mt-1 shrink-0">
-        <input
-          type="checkbox"
-          checked={on}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="peer sr-only"
-        />
-        <span className="block h-7 w-12 rounded-full bg-ink/15 transition-colors peer-checked:bg-green-700 peer-focus-visible:ring-4 peer-focus-visible:ring-red-600/20" />
-        <span className="absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
-      </span>
-    </label>
-  );
-}
 
-function SettingsView() {
-  const settings = useSettings();
-  const onlyOne = settings.pickup !== settings.delivery;
-
-  return (
-    <>
-      <SectionHead title="Paramètres" desc="Choisissez comment vos clients reçoivent leur commande. Le site s'adapte tout de suite : boutons, panier et page de commande." />
-      <div className="rounded-2xl bg-white border border-ink/10 px-5 md:px-6 divide-y divide-ink/10">
-        <Toggle
-          label="Cueillette (pour emporter)"
-          desc="Le client commande en ligne et passe chercher sa commande au comptoir."
-          on={settings.pickup}
-          disabled={onlyOne && settings.pickup}
-          onChange={(v) => saveSettings({ pickup: v })}
-        />
-        <Toggle
-          label="Livraison"
-          desc="Le restaurant livre à l'adresse du client."
-          on={settings.delivery}
-          disabled={onlyOne && settings.delivery}
-          onChange={(v) => saveSettings({ delivery: v })}
-        />
-        <label className={`flex flex-wrap items-center justify-between gap-4 py-5 ${settings.delivery ? "" : "opacity-50"}`}>
-          <span>
-            <span className="block font-semibold">Minimum pour la livraison</span>
-            <span className="block text-sm text-ink/55 mt-0.5">Sous-total minimum avant taxes.</span>
-          </span>
-          <span className="flex items-center gap-2">
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={settings.deliveryMinimum}
-              disabled={!settings.delivery}
-              onChange={(e) => saveSettings({ deliveryMinimum: Math.max(0, Number(e.target.value)) })}
-              className="w-24 rounded-xl border-2 border-ink/15 bg-white px-3 py-2 text-right tabular-nums focus:border-red-600 focus:outline-none"
-            />
-            <span className="font-semibold">$</span>
-          </span>
-        </label>
-      </div>
-      <p className="mt-3 text-xs text-ink/45">
-        Au moins un mode doit rester actif. Démo : ces réglages s'appliquent au site ouvert dans ce navigateur.
-      </p>
-    </>
-  );
-}
 
 /** Checkbox grid of the panel pages a member may open. Équipe stays with the owner. */
 function PermissionPicker({ value, onChange }: { value: Tab[]; onChange: (tabs: Tab[]) => void }) {
@@ -1750,12 +1491,12 @@ function loadSamples() {
     return d.toISOString();
   };
   const sampleOrders: [number, number, Order][] = [
-    [0, 1, { mode: "livraison", name: "Client exemple A", phone: "514 555-0101", address: "12 rue Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }, { name: "Liqueur en canette", price: 2.5, qty: 2, category: "les-breuvages" }], subtotal: 30.45, discount: 0, total: 30.45, status: "nouvelle" }],
+    [0, 1, { mode: "emporter", name: "Client exemple A", phone: "514 555-0101", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }, { name: "Liqueur en canette", price: 2.5, qty: 2, category: "les-breuvages" }], subtotal: 30.45, discount: 0, total: 30.45, status: "nouvelle" }],
     [0, 3, { mode: "emporter", name: "Client exemple B", phone: "514 555-0102", when: "18:30", lines: [{ name: "Sous-marin Le Super (tout garni)", size: '10"', price: 16.5, qty: 2, category: "sous-marins" }], subtotal: 33, discount: 3.3, total: 29.7, promoCode: PROMO_CODE, status: "preparation" }],
     [1, 2, { mode: "emporter", name: "Client exemple C", phone: "514 555-0103", when: "Dès que possible", lines: [{ name: "Poutine Toute garnie", size: "Petite", price: 13.95, qty: 2, category: "poutines-speciales" }], subtotal: 27.9, discount: 0, total: 27.9, status: "prete" }],
-    [2, 4, { mode: "livraison", name: "Client exemple D", phone: "514 555-0104", address: "45 avenue Exemple", when: "Dès que possible", lines: [{ name: "Brochette de poulet (2 bâtons)", price: 24.95, qty: 1, category: "les-repas" }, { name: "Pizza Toute garnie", size: 'Moyenne 12"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }], subtotal: 50.4, discount: 0, total: 50.4, status: "terminee", paid: true }],
+    [2, 4, { mode: "emporter", name: "Client exemple D", phone: "514 555-0104", when: "Dès que possible", lines: [{ name: "Brochette de poulet (2 bâtons)", price: 24.95, qty: 1, category: "les-repas" }, { name: "Pizza Toute garnie", size: 'Moyenne 12"', price: 25.45, qty: 1, category: "notre-delicieuse-pizza" }], subtotal: 50.4, discount: 0, total: 50.4, status: "terminee", paid: true }],
     [3, 1, { mode: "emporter", name: "Client exemple E", phone: "514 555-0105", when: "12:15", lines: [{ name: "Spécial no 3", price: 28.95, qty: 1, category: "super-speciaux" }], subtotal: 28.95, discount: 0, total: 28.95, status: "terminee", paid: true }],
-    [5, 5, { mode: "livraison", name: "Client exemple F", phone: "514 555-0106", address: "8 boulevard Exemple", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 2, category: "notre-delicieuse-pizza" }], subtotal: 50.9, discount: 5.09, total: 45.81, promoCode: PROMO_CODE, status: "terminee", paid: true }],
+    [5, 5, { mode: "emporter", name: "Client exemple F", phone: "514 555-0106", when: "Dès que possible", lines: [{ name: "Pizza Toute garnie", size: 'Large 14"', price: 25.45, qty: 2, category: "notre-delicieuse-pizza" }], subtotal: 50.9, discount: 5.09, total: 45.81, promoCode: PROMO_CODE, status: "terminee", paid: true }],
   ];
   const write = <T,>(key: string, rows: T[]) => {
     try {
@@ -1774,16 +1515,16 @@ function loadSamples() {
   record(
     "applications",
     {
+      jobId: "commis-comptoir",
+      jobTitle: "Commis au comptoir",
       name: "Candidat exemple",
       email: "candidat@courriel.test",
       phone: "514 555-0199",
       message: "Disponible les soirs et fins de semaine, expérience au comptoir.",
       answers: [
-        { label: "Poste souhaité", value: "Comptoir" },
-        { label: "Disponibilités", value: "Soirs" },
-        { label: "Date de début possible", value: "2026-12-01" },
-        { label: "Expérience en restauration", value: "1 à 3 ans" },
-        { label: "Permis de conduire valide", value: "Non" },
+        { label: "Quelles sont tes disponibilités ?", value: "Soirs et fins de semaine" },
+        { label: "As-tu déjà travaillé en restauration ?", value: "Oui" },
+        { label: "Pourquoi La Patathèque ?", value: "J'habite le quartier et j'y mange depuis que je suis petit." },
       ],
       cv: { name: "cv-exemple.pdf", size: 1336, type: "application/pdf", url: "/demo/cv-exemple.pdf" },
     },
@@ -1791,4 +1532,12 @@ function loadSamples() {
   );
   record("catering", { name: "Entreprise exemple", email: "evenements@courriel.test", phone: "514 555-0177", eventType: "Événement d'entreprise", date: "2027-03", guests: "40", message: "Dîner d'équipe, pizzas et salades." }, true);
   for (let i = 0; i < 9; i++) record("events", { event: "commander_click", from: "exemple" }, true);
+  const today = todayIso();
+  const sampleBookings = [
+    { time: "12:00", party: 2, name: "Réservation exemple A", phone: "514 555-0110", highChairs: 0, accessible: false },
+    { time: "18:00", party: 4, name: "Réservation exemple B", phone: "514 555-0111", highChairs: 1, accessible: false, occasion: "Anniversaire" },
+    { time: "18:30", party: 6, name: "Réservation exemple C", phone: "514 555-0112", highChairs: 0, accessible: false },
+    { time: "19:00", party: 3, name: "Réservation exemple D", phone: "514 555-0113", highChairs: 0, accessible: true, notes: "Près de l'entrée si possible" },
+  ];
+  sampleBookings.forEach((b) => addBooking({ date: today, ...b }, true));
 }
