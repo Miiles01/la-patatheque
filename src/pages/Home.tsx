@@ -11,6 +11,7 @@ import { useMenu } from "../lib/menuStore";
 import { asset } from "../lib/asset";
 import { useCart, type OrderMode } from "../lib/cart";
 import { useFormatPrice, useI18n, type Key } from "../lib/i18n";
+import { reducedMotion } from "../lib/motion";
 import { navigate } from "../lib/router";
 
 function Hero() {
@@ -52,13 +53,23 @@ function Hero() {
   );
 }
 
+// Phones get the lighter 720p cut; larger screens the 1080p one.
+const HERO_VIDEO = window.matchMedia("(min-width: 1024px)").matches ? "/video/hero-1080.mp4" : "/video/hero-720.mp4";
+
+/** Drone shot of the restaurant on Sherbrooke East: silent, looping, with the same parallax as before. */
 function HeroImage() {
   return (
-    <section data-nav="dark" className="h-[60svh] md:h-[85svh] overflow-hidden bg-red-700" aria-label="Pizza toute garnie">
-      <img
+    <section data-nav="dark" className="h-[60svh] md:h-[85svh] overflow-hidden bg-red-700" aria-label="La Patathèque vue du ciel">
+      <video
         data-parallax="-24"
-        src={asset("/images/hero.webp")}
-        alt="Pizza toute garnie sortie du four"
+        src={asset(HERO_VIDEO)}
+        poster={asset("/video/hero-poster.webp")}
+        autoPlay={!reducedMotion}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        aria-label="Vue aérienne de La Patathèque, rue Sherbrooke Est"
         className="h-[124%] w-full object-cover will-change-transform"
       />
     </section>
