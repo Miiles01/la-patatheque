@@ -316,7 +316,7 @@ function JobEditor({ job: initial, onCancel, onSaved }: { job: Job; onCancel: ()
             </div>
           </div>
           <Switch on={job.requestCoverLetter} onChange={(v) => set({ requestCoverLetter: v })} label="Lettre de présentation" hint="Suggestion : utile pour les postes de gestion." />
-          <Switch on={job.requestPortfolio} onChange={(v) => set({ requestPortfolio: v })} label="Portfolio ou lien en ligne" hint="Suggestion : pour la cuisine (photos de plats) ou le marketing." />
+          <Switch on={job.requestPortfolio} onChange={(v) => set({ requestPortfolio: v })} label="Lien vers un portfolio" hint="Le candidat partage un lien (site, Instagram, Drive…) vers ses travaux antérieurs." />
         </Card>
 
         <Card className="flex flex-col gap-3">
