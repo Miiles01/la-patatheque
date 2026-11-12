@@ -1459,25 +1459,6 @@ function Team({ currentUser }: { currentUser: Member }) {
         ))}
       </ul>
 
-      <section className="mt-8">
-        <h2 className="font-display font-bold text-lg mb-3">Permissions suggérées par rôle</h2>
-        <div className="overflow-x-auto rounded-2xl bg-white border border-ink/10">
-          <table className="w-full text-sm text-left">
-            <tbody>
-              {(Object.keys(ROLES) as Role[]).map((r) => (
-                <tr key={r} className="border-b border-ink/5 last:border-0">
-                  <td className="px-4 md:px-5 py-3 font-semibold whitespace-nowrap">{ROLES[r].label}</td>
-                  <td className="px-4 md:px-5 py-3 text-ink/65">{ROLES[r].access}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-ink/45">
-          Démo : les accès sont enregistrés dans ce navigateur, avec les mots de passe chiffrés. En production, ils seront
-          vérifiés par le serveur.
-        </p>
-      </section>
     </>
   );
 }
