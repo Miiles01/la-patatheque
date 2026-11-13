@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LineButton } from "../components/LineLink";
 import { commander } from "../components/Navigation";
 import { ReviewsCarousel } from "../components/ReviewsCarousel";
@@ -98,11 +98,40 @@ const BEST_SELLERS: BestSeller[] = [
   { key: "best.poutine", category: "poutines-speciales", item: "Avec sauce", size: 0, image: "/dishes/poutine.webp", word: "Poutine" },
 ];
 
+/**
+ * Tablet and desktop: the carousel fades out on the side that has more cards,
+ * the right at first, then the left too once it has been scrolled.
+ */
+function useRailEdges(rail: React.RefObject<HTMLDivElement | null>) {
+  const [mask, setMask] = useState<string | undefined>();
+  useEffect(() => {
+    const el = rail.current;
+    if (!el) return;
+    const wide = window.matchMedia("(min-width: 768px)");
+    const update = () => {
+      if (!wide.matches) return setMask(undefined);
+      const fade = Math.min(160, el.clientWidth * 0.12);
+      const left = el.scrollLeft > 4 ? fade : 0;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? fade : 0;
+      setMask(`linear-gradient(to right, transparent, #000 ${left}px, #000 calc(100% - ${right}px), transparent)`);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [rail]);
+  return mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined;
+}
+
 function BestSellers() {
   const { t } = useI18n();
   const { categories: menuCategories } = useMenu();
   const formatPrice = useFormatPrice();
   const rail = useRef<HTMLDivElement>(null);
+  const edges = useRailEdges(rail);
   // One card per click.
   const scroll = (dir: 1 | -1) => {
     const el = rail.current;
@@ -143,6 +172,7 @@ function BestSellers() {
 
         <div
           ref={rail}
+          style={edges}
           className="-mx-5 px-5 md:mx-0 md:px-0 flex gap-3 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-px-5 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {BEST_SELLERS.map((b, i) => {
