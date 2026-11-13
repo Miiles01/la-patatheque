@@ -7,19 +7,19 @@ import { record } from "../lib/demoStore";
 import { useI18n } from "../lib/i18n";
 import { navigate, useRoute } from "../lib/router";
 
-const SEEN = "patatheque-promo-seen"; // sessionStorage: shown once per visit
+const SEEN = "patatheque-promo-seen"; // localStorage: shown once per browser, on the first visit
 const JOINED = "patatheque-promo-joined"; // localStorage: never again once signed up
 
 function shouldShow() {
   try {
-    return !sessionStorage.getItem(SEEN) && !localStorage.getItem(JOINED);
+    return !localStorage.getItem(SEEN) && !localStorage.getItem(JOINED);
   } catch {
     return false;
   }
 }
 
 /**
- * "10 % on your first order" email capture, shown once per visit after a short
+ * "10 % on your first order" email capture, shown once per browser (first visit) after a short
  * delay. The food photo fills the card: on desktop the copy sits on the empty
  * red right side of the landscape shot, on phones over the bottom of the
  * portrait one.
@@ -35,7 +35,7 @@ export function PromoPopup() {
     const id = window.setTimeout(() => {
       setOpen(true);
       try {
-        sessionStorage.setItem(SEEN, "1");
+        localStorage.setItem(SEEN, "1");
       } catch {
         // ignore
       }
