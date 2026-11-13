@@ -190,7 +190,7 @@ function BestSellers() {
                   commander("best-sellers");
                 }}
                 data-fade={Math.min(i, 3) * 0.08}
-                className="group relative snap-start shrink-0 w-[84%] sm:w-[58%] lg:w-[calc((100%-2.5rem)/3)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
+                className="group relative snap-start shrink-0 w-[84%] sm:w-[58%] md:w-[calc((100%-2.5rem)/2.4)] lg:w-[calc((100%-3.75rem)/3.4)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
               >
                 {row?.photo || b.image ? (
                   <img
