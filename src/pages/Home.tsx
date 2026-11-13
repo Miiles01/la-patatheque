@@ -160,7 +160,7 @@ function BestSellers() {
                   commander("best-sellers");
                 }}
                 data-fade={Math.min(i, 3) * 0.08}
-                className="group relative snap-start shrink-0 w-[72%] sm:w-[44%] lg:w-[calc((100%-3.75rem)/4)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
+                className="group relative snap-start shrink-0 w-[84%] sm:w-[58%] lg:w-[calc((100%-2.5rem)/3)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
               >
                 {row?.photo || b.image ? (
                   <img
@@ -178,12 +178,12 @@ function BestSellers() {
                 {/* Darkens the bottom so the name stays readable on any photo. */}
                 <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-ink/75 to-ink/0" />
                 {price !== null && (
-                  <span className="absolute top-3 right-3 md:top-4 md:right-4 rounded-full bg-paper px-3.5 py-1.5 text-sm font-display font-bold tabular-nums text-ink">
+                  <span className="absolute top-4 right-4 md:top-6 md:right-6 rounded-full bg-paper px-4 py-2 text-base font-display font-bold tabular-nums text-ink">
                     {formatPrice(price)}
                     {size && <span className="ml-1.5 text-xs font-normal text-ink/55">{size}</span>}
                   </span>
                 )}
-                <h3 className="absolute left-4 right-4 bottom-4 md:left-5 md:bottom-5 font-display font-bold text-paper text-lg md:text-2xl leading-tight">
+                <h3 className="absolute left-5 right-5 bottom-5 md:left-7 md:right-7 md:bottom-7 font-display font-bold text-paper text-2xl md:text-3xl leading-tight">
                   {name}
                 </h3>
               </a>
