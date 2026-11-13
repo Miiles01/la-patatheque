@@ -15,7 +15,7 @@
 //   GET/POST/PATCH/DELETE team…   owner only
 //   GET    cv/<id>                an application's CV                      (staff)
 //
-// Secrets live outside public_html in ../../patatheque-config.php.
+// Secrets live outside the website, in ~/patatheque-config.php.
 
 declare(strict_types=1);
 

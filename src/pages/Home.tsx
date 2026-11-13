@@ -140,7 +140,7 @@ function BestSellers() {
   };
 
   return (
-    <section className="bg-paper py-24 md:py-36">
+    <section className="bg-paper py-24 md:py-36 overflow-x-clip">
       <div className="mx-auto max-w-7xl px-5 md:px-10">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12 md:mb-16">
           <div>
@@ -173,7 +173,8 @@ function BestSellers() {
         <div
           ref={rail}
           style={edges}
-          className="-mx-5 px-5 md:mx-0 md:px-0 flex gap-3 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-px-5 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          // Runs edge to edge of the screen; the first card lines up with the title.
+          className="-mx-5 px-5 md:mx-0 md:ml-[calc(50%-50vw)] md:w-screen md:px-[var(--gutter)] md:[--gutter:max(2.5rem,calc((100vw-80rem)/2+2.5rem))] md:[--content:min(100vw-5rem,75rem)] flex gap-3 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-px-5 md:scroll-px-[var(--gutter)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {BEST_SELLERS.map((b, i) => {
             const category = menuCategories.find((c) => c.id === b.category);
@@ -190,7 +191,7 @@ function BestSellers() {
                   commander("best-sellers");
                 }}
                 data-fade={Math.min(i, 3) * 0.08}
-                className="group relative snap-start shrink-0 w-[84%] sm:w-[58%] md:w-[calc((100%-2.5rem)/2.4)] lg:w-[calc((100%-3.75rem)/3.4)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
+                className="group relative snap-start shrink-0 w-[84%] sm:w-[58%] md:w-[calc((var(--content)-2.5rem)/2.4)] lg:w-[calc((var(--content)-3.75rem)/3.4)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
               >
                 {row?.photo || b.image ? (
                   <img

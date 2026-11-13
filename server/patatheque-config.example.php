@@ -1,6 +1,6 @@
 <?php
-// Copy to domains/<site>/patatheque-config.php on the server (next to public_html,
-// never inside it) and fill in the database created in hPanel.
+// Lives on the server at ~/patatheque-config.php (the account's home folder,
+// outside every website). Fill in the MySQL database created in hPanel.
 return [
     'db_host' => 'localhost',
     'db_name' => 'u177100716_patatheque',

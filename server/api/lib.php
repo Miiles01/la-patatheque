@@ -12,10 +12,14 @@ final class HttpError extends Exception
     }
 }
 
-/** domains/<site>/ : one level above public_html, out of the web's reach. */
+/**
+ * The account's home folder (/home/<user>), outside every website: the API sits
+ * in /home/<user>/domains/<site>/public_html/api. Hostinger asks not to put
+ * files in domains/<site>/ itself.
+ */
 function private_root(): string
 {
-    return dirname(__DIR__, 2);
+    return dirname(__DIR__, 4);
 }
 
 function settings(): array
