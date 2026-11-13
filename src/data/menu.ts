@@ -163,6 +163,8 @@ export const restaurant = {
   /** Pending from the restaurant; the contact page hides the row while empty. */
   email: "",
   rating: 4.1,
+  /** Google page where customers leave a review. */
+  reviewUrl: "https://maps.app.goo.gl/rNeV52RJoMvfRY4b9",
   reviewCount: 532,
   orderUrl: "https://order.restomenu.com/fr/la-patatheque/menu",
   mapsUrl: "https://www.google.com/maps/place/La+Patathèque/@45.6640343,-73.5063928,17z",

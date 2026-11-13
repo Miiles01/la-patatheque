@@ -6,7 +6,7 @@ import { ReviewsCarousel } from "../components/ReviewsCarousel";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnLight, btnOutline, btnPrimary, headingLg } from "../components/ui";
 import { reservationSettings } from "../lib/reservations";
-import { dishName, specialsNote, testimonials } from "../data/menu";
+import { dishName, restaurant, specialsNote, testimonials } from "../data/menu";
 import { useMenu } from "../lib/menuStore";
 import { asset } from "../lib/asset";
 import { useCart, type OrderMode } from "../lib/cart";
@@ -309,6 +309,11 @@ function Reviews() {
           {t("reviews.title")} <Alt>{t("reviews.titleAlt")}</Alt>
         </h2>
         <ReviewsCarousel reviews={testimonials} />
+        <div data-fade className="mt-12 md:mt-16 flex justify-center">
+          <a href={restaurant.reviewUrl} target="_blank" rel="noreferrer" className={btnOutline}>
+            {t("reviews.cta")}
+          </a>
+        </div>
       </div>
     </section>
   );
