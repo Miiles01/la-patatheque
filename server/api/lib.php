@@ -105,6 +105,17 @@ function require_same_origin(): void
     if (($_SERVER['HTTP_X_PATATHEQUE'] ?? '') !== '1') throw new HttpError('Requête refusée.', 403);
 }
 
+/** Hostinger's front proxy terminates HTTPS and passes the visitor on in these headers. */
+function is_https(): bool
+{
+    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+}
+
+function visitor_ip(): string
+{
+    return $_SERVER['HTTP_X_REAL_IP'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+}
+
 function start_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) return;
@@ -112,7 +123,7 @@ function start_session(): void
     session_set_cookie_params([
         'lifetime' => 0,
         'path' => '/',
-        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'secure' => is_https(),
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
@@ -148,7 +159,7 @@ function current_member(bool $refresh = false): ?array
 /** At most $max requests per $seconds for this visitor and bucket. */
 function rate_limit(string $bucket, int $max, int $seconds): void
 {
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $ip = visitor_ip();
     $key = substr(hash('sha256', $bucket . '|' . $ip), 0, 32);
     db_run('DELETE FROM hits WHERE at < UTC_TIMESTAMP() - INTERVAL 1 DAY AND RAND() < 0.02');
     $count = (int)db_one('SELECT COUNT(*) AS n FROM hits WHERE k = ? AND at > UTC_TIMESTAMP() - INTERVAL ? SECOND', [$key, $seconds])['n'];

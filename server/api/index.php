@@ -21,14 +21,6 @@ declare(strict_types=1);
 
 require __DIR__ . '/lib.php';
 
-try {
-    route();
-} catch (HttpError $e) {
-    reply(['error' => $e->getMessage()], $e->status);
-} catch (Throwable $e) {
-    error_log('patatheque api: ' . $e);
-    reply(['error' => 'Erreur du serveur.'], 500);
-}
 
 function route(): void
 {
@@ -567,4 +559,14 @@ function member_out(array $m): array
         'lastLogin' => $m['last_login'] ? iso($m['last_login']) : null,
         'passwordHash' => '',
     ];
+}
+
+// Last, so the constants above are defined before any request is handled.
+try {
+    route();
+} catch (HttpError $e) {
+    reply(['error' => $e->getMessage()], $e->status);
+} catch (Throwable $e) {
+    error_log('patatheque api: ' . $e);
+    reply(['error' => 'Erreur du serveur.'], 500);
 }

@@ -113,7 +113,8 @@ function useRailEdges(rail: React.RefObject<HTMLDivElement | null>) {
       const fade = Math.min(160, el.clientWidth * 0.12);
       const left = el.scrollLeft > 4 ? fade : 0;
       const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? fade : 0;
-      setMask(`linear-gradient(to right, transparent, #000 ${left}px, #000 calc(100% - ${right}px), transparent)`);
+      // Softened: the very edge keeps 40 % of the card instead of disappearing.
+      setMask(`linear-gradient(to right, rgb(0 0 0 / 0.4), #000 ${left}px, #000 calc(100% - ${right}px), rgb(0 0 0 / 0.4))`);
     };
     update();
     el.addEventListener("scroll", update, { passive: true });
