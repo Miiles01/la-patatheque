@@ -90,12 +90,12 @@ type BestSeller = {
 // Each best seller points at a real menu row, so prices follow the menu data.
 const BEST_SELLERS: BestSeller[] = [
   { key: "best.burger", desc: "best.burgerDesc", category: "les-repas", item: "Hamburger B.B.Q.", size: 0, image: "/dishes/burger.webp", word: "Burger" },
-  { key: "best.poutine", category: "poutines-speciales", item: "Avec sauce", size: 0, image: "/dishes/poutine.webp", word: "Poutine" },
   { key: "best.brochette", desc: "best.brochetteDesc", category: "les-repas", item: "Brochette de poulet (1 bâton)", size: 0, image: "/dishes/brochette.webp", word: "Brochette" },
   { key: "best.club", category: "sandwichs", item: "Club Sandwich", size: 0, image: "/dishes/club.webp", word: "Club" },
   { key: "best.sub", desc: "best.subDesc", category: "sous-marins", item: "Le Super (tout garni)", size: 0, image: "/dishes/sous-marin.webp", word: "Sous-marin" },
   { key: "best.salade", category: "les-salades", item: "Salade italienne", size: 0, image: "/dishes/salade.webp", word: "Salade" },
   { key: "best.frites", category: "les-casse-croutes", item: "Frites maison", size: 1, image: "/dishes/frites.webp", word: "Frites" },
+  { key: "best.poutine", category: "poutines-speciales", item: "Avec sauce", size: 0, image: "/dishes/poutine.webp", word: "Poutine" },
 ];
 
 function BestSellers() {
