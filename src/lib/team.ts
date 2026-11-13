@@ -17,7 +17,7 @@ export type AdminTab =
   | "settings"
   | "team";
 
-export type Role = "proprietaire" | "gerant" | "marketing" | "comptoir" | "serveur" | "cuisine" | "livreur";
+export type Role = "proprietaire" | "gerant" | "marketing" | "comptoir" | "serveur" | "cuisine";
 
 export const ROLES: Record<Role, { label: string; access: string; tabs: AdminTab[] }> = {
   proprietaire: {
@@ -38,7 +38,6 @@ export const ROLES: Record<Role, { label: string; access: string; tabs: AdminTab
   comptoir: { label: "Comptoir", access: "Commandes et réservations", tabs: ["orders", "reservations"] },
   serveur: { label: "Serveur(euse)", access: "Commandes et réservations", tabs: ["orders", "reservations"] },
   cuisine: { label: "Cuisine", access: "Commandes", tabs: ["orders"] },
-  livreur: { label: "Livreur(euse)", access: "Commandes", tabs: ["orders"] },
 };
 
 export type Member = {
@@ -92,6 +91,8 @@ export function listTeam(): Member[] {
     const unique = rows.filter((m, i) => rows.findIndex((x) => x.id === m.id) === i);
     // Accounts made before employee numbers existed get the next free one.
     for (const m of unique) if (!m.employeeNumber) m.employeeNumber = m.owner ? OWNER_NUMBER : nextEmployeeNumber(unique);
+    // Roles that no longer exist (the old delivery role) become Comptoir, keeping their pages.
+    for (const m of unique) if (!(m.role in ROLES)) m.role = "comptoir";
     return unique;
   } catch {
     return [];
