@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LineButton } from "../components/LineLink";
 import { commander } from "../components/Navigation";
 import { ReviewsCarousel } from "../components/ReviewsCarousel";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnLight, btnOutline, btnPrimary, headingLg } from "../components/ui";
 import { reservationSettings } from "../lib/reservations";
-import { dishName, restaurant, specialsNote, testimonials } from "../data/menu";
+import { restaurant, specialsNote, testimonials } from "../data/menu";
 import { useMenu } from "../lib/menuStore";
 import { asset } from "../lib/asset";
 import { useCart, type OrderMode } from "../lib/cart";
@@ -78,7 +78,8 @@ function HeroImage() {
 
 type BestSeller = {
   key: Key;
-  desc: Key;
+  /** Only when the printed menu describes the dish. */
+  desc?: Key;
   category: string;
   item: string;
   size: number;
@@ -88,18 +89,26 @@ type BestSeller = {
 
 // Each best seller points at a real menu row, so prices follow the menu data.
 const BEST_SELLERS: BestSeller[] = [
-  { key: "best.pizza", desc: "best.pizzaDesc", category: "notre-delicieuse-pizza", item: "Toute garnie", size: 3, image: "/images/pizza.webp", word: "Pizza" },
-  { key: "best.poutine", desc: "best.poutineDesc", category: "poutines-speciales", item: "Toute garnie", size: 0, word: "Poutine" },
-  { key: "best.sub", desc: "best.subDesc", category: "sous-marins", item: "Le Super (tout garni)", size: 0, word: "Sous-marin" },
-  { key: "best.brochette", desc: "best.brochetteDesc", category: "les-repas", item: "Brochette de poulet (1 bâton)", size: 0, word: "Brochette" },
+  { key: "best.burger", desc: "best.burgerDesc", category: "les-repas", item: "Hamburger B.B.Q.", size: 0, image: "/dishes/burger.webp", word: "Burger" },
+  { key: "best.poutine", category: "poutines-speciales", item: "Avec sauce", size: 0, image: "/dishes/poutine.webp", word: "Poutine" },
+  { key: "best.brochette", desc: "best.brochetteDesc", category: "les-repas", item: "Brochette de poulet (1 bâton)", size: 0, image: "/dishes/brochette.webp", word: "Brochette" },
+  { key: "best.club", category: "sandwichs", item: "Club Sandwich", size: 0, image: "/dishes/club.webp", word: "Club" },
+  { key: "best.sub", desc: "best.subDesc", category: "sous-marins", item: "Le Super (tout garni)", size: 0, image: "/dishes/sous-marin.webp", word: "Sous-marin" },
+  { key: "best.salade", category: "les-salades", item: "Salade italienne", size: 0, image: "/dishes/salade.webp", word: "Salade" },
+  { key: "best.frites", category: "les-casse-croutes", item: "Frites maison", size: 1, image: "/dishes/frites.webp", word: "Frites" },
 ];
 
 function BestSellers() {
   const { t } = useI18n();
   const { categories: menuCategories } = useMenu();
   const formatPrice = useFormatPrice();
-  const cart = useCart();
-  const [added, setAdded] = useState<string | null>(null);
+  const rail = useRef<HTMLDivElement>(null);
+  // One card per click.
+  const scroll = (dir: 1 | -1) => {
+    const el = rail.current;
+    const card = el?.firstElementChild as HTMLElement | null;
+    if (el && card) el.scrollBy({ left: dir * (card.offsetWidth + 20), behavior: "smooth" });
+  };
 
   return (
     <section className="bg-paper py-24 md:py-36">
@@ -111,12 +120,31 @@ function BestSellers() {
               {t("best.title")} <Alt>{t("best.titleAlt")}</Alt>
             </h2>
           </div>
-          <LineButton href={routeHref("/commander")} onClick={() => commander("best-sellers")} className="shrink-0 text-ink">
-            {t("nav.order")}
-          </LineButton>
+          <div className="flex items-center gap-5 shrink-0">
+            <LineButton href={routeHref("/commander")} onClick={() => commander("best-sellers")} className="text-ink">
+              {t("nav.order")}
+            </LineButton>
+            <div className="hidden md:flex gap-2">
+              {([-1, 1] as const).map((dir) => (
+                <button
+                  key={dir}
+                  onClick={() => scroll(dir)}
+                  aria-label={t(dir < 0 ? "best.prev" : "best.next")}
+                  className="w-11 h-11 flex items-center justify-center rounded-full border border-ink/15 hover:border-red-600 hover:text-red-600 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`w-4 h-4 ${dir < 0 ? "rotate-180" : ""}`} aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+        <div
+          ref={rail}
+          className="-mx-5 px-5 md:mx-0 md:px-0 flex gap-3 md:gap-5 overflow-x-auto snap-x snap-mandatory scroll-px-5 md:scroll-px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {BEST_SELLERS.map((b, i) => {
             const category = menuCategories.find((c) => c.id === b.category);
             const row = category?.items.find((it) => it.name.includes(b.item));
@@ -124,49 +152,41 @@ function BestSellers() {
             const size = category && category.sizes.length > 1 ? category.sizes[b.size] : undefined;
             const name = t(b.key);
             return (
-              <article key={b.key} data-fade={i * 0.08} className="group flex flex-col rounded-2xl bg-cream overflow-hidden">
-                <div className="relative aspect-square overflow-hidden bg-red-700">
-                  {row?.photo ? (
-                    <img src={row.photo} alt={name} loading="lazy" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                  ) : b.image ? (
-                    <img
-                      src={asset(b.image)}
-                      alt={name}
-                      loading="lazy"
-                      className="h-full w-full object-contain p-4 transition-transform duration-700 group-hover:scale-105 group-hover:rotate-6"
-                    />
-                  ) : (
-                    // Photo coming from the restaurant; the dish name holds the spot meanwhile.
-                    <div className="h-full w-full flex items-center justify-center">
-                      <span className="script text-paper/90 text-[clamp(1.8rem,4vw,3rem)] -rotate-6 transition-transform duration-700 group-hover:scale-110">
-                        {b.word}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-1 flex-col p-4 md:p-6">
-                  <h3 className="font-display font-bold text-base md:text-xl leading-tight">{name}</h3>
-                  <p className="text-xs md:text-sm text-ink/55 mt-1 flex-1">{t(b.desc)}</p>
-                  {price !== null && (
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-display font-bold tabular-nums">
-                        {formatPrice(price)}
-                        {size && <span className="block text-xs font-normal text-ink/50">{size}</span>}
-                      </span>
-                      <button
-                        onClick={() => {
-                          cart.add({ name: dishName(b.category, row!.name), size, price, category: b.category });
-                          setAdded(b.key);
-                          window.setTimeout(() => setAdded((k) => (k === b.key ? null : k)), 1600);
-                        }}
-                        className="rounded-full bg-red-600 px-4 py-2.5 text-xs md:text-sm font-bold text-paper hover:bg-red-700 transition-colors"
-                      >
-                        {added === b.key ? "✓" : `+ ${t("best.add")}`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
+              <a
+                key={b.key}
+                href={routeHref("/commander")}
+                onClick={(e) => {
+                  e.preventDefault();
+                  commander("best-sellers");
+                }}
+                data-fade={Math.min(i, 3) * 0.08}
+                className="group relative snap-start shrink-0 w-[72%] sm:w-[44%] lg:w-[calc((100%-3.75rem)/4)] aspect-[4/5] rounded-2xl overflow-hidden bg-red-700"
+              >
+                {row?.photo || b.image ? (
+                  <img
+                    src={row?.photo || asset(b.image!)}
+                    alt=""
+                    loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                ) : (
+                  // Photo coming from the restaurant; the dish name holds the spot meanwhile.
+                  <span className="absolute inset-0 flex items-center justify-center script text-paper/90 text-[clamp(1.8rem,4vw,3rem)] -rotate-6">
+                    {b.word}
+                  </span>
+                )}
+                {/* Darkens the bottom so the name stays readable on any photo. */}
+                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-ink/75 to-ink/0" />
+                {price !== null && (
+                  <span className="absolute top-3 right-3 md:top-4 md:right-4 rounded-full bg-paper px-3.5 py-1.5 text-sm font-display font-bold tabular-nums text-ink">
+                    {formatPrice(price)}
+                    {size && <span className="ml-1.5 text-xs font-normal text-ink/55">{size}</span>}
+                  </span>
+                )}
+                <h3 className="absolute left-4 right-4 bottom-4 md:left-5 md:bottom-5 font-display font-bold text-paper text-lg md:text-2xl leading-tight">
+                  {name}
+                </h3>
+              </a>
             );
           })}
         </div>
@@ -214,6 +234,29 @@ function Modes() {
             </button>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+// Three photos between the order modes and the specials, set at different
+// heights and drifting at different speeds as the page scrolls.
+const GALLERY: { src: string; alt: Key; drift: string; offset: string }[] = [
+  { src: "/gallery/club-fourchette.webp", alt: "gallery.club", drift: "-10", offset: "" },
+  { src: "/gallery/brochette-mains.webp", alt: "gallery.brochette", drift: "8", offset: "mt-10 md:mt-24" },
+  { src: "/gallery/sous-marin-assiette.webp", alt: "gallery.sub", drift: "-16", offset: "mt-4 md:mt-8" },
+];
+
+function Gallery() {
+  const { t } = useI18n();
+  return (
+    <section className="bg-cream pb-24 md:pb-36 overflow-hidden" aria-label={t("gallery.label")}>
+      <div className="mx-auto max-w-7xl px-5 md:px-10 grid grid-cols-3 gap-2.5 md:gap-6 items-start">
+        {GALLERY.map((g, i) => (
+          <div key={g.src} data-fade={i * 0.1} className={`overflow-hidden rounded-2xl md:rounded-3xl bg-red-700 aspect-[3/4] ${g.offset}`}>
+            <img data-parallax={g.drift} src={asset(g.src)} alt={t(g.alt)} loading="lazy" className="h-[112%] w-full object-cover -mt-[6%]" />
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -326,6 +369,7 @@ export function Home() {
       <HeroImage />
       <BestSellers />
       <Modes />
+      <Gallery />
       <Specials />
       <Reviews />
     </>
