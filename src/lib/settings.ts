@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { createStore } from "./store";
 
-// Restaurant settings edited from the admin panel (Paramètres). The demo keeps
-// them in this browser; the real site will read them from the API.
+// Restaurant settings edited from the admin panel (Paramètres).
 
 export type Settings = {
   /** Customers can pick their order up at the counter. */
@@ -13,40 +12,22 @@ export type Settings = {
 };
 
 const DEFAULTS: Settings = { pickup: true, delivery: false, deliveryMinimum: 10 };
-const KEY = "patatheque-demo-settings";
-const CHANGE = "patatheque-settings-change";
+const store = createStore<Partial<Settings>>("patatheque-demo-settings", () => ({}));
+
+// Pickup only for now: delivery stays off whatever was saved before.
+const resolve = (saved: Partial<Settings>): Settings => ({ ...DEFAULTS, ...saved, pickup: true, delivery: false });
 
 export function getSettings(): Settings {
-  try {
-    // Pickup only for now: delivery stays off whatever an older demo session saved.
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? "{}"), pickup: true, delivery: false };
-  } catch {
-    return DEFAULTS;
-  }
+  return resolve(store.get());
 }
 
 export function saveSettings(patch: Partial<Settings>) {
   const next = { ...getSettings(), ...patch };
   // At least one way to get the food must stay on.
   if (!next.pickup && !next.delivery) return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // ignore
-  }
-  window.dispatchEvent(new Event(CHANGE));
+  store.set(next);
 }
 
 export function useSettings() {
-  const [settings, setSettings] = useState(getSettings);
-  useEffect(() => {
-    const sync = () => setSettings(getSettings());
-    window.addEventListener(CHANGE, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(CHANGE, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-  return settings;
+  return resolve(store.use());
 }

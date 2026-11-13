@@ -9,7 +9,8 @@ import { businessInfo, telHref } from "../lib/business";
 import { reservationSettings } from "../lib/reservations";
 import { asset } from "../lib/asset";
 import { useCart } from "../lib/cart";
-import { record } from "../lib/demoStore";
+import { submit as submitRecord } from "../lib/demoStore";
+import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
 import { navigate } from "../lib/router";
 
@@ -153,13 +154,15 @@ export function SurPlacePage() {
 export function CateringPage() {
   const { t } = useI18n();
   const [sent, setSent] = useState(false);
+  const send = useSend();
   const options = t("catering.eventOptions").split("|");
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? "").trim();
-    record("catering", {
+    send.run(async () => {
+    await submitRecord("catering", {
       name: get("name"),
       email: get("email"),
       phone: get("phone"),
@@ -170,6 +173,7 @@ export function CateringPage() {
     });
     track("catering_request");
     setSent(true);
+    });
   }
 
   return (
@@ -206,8 +210,13 @@ export function CateringPage() {
                   <TextField label={t("catering.guests")} optional={t("form.optional")} name="guests" type="number" min={10} max={500} />
                 </div>
                 <TextArea label={t("form.message")} optional={t("form.optional")} name="message" />
-                <button type="submit" className={`${btnPrimary} mt-2`}>
-                  {t("catering.submit")}
+                {send.error && (
+                  <p role="alert" className="text-sm text-red-600">
+                    {send.error}
+                  </p>
+                )}
+                <button type="submit" disabled={send.busy} className={`${btnPrimary} mt-2`}>
+                  {send.busy ? t("form.sending") : t("catering.submit")}
                 </button>
               </form>
             )}

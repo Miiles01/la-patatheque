@@ -6,7 +6,9 @@ import { Alt, btnOutline, btnPrimary, headingLg, PageHero, Success, TextArea, Te
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
 import { asset } from "../lib/asset";
-import { record, type Application } from "../lib/demoStore";
+import { live } from "../lib/api";
+import { submit as submitRecord, type Application } from "../lib/demoStore";
+import { useSend } from "../lib/useSend";
 import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
 import { routeHref } from "../lib/router";
@@ -185,6 +187,7 @@ function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
   const { t } = useI18n();
   const [cv, setCv] = useState<File | null>(null);
   const [cvError, setCvError] = useState("");
+  const send = useSend();
   const askCv = job ? job.requestCv : true;
   const cvRequired = job ? job.requestCv && job.cvRequired : false;
 
@@ -215,10 +218,10 @@ function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
     const get = (k: string) => String(f.get(k) ?? "").trim();
     let cvRecord: Application["cv"];
     if (cv) {
-      // The demo keeps small files so the dashboard can show them; the real site
-      // uploads them to private storage on the server.
+      // Sent with the application; the real site keeps it in private storage on
+      // the server (8 MB max), the demo keeps small files in the browser.
       const dataUrl =
-        cv.size < 1.5 * 1024 * 1024
+        cv.size < (live ? 8 : 1.5) * 1024 * 1024
           ? await new Promise<string>((resolve) => {
               const reader = new FileReader();
               reader.onload = () => resolve(String(reader.result));
@@ -228,7 +231,8 @@ function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
       cvRecord = { name: cv.name, size: cv.size, type: cv.type, dataUrl };
     }
     const answers = (job?.questions ?? []).map((q) => ({ label: q.label, value: get(`q-${q.id}`) })).filter((a) => a.value);
-    record("applications", {
+    await send.run(async () => {
+    await submitRecord("applications", {
       jobId: job?.id,
       jobTitle: job?.title,
       name: get("name"),
@@ -242,6 +246,7 @@ function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
     });
     track("job_application", { job: job?.title ?? "spontanée" });
     onSent();
+    });
   }
 
   return (
@@ -279,8 +284,13 @@ function ApplicationForm({ job, onSent }: { job?: Job; onSent: () => void }) {
           )}
         </div>
       )}
-      <button type="submit" className={`${btnPrimary} mt-2`}>
-        {t("careers.submit")}
+      {send.error && (
+        <p role="alert" className="text-sm text-red-600">
+          {send.error}
+        </p>
+      )}
+      <button type="submit" disabled={send.busy} className={`${btnPrimary} mt-2`}>
+        {send.busy ? t("form.sending") : t("careers.submit")}
       </button>
     </form>
   );

@@ -1,4 +1,10 @@
-// Admin accounts for the demo. The owner account always exists; the owner adds
+import { api, live } from "./api";
+
+// Admin accounts. On the real site they live in the database and the server
+// checks passwords and permissions; this file then keeps the list it returns
+// (cache). The demo below keeps them in this browser.
+//
+// Demo: The owner account always exists; the owner adds
 // staff with an email, a password and a role, and each role sees only part of
 // the panel. Passwords are stored as SHA-256 hashes (salted with the email) so
 // they never sit in plain text, even in the demo's localStorage. The real site
@@ -84,7 +90,48 @@ export async function hashPassword(email: string, password: string) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+let cache: Member[] = [];
+let signedIn: Member | null = null;
+
+/** Real site: the signed-in member (null when signed out), set by the server. */
+export function currentMember() {
+  return signedIn;
+}
+
+function setCache(team: Member[], me: Member | null = signedIn) {
+  cache = team;
+  signedIn = me ? (team.find((m) => m.id === me.id) ?? me) : null;
+  window.dispatchEvent(new Event(CHANGE));
+}
+
+/** Real site: re-reads the team (the owner gets everyone, others themselves). */
+export async function refreshTeam() {
+  if (!live || !signedIn) return;
+  setCache(await api<Member[]>("team"));
+}
+
+/** Real site: who is signed in, or whether the owner account still has to be created. */
+export async function restoreSession(): Promise<{ member: Member | null; needsSetup: boolean }> {
+  const res = await api<{ member: Member | null; needsSetup?: boolean }>("auth");
+  setCache(res.member ? [res.member] : [], res.member);
+  if (res.member) await refreshTeam();
+  return { member: res.member, needsSetup: !!res.needsSetup };
+}
+
+/** Real site: creates the owner account, once, on the first visit to the panel. */
+export async function setupOwner(input: { name: string; email: string; password: string }) {
+  const res = await api<{ member: Member }>("auth/setup", { method: "POST", body: input });
+  setCache([res.member], res.member);
+  return res.member;
+}
+
+export async function signOut() {
+  if (live) await api("auth", { method: "DELETE" }).catch(() => {});
+  setCache([], null);
+}
+
 export function listTeam(): Member[] {
+  if (live) return cache;
   try {
     const rows: Member[] = JSON.parse(localStorage.getItem(KEY) ?? "[]");
     // Drop duplicates an earlier double owner seed may have left behind.
@@ -100,6 +147,7 @@ export function listTeam(): Member[] {
 }
 
 function save(team: Member[]) {
+  if (live) return setCache(team);
   try {
     localStorage.setItem(KEY, JSON.stringify(team));
   } catch {
@@ -121,6 +169,7 @@ let seeding: Promise<void> | null = null;
 
 /** Creates the owner account the first time the panel is opened in this browser. */
 export function ensureOwner() {
+  if (live) return Promise.resolve();
   // Hashing is async, so concurrent callers share one run instead of each adding an owner.
   seeding ??= seedOwner();
   return seeding;
@@ -148,6 +197,17 @@ async function seedOwner() {
 
 /** Signs in with an email or an employee number. */
 export async function authenticate(login: string, password: string): Promise<Member | null> {
+  if (live) {
+    try {
+      const res = await api<{ member: Member }>("auth", { method: "POST", body: { login, password } });
+      setCache([res.member], res.member);
+      await refreshTeam();
+      return res.member;
+    } catch (e) {
+      if (e instanceof Error && "status" in e && e.status === 401) return null;
+      throw e;
+    }
+  }
   await ensureOwner();
   const id = login.trim();
   const member = listTeam().find((m) => (id.includes("@") ? m.email === normalize(id) : m.employeeNumber === id));
@@ -165,6 +225,11 @@ export async function addMember(input: {
   password: string;
   tabs: AdminTab[];
 }) {
+  if (live) {
+    const member = await api<Member>("team", { method: "POST", body: input });
+    setCache([...cache, member]);
+    return member;
+  }
   const email = normalize(input.email);
   const employeeNumber = input.employeeNumber.trim();
   if (listTeam().some((m) => m.email === email)) throw new Error("Ce courriel a déjà un accès.");
@@ -185,16 +250,30 @@ export async function addMember(input: {
 }
 
 export function updateMember(id: string, patch: Partial<Omit<Member, "id" | "owner">>) {
+  if (live) {
+    setCache(cache.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    if (patch.lastLogin === undefined) api(`team/${id}`, { method: "PATCH", body: patch }).catch(() => refreshTeam());
+    return;
+  }
   save(listTeam().map((m) => (m.id === id ? { ...m, ...patch } : m)));
 }
 
 export async function setPassword(id: string, password: string) {
+  if (live) {
+    await api(`team/${id}`, { method: "PATCH", body: { password } });
+    return;
+  }
   const member = listTeam().find((m) => m.id === id);
   if (!member) return;
   updateMember(id, { passwordHash: await hashPassword(member.email, password) });
 }
 
 export function removeMember(id: string) {
+  if (live) {
+    setCache(cache.filter((m) => m.id !== id || m.owner));
+    api(`team/${id}`, { method: "DELETE" }).catch(() => refreshTeam());
+    return;
+  }
   save(listTeam().filter((m) => m.id !== id || m.owner));
 }
 

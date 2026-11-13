@@ -3,9 +3,10 @@ import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { asset } from "../lib/asset";
 import { PROMO_CODE } from "../lib/cart";
-import { record } from "../lib/demoStore";
+import { submit as submitRecord } from "../lib/demoStore";
 import { useI18n } from "../lib/i18n";
 import { navigate, useRoute } from "../lib/router";
+import { useSend } from "../lib/useSend";
 
 const SEEN = "patatheque-promo-seen"; // localStorage: shown once per browser, on the first visit
 const JOINED = "patatheque-promo-joined"; // localStorage: never again once signed up
@@ -29,6 +30,7 @@ export function PromoPopup() {
   const route = useRoute();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const send = useSend();
 
   useEffect(() => {
     if (route === "/admin" || !shouldShow()) return;
@@ -53,7 +55,8 @@ export function PromoPopup() {
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    record("subscribers", { email: String(f.get("email")), consent: f.get("consent") === "on", code: PROMO_CODE, lang });
+    send.run(async () => {
+    await submitRecord("subscribers", { email: String(f.get("email")), consent: f.get("consent") === "on", code: PROMO_CODE, lang });
     track("promo_signup");
     try {
       localStorage.setItem(JOINED, "1");
@@ -61,6 +64,7 @@ export function PromoPopup() {
       // ignore
     }
     setDone(true);
+    });
   }
 
   return (
@@ -147,11 +151,17 @@ export function PromoPopup() {
                     <input type="checkbox" name="consent" required className="mt-0.5 h-4 w-4 shrink-0 accent-orange" />
                     <span>{t("form.consent")}</span>
                   </label>
+                  {send.error && (
+                    <p role="alert" className="text-sm text-orange-soft">
+                      {send.error}
+                    </p>
+                  )}
                   <button
                     type="submit"
-                    className="w-full rounded-full bg-paper px-8 py-4 text-sm font-bold text-red-700 hover:bg-cream transition-colors"
+                    disabled={send.busy}
+                    className="w-full rounded-full bg-paper px-8 py-4 text-sm font-bold text-red-700 hover:bg-cream disabled:opacity-60 transition-colors"
                   >
-                    {t("promo.submit")}
+                    {send.busy ? t("form.sending") : t("promo.submit")}
                   </button>
                 </form>
               )}

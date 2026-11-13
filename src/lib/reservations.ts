@@ -1,3 +1,4 @@
+import { api, live } from "./api";
 import { createStore } from "./store";
 
 // Table reservations. The restaurant switches them on, lists its tables (with
@@ -90,7 +91,14 @@ export const reservationSettings = createStore<ReservationSettings>("patatheque-
   askOccasion: true,
 }));
 
-export const bookingsStore = createStore<Booking[]>("patatheque-demo-bookings", () => []);
+// Real site: filled from the API (refreshBookings), never saved as a whole. Visitors
+// get only which tables are taken; staff get the full bookings.
+export const bookingsStore = createStore<Booking[]>("patatheque-demo-bookings", () => [], { shared: false });
+
+export async function refreshBookings() {
+  if (!live) return;
+  bookingsStore.setLocal(await api<Booking[]>(`bookings?from=${todayIso()}`));
+}
 
 const toMinutes = (t: string) => {
   const [h, m] = t.split(":").map(Number);
@@ -144,7 +152,22 @@ export function findTable(
   );
 }
 
-export function addBooking(data: Omit<Booking, "id" | "createdAt" | "status" | "tableId">, sample = false): Booking | null {
+/**
+ * Books the smallest free table that fits, or returns null when none is free.
+ * On the real site the server picks the table, so two people can't get the same one.
+ */
+export async function addBooking(data: Omit<Booking, "id" | "createdAt" | "status" | "tableId">, sample = false): Promise<Booking | null> {
+  if (live) {
+    try {
+      const booking = await api<Booking>("bookings", { method: "POST", body: data });
+      bookingsStore.setLocal([...bookingsStore.get(), booking]);
+      return booking;
+    } catch (e) {
+      refreshBookings().catch(() => {});
+      if (e instanceof Error && "status" in e && e.status === 409) return null;
+      throw e;
+    }
+  }
   const table = findTable(data);
   if (!table) return null;
   const booking: Booking = {
@@ -161,6 +184,7 @@ export function addBooking(data: Omit<Booking, "id" | "createdAt" | "status" | "
 
 export function updateBooking(id: string, patch: Partial<Booking>) {
   bookingsStore.set(bookingsStore.get().map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  if (live) api(`bookings/${id}`, { method: "PATCH", body: patch }).catch(() => refreshBookings());
 }
 
 /** Next free number for a new table ("9" after tables 1–8). */

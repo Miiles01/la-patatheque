@@ -1,6 +1,10 @@
-// Demo storage: everything the site collects is kept in this browser's
-// localStorage so the admin dashboard can show it without a backend. The real
-// site will post the same records to the API instead.
+import { api, ApiError, live } from "./api";
+import { SAVE_ERROR } from "./store";
+
+// What the site collects: orders, 10 % sign-ups, applications, catering
+// requests and click events. The demo keeps them in this browser's
+// localStorage; the real site sends them to the API, and the admin panel reads
+// them back from it (refresh).
 
 export type OrderLine = { name: string; size?: string; price: number; qty: number; category?: string };
 
@@ -67,7 +71,10 @@ export type Stored<T> = T & { id: string; createdAt: string; sample?: boolean };
 const KEY = (c: Collection) => `patatheque-demo-${c}`;
 const CHANGE = "patatheque-demo-change";
 
+const cache: Partial<Record<Collection, unknown[]>> = {};
+
 export function list<C extends Collection>(c: C): Stored<Collections[C]>[] {
+  if (live) return (cache[c] ?? []) as Stored<Collections[C]>[];
   try {
     return JSON.parse(localStorage.getItem(KEY(c)) ?? "[]");
   } catch {
@@ -76,23 +83,47 @@ export function list<C extends Collection>(c: C): Stored<Collections[C]>[] {
 }
 
 function write<C extends Collection>(c: C, rows: Stored<Collections[C]>[]) {
-  try {
-    localStorage.setItem(KEY(c), JSON.stringify(rows));
-  } catch {
-    // Quota or private mode: the demo keeps working, it just won't remember.
+  if (live) {
+    cache[c] = rows;
+  } else {
+    try {
+      localStorage.setItem(KEY(c), JSON.stringify(rows));
+    } catch {
+      // Quota or private mode: the demo keeps working, it just won't remember.
+    }
   }
   window.dispatchEvent(new Event(CHANGE));
 }
 
-export function record<C extends Collection>(c: C, data: Collections[C], sample = false): Stored<Collections[C]> {
-  const row = {
+/** Real site: reloads a collection from the API (admin panel only). */
+export async function refresh(c: Collection) {
+  if (!live) return;
+  write(c, await api<Stored<Collections[typeof c]>[]>(`records/${c}`));
+}
+
+const newRow = <C extends Collection>(data: Collections[C], sample: boolean) =>
+  ({
     ...data,
     id: Math.random().toString(36).slice(2, 8).toUpperCase(),
     createdAt: new Date().toISOString(),
     ...(sample ? { sample } : {}),
-  } as Stored<Collections[C]>;
+  }) as Stored<Collections[C]>;
+
+/** Saves without waiting (click events, demo samples). */
+export function record<C extends Collection>(c: C, data: Collections[C], sample = false): Stored<Collections[C]> {
+  if (live) {
+    api(`records/${c}`, { method: "POST", body: data }).catch(() => {});
+    return newRow(data, sample);
+  }
+  const row = newRow(data, sample);
   write(c, [row, ...list(c)]);
   return row;
+}
+
+/** Saves and waits for the server, which returns the row as stored (its number, totals). Throws on failure. */
+export async function submit<C extends Collection>(c: C, data: Collections[C]): Promise<Stored<Collections[C]>> {
+  if (!live) return record(c, data);
+  return api<Stored<Collections[C]>>(`records/${c}`, { method: "POST", body: data });
 }
 
 export function update<C extends Collection>(c: C, id: string, patch: Partial<Collections[C]>) {
@@ -100,6 +131,12 @@ export function update<C extends Collection>(c: C, id: string, patch: Partial<Co
     c,
     list(c).map((r) => (r.id === id ? { ...r, ...patch } : r)),
   );
+  if (live) {
+    api(`records/${c}/${id}`, { method: "PATCH", body: patch }).catch((e) => {
+      window.dispatchEvent(new CustomEvent(SAVE_ERROR, { detail: e instanceof ApiError ? e.message : "Erreur réseau." }));
+      refresh(c).catch(() => {});
+    });
+  }
 }
 
 export function clear(c: Collection) {

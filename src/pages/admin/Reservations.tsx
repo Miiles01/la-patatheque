@@ -214,10 +214,11 @@ function PhoneBooking({ date, onDone }: { date: string; onDone: () => void }) {
   const [error, setError] = useState("");
   const field = "rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm";
 
-  function submit(e: FormEvent<HTMLFormElement>) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const booking = addBooking({
+    setError("");
+    const booking = await addBooking({
       date,
       time: String(f.get("time")),
       party: Number(f.get("party")),
@@ -226,7 +227,11 @@ function PhoneBooking({ date, onDone }: { date: string; onDone: () => void }) {
       highChairs: Number(f.get("highChairs") || 0),
       accessible: f.get("accessible") === "on",
       notes: String(f.get("notes") || "") || undefined,
+    }).catch((err: Error) => {
+      setError(err.message);
+      return undefined;
     });
+    if (booking === undefined) return;
     if (!booking) setError("Aucune table libre pour ce nombre de personnes à cette heure. Essayez une autre heure.");
     else onDone();
   }

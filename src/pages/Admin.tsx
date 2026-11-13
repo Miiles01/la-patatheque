@@ -15,7 +15,9 @@ import {
   type OrderStatus,
   type Stored,
 } from "../lib/demoStore";
+import { live } from "../lib/api";
 import { Link } from "../lib/router";
+import { useLiveSync, useSaveError } from "./admin/live";
 import { ESSENTIALS, essentialsStore } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
@@ -35,8 +37,11 @@ import {
   OWNER_DEMO_PASSWORD,
   OWNER_EMAIL,
   removeMember,
+  restoreSession,
   ROLES,
   setPassword,
+  setupOwner,
+  signOut,
   updateMember,
   type AdminTab,
   type Member,
@@ -105,11 +110,23 @@ function useTeam() {
 
 export function AdminPage() {
   const team = useTeam();
-  const [userId, setUserId] = useState(() => sessionMember()?.id ?? null);
+  const [userId, setUserId] = useState(() => (live ? null : (sessionMember()?.id ?? null)));
+  // Real site: ask the server who is signed in before showing anything.
+  const [boot, setBoot] = useState<"loading" | "login" | "setup">(live ? "loading" : "login");
+  useEffect(() => {
+    if (!live) return;
+    restoreSession()
+      .then((r) => {
+        if (r.member) setUserId(r.member.id);
+        setBoot(r.needsSetup ? "setup" : "login");
+      })
+      .catch(() => setBoot("login"));
+  }, []);
   // A member who is removed or deactivated is signed out on their next render.
   const user = team.find((m) => m.id === userId && m.active) ?? null;
 
   const logout = () => {
+    signOut();
     try {
       sessionStorage.removeItem(SESSION);
     } catch {
@@ -119,6 +136,8 @@ export function AdminPage() {
   };
 
   if (!user) {
+    if (boot === "loading") return <div className="min-h-svh bg-white" />;
+    if (boot === "setup") return <OwnerSetup onSuccess={(m) => setUserId(m.id)} />;
     return (
       <Login
         onSuccess={(m) => {
@@ -136,8 +155,80 @@ export function AdminPage() {
 }
 
 
+/** Real site, first visit: the owner creates their own account (only possible while there is none). */
+function OwnerSetup({ onSuccess }: { onSuccess: (m: Member) => void }) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const password = String(f.get("password"));
+    if (password.length < 8) return setError("Le mot de passe doit avoir au moins 8 caractères.");
+    if (password !== String(f.get("confirm"))) return setError("Les deux mots de passe ne sont pas identiques.");
+    setBusy(true);
+    setError("");
+    try {
+      onSuccess(await setupOwner({ name: String(f.get("name")), email: String(f.get("email")), password }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="min-h-svh bg-white text-ink flex items-center justify-center px-5 py-12">
+      <div className="w-full max-w-sm">
+        <div className="flex flex-col items-center text-center mb-8">
+          <Link to="/" aria-label="Retour au site" className="text-red-600">
+            <LogoMark className="h-10" />
+          </Link>
+          <span className="mt-4 rounded-full bg-ink/5 px-3 py-1 text-xs font-bold uppercase tracking-wider text-ink/60">
+            Première connexion
+          </span>
+        </div>
+        <form onSubmit={submit} className="rounded-3xl bg-white border border-ink/10 p-7 flex flex-col gap-4">
+          <h1 className="font-display font-extrabold text-2xl">Créer le compte propriétaire</h1>
+          <p className="text-sm text-ink/60">
+            Ce compte a accès à tout le panneau et ajoute ensuite l'équipe. Votre numéro d'employé sera le 100.
+          </p>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Nom
+            <input name="name" type="text" autoComplete="name" required className={inputCls} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Courriel
+            <input name="email" type="email" autoComplete="username" required className={inputCls} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Mot de passe (8 caractères minimum)
+            <input name="password" type="password" autoComplete="new-password" minLength={8} required className={inputCls} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium">
+            Confirmer le mot de passe
+            <input name="confirm" type="password" autoComplete="new-password" minLength={8} required className={inputCls} />
+          </label>
+          {error && (
+            <p role="alert" className="text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={busy}
+            className="mt-2 rounded-full bg-red-600 px-8 py-4 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60 transition-colors"
+          >
+            {busy ? "Création…" : "Créer mon compte"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -148,10 +239,16 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setBusy(true);
-    const member = await authenticate(String(f.get("user")), String(f.get("password")));
-    setBusy(false);
-    if (member) onSuccess(member);
-    else setError(true);
+    setError("");
+    try {
+      const member = await authenticate(String(f.get("user")), String(f.get("password")));
+      if (member) onSuccess(member);
+      else setError("Identifiant ou mot de passe incorrect, ou accès désactivé.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur réseau. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -170,14 +267,14 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
           <h1 className="font-display font-extrabold text-2xl">Connexion</h1>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Courriel ou no d'employé
-            <input name="user" type="text" inputMode="email" defaultValue={OWNER_EMAIL} autoComplete="username" required className={inputCls} />
+            <input name="user" type="text" inputMode="email" defaultValue={live ? undefined : OWNER_EMAIL} autoComplete="username" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
             <input
               name="password"
               type="password"
-              defaultValue={OWNER_DEMO_PASSWORD}
+              defaultValue={live ? undefined : OWNER_DEMO_PASSWORD}
               autoComplete="current-password"
               required
               className={inputCls}
@@ -185,7 +282,7 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
           </label>
           {error && (
             <p role="alert" className="text-sm text-red-600">
-              Identifiant ou mot de passe incorrect, ou accès désactivé.
+              {error}
             </p>
           )}
           <button
@@ -196,8 +293,8 @@ function Login({ onSuccess }: { onSuccess: (m: Member) => void }) {
             {busy ? "Connexion…" : "Se connecter"}
           </button>
           <p className="text-xs text-ink/50 text-center">
-            Entrez avec votre courriel ou votre numéro d'employé. Démo : les identifiants du propriétaire sont déjà
-            remplis.
+            Entrez avec votre courriel ou votre numéro d'employé.
+            {!live && " Démo : les identifiants du propriétaire sont déjà remplis."}
           </p>
         </form>
       </div>
@@ -368,6 +465,8 @@ function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allo
 
 function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const data = useStore();
+  useLiveSync(user);
+  const saveError = useSaveError();
   const permitted = memberTabs(user);
   const allowed = TABS.filter((t) => permitted.includes(t.id));
   const [tab, setTab] = useState<Tab>(allowed[0]?.id ?? "dashboard");
@@ -511,13 +610,15 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
               <span className="font-display font-bold text-lg truncate">{current.label}</span>
             </div>
             <div className="flex items-center gap-2">
+              {!live && (
               <span
-                title="Démo : les données sont enregistrées dans ce navigateur. En production, elles iront dans la base de données et par courriel au restaurant."
+                title="Démo : les données sont enregistrées dans ce navigateur. En production, elles vont dans la base de données."
                 className="rounded-full bg-orange/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-ink/70"
               >
                 Démo
               </span>
-            {user.owner && (
+              )}
+            {!live && user.owner && (
               <>
                 <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
                   Charger des exemples
@@ -538,6 +639,11 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           </div>
         </header>
 
+        {saveError && (
+          <p role="alert" className="sticky top-16 z-20 bg-red-600 px-5 md:px-8 py-2.5 text-sm font-medium text-paper">
+            Modification non enregistrée : {saveError}
+          </p>
+        )}
         <main className="mx-auto max-w-6xl px-5 md:px-8 py-8 md:py-10">
           {!allowed.length && (
             <Empty text="Votre compte n'a accès à aucune page pour l'instant. Demandez au propriétaire de vous en attribuer dans Équipe." />

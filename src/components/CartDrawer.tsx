@@ -2,9 +2,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { PROMO_CODE, PROMO_RATE, useCart, type OrderMode } from "../lib/cart";
-import { record } from "../lib/demoStore";
+import { submit as submitRecord } from "../lib/demoStore";
 import { useFormatPrice, useI18n } from "../lib/i18n";
 import { navigate } from "../lib/router";
+import { useSend } from "../lib/useSend";
 import { btnPrimary, TextArea, TextField } from "./ui";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -16,6 +17,7 @@ export function CartDrawer() {
   const { t } = useI18n();
   const formatPrice = useFormatPrice();
   const [step, setStep] = useState<Step>("cart");
+  const send = useSend();
   const [promo, setPromo] = useState("");
   const [promoState, setPromoState] = useState<"idle" | "ok" | "bad">("idle");
   const [when, setWhen] = useState<"asap" | "later">("asap");
@@ -46,7 +48,8 @@ export function CartDrawer() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? "").trim();
-    const order = record("orders", {
+    send.run(async () => {
+    const order = await submitRecord("orders", {
       mode: cart.mode,
       name: get("name"),
       phone: get("phone"),
@@ -68,6 +71,7 @@ export function CartDrawer() {
     setPromo("");
     setPromoState("idle");
     setStep("done");
+    });
   }
 
   return (
@@ -270,8 +274,13 @@ export function CartDrawer() {
                     </button>
                   ) : (
                     <>
-                      <button type="submit" form="checkout" disabled={belowMinimum} className={`${btnPrimary} w-full`}>
-                        {t("cart.submit")}
+                      {send.error && (
+                        <p role="alert" className="text-sm text-red-600 mb-3">
+                          {send.error}
+                        </p>
+                      )}
+                      <button type="submit" form="checkout" disabled={belowMinimum || send.busy} className={`${btnPrimary} w-full`}>
+                        {send.busy ? t("form.sending") : t("cart.submit")}
                       </button>
                       <p className="text-xs text-ink/50 text-center mt-3">{t("cart.payNote")}</p>
                       <button onClick={() => setStep("cart")} className="block mx-auto mt-2 text-sm font-semibold text-ink/60 underline underline-offset-4 py-2">

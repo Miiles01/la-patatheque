@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { businessInfo } from "../lib/business";
+import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
 import {
   addBooking,
+  refreshBookings,
   bookingsStore,
   findTable,
   reservationSettings,
@@ -42,10 +44,14 @@ export function ReservationModal() {
   const [highChairs, setHighChairs] = useState(0);
   const [accessible, setAccessible] = useState(false);
   const [booked, setBooked] = useState<Booking | null>(null);
+  const [taken, setTaken] = useState(false);
+  const send = useSend();
 
   useEffect(() => {
     const onOpen = () => {
       setBooked(null);
+      setTaken(false);
+      refreshBookings().catch(() => {});
       setTime(null);
       setOpen(true);
     };
@@ -65,7 +71,12 @@ export function ReservationModal() {
     () =>
       slotsFor(date, settings).map((s) => ({
         time: s,
-        free: !!findTable({ date, time: s, party, highChairs, accessible }, tables, bookings, settings),
+        free: !!findTable(
+          { date, time: s, party, highChairs, accessible },
+          tables,
+          bookings,
+          settings,
+        ),
       })),
     [date, party, highChairs, accessible, settings, tables, bookings],
   );
@@ -77,23 +88,30 @@ export function ReservationModal() {
     if (!time || !selectedFree) return;
     const f = new FormData(e.currentTarget);
     const get = (k: string) => String(f.get(k) ?? "").trim();
-    const booking = addBooking({
-      date,
-      time,
-      party,
-      name: get("name"),
-      phone: get("phone"),
-      email: get("email") || undefined,
-      highChairs,
-      accessible,
-      occasion: get("occasion") || undefined,
-      notes: get("notes") || undefined,
+    send.run(async () => {
+      const booking = await addBooking({
+        date,
+        time,
+        party,
+        name: get("name"),
+        phone: get("phone"),
+        email: get("email") || undefined,
+        highChairs,
+        accessible,
+        occasion: get("occasion") || undefined,
+        notes: get("notes") || undefined,
+      });
+      if (booking) setBooked(booking);
+      else setTaken(true);
     });
-    if (booking) setBooked(booking);
   }
 
   const dateLabel = (iso: string) =>
-    new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-CA", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${iso}T12:00:00`));
+    new Intl.DateTimeFormat(lang === "fr" ? "fr-CA" : "en-CA", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(new Date(`${iso}T12:00:00`));
 
   return (
     <AnimatePresence>
@@ -127,20 +145,36 @@ export function ReservationModal() {
 
             {booked ? (
               <div className="py-8 text-center">
-                <p className="script text-5xl text-red-600 mb-3">{t("book.thanks")}</p>
-                <p className="text-ink/75 mb-2">
-                  {t("book.confirmed", { n: booked.party, date: dateLabel(booked.date), time: booked.time })}
+                <p className="script text-5xl text-red-600 mb-3">
+                  {t("book.thanks")}
                 </p>
-                <p className="text-sm text-ink/55 mb-8">{t("book.change", { phone: info.phoneDisplay })}</p>
-                <button onClick={() => setOpen(false)} className="rounded-full bg-red-600 px-7 py-3.5 text-sm font-bold text-paper hover:bg-red-700">
+                <p className="text-ink/75 mb-2">
+                  {t("book.confirmed", {
+                    n: booked.party,
+                    date: dateLabel(booked.date),
+                    time: booked.time,
+                  })}
+                </p>
+                <p className="text-sm text-ink/55 mb-8">
+                  {t("book.change", { phone: info.phoneDisplay })}
+                </p>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="rounded-full bg-red-600 px-7 py-3.5 text-sm font-bold text-paper hover:bg-red-700"
+                >
                   {t("cart.done")}
                 </button>
               </div>
             ) : (
               <form onSubmit={submit} className="flex flex-col gap-5">
                 <div className="pr-8">
-                  <p className="script text-4xl text-red-600 mb-1">{t("book.kicker")}</p>
-                  <h2 id="reservation-title" className="font-display font-extrabold text-3xl leading-tight">
+                  <p className="script text-4xl text-red-600 mb-1">
+                    {t("book.kicker")}
+                  </p>
+                  <h2
+                    id="reservation-title"
+                    className="font-display font-extrabold text-3xl leading-tight"
+                  >
                     {t("book.title")}
                   </h2>
                 </div>
@@ -164,30 +198,64 @@ export function ReservationModal() {
                   <div className="flex flex-col gap-1.5 text-sm font-medium">
                     {t("book.party")}
                     <div className="flex items-center rounded-xl border-2 border-ink/15 bg-paper">
-                      <button type="button" onClick={() => setParty((p) => Math.max(1, p - 1))} className="h-[46px] w-11 text-xl" aria-label="−1">
+                      <button
+                        type="button"
+                        onClick={() => setParty((p) => Math.max(1, p - 1))}
+                        className="h-[46px] w-11 text-xl"
+                        aria-label="−1"
+                      >
                         −
                       </button>
-                      <span className="w-8 text-center font-display font-bold text-lg tabular-nums">{party}</span>
-                      <button type="button" onClick={() => setParty((p) => Math.min(settings.maxParty, p + 1))} className="h-[46px] w-11 text-xl" aria-label="+1">
+                      <span className="w-8 text-center font-display font-bold text-lg tabular-nums">
+                        {party}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setParty((p) => Math.min(settings.maxParty, p + 1))
+                        }
+                        className="h-[46px] w-11 text-xl"
+                        aria-label="+1"
+                      >
                         +
                       </button>
                     </div>
                   </div>
                 </div>
-                <p className="-mt-3 text-xs text-ink/45">{t("book.maxParty", { n: settings.maxParty })}</p>
+                <p className="-mt-3 text-xs text-ink/45">
+                  {t("book.maxParty", { n: settings.maxParty })}
+                </p>
 
                 {(settings.askHighChair || settings.askAccessible) && (
                   <fieldset className="flex flex-col gap-2">
-                    <legend className="text-sm font-medium mb-1.5">{t("book.needs")}</legend>
+                    <legend className="text-sm font-medium mb-1.5">
+                      {t("book.needs")}
+                    </legend>
                     {settings.askHighChair && (
                       <div className="flex items-center justify-between rounded-xl border-2 border-ink/10 bg-paper px-4 py-2.5 text-sm">
                         <span>👶 {t("book.highChairs")}</span>
                         <span className="flex items-center gap-1">
-                          <button type="button" onClick={() => setHighChairs((n) => Math.max(0, n - 1))} className="h-8 w-8 rounded-full hover:bg-ink/5" aria-label="−1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setHighChairs((n) => Math.max(0, n - 1))
+                            }
+                            className="h-8 w-8 rounded-full hover:bg-ink/5"
+                            aria-label="−1"
+                          >
                             −
                           </button>
-                          <span className="w-5 text-center font-bold tabular-nums">{highChairs}</span>
-                          <button type="button" onClick={() => setHighChairs((n) => Math.min(4, n + 1))} className="h-8 w-8 rounded-full hover:bg-ink/5" aria-label="+1">
+                          <span className="w-5 text-center font-bold tabular-nums">
+                            {highChairs}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setHighChairs((n) => Math.min(4, n + 1))
+                            }
+                            className="h-8 w-8 rounded-full hover:bg-ink/5"
+                            aria-label="+1"
+                          >
                             +
                           </button>
                         </span>
@@ -196,7 +264,12 @@ export function ReservationModal() {
                     {settings.askAccessible && (
                       <label className="flex items-center justify-between rounded-xl border-2 border-ink/10 bg-paper px-4 py-3 text-sm cursor-pointer">
                         <span>♿ {t("book.accessible")}</span>
-                        <input type="checkbox" checked={accessible} onChange={(e) => setAccessible(e.target.checked)} className="h-5 w-5 accent-red-600" />
+                        <input
+                          type="checkbox"
+                          checked={accessible}
+                          onChange={(e) => setAccessible(e.target.checked)}
+                          className="h-5 w-5 accent-red-600"
+                        />
                       </label>
                     )}
                   </fieldset>
@@ -227,42 +300,75 @@ export function ReservationModal() {
                       ))}
                     </div>
                   ) : (
-                    <p className="rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">{t("book.noSlots")}</p>
+                    <p className="rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">
+                      {t("book.noSlots")}
+                    </p>
                   )}
                 </div>
 
                 <label className="flex flex-col gap-1.5 text-sm font-medium">
                   {t("form.name")}
-                  <input name="name" required autoComplete="name" className={fieldClass} />
+                  <input
+                    name="name"
+                    required
+                    autoComplete="name"
+                    className={fieldClass}
+                  />
                 </label>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
                     {t("form.phone")}
-                    <input name="phone" type="tel" required autoComplete="tel" className={fieldClass} />
+                    <input
+                      name="phone"
+                      type="tel"
+                      required
+                      autoComplete="tel"
+                      className={fieldClass}
+                    />
                   </label>
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
                     {t("form.email")}
-                    <input name="email" type="email" autoComplete="email" placeholder={t("form.optional")} className={fieldClass} />
+                    <input
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder={t("form.optional")}
+                      className={fieldClass}
+                    />
                   </label>
                 </div>
                 {settings.askOccasion && (
                   <label className="flex flex-col gap-1.5 text-sm font-medium">
                     🎉 {t("book.occasion")}
-                    <input name="occasion" placeholder={t("book.occasionHint")} className={fieldClass} />
+                    <input
+                      name="occasion"
+                      placeholder={t("book.occasionHint")}
+                      className={fieldClass}
+                    />
                   </label>
                 )}
                 <label className="flex flex-col gap-1.5 text-sm font-medium">
                   {t("form.notes")}
-                  <textarea name="notes" rows={2} placeholder={t("form.optional")} className={fieldClass} />
+                  <textarea
+                    name="notes"
+                    rows={2}
+                    placeholder={t("form.optional")}
+                    className={fieldClass}
+                  />
                 </label>
 
+                {(send.error || taken) && (
+                  <p role="alert" className="text-sm text-red-600">
+                    {send.error || t("book.taken")}
+                  </p>
+                )}
                 <button
                   type="submit"
-                  disabled={!time || !selectedFree}
+                  disabled={!time || !selectedFree || send.busy}
                   className="rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-50 transition-colors"
                 >
-                  {t("book.submit")}
-                  {time && ` · ${time.replace(":", " h ")}`}
+                  {send.busy ? t("form.sending") : t("book.submit")}
+                  {!send.busy && time && ` · ${time.replace(":", " h ")}`}
                 </button>
               </form>
             )}
