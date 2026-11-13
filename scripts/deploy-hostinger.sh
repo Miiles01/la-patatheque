@@ -20,7 +20,7 @@ cp server/api/index.php server/api/lib.php server/api/migrate.php server/api/.ht
 cp src/data/menu.json dist/api/menu-default.json
 
 # Uploaded menu photos live in public_html/uploads: never delete them.
-rsync -az --delete --exclude uploads/ --exclude .well-known/ \
+rsync -az --delete --exclude uploads/ --exclude .well-known/ --exclude patatheque-config.php \
   -e "ssh -i $SSH_KEY -p $SSH_PORT" dist/ "$SSH_HOST:$REMOTE/"
 
 if ssh_ "grep -q \"'db_pass' => ''\" ~/patatheque-config.php 2>/dev/null || test ! -f ~/patatheque-config.php"; then

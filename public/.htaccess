@@ -2,3 +2,9 @@
 Options -Indexes
 DirectorySlash On
 ErrorDocument 404 /404.html
+
+# The database settings are filled in here from hPanel's file manager and then
+# moved out of the website; never serve them meanwhile.
+<Files "patatheque-config.php">
+  Require all denied
+</Files>
