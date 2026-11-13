@@ -20,12 +20,15 @@ export function PageHero({
   kicker,
   title,
   alt,
+  end,
   intro,
   children,
 }: {
   kicker: string;
   title: string;
   alt?: string;
+  /** Words after the italic part, e.g. "changé de recette." */
+  end?: string;
   intro?: string;
   children?: ReactNode;
 }) {
@@ -36,7 +39,7 @@ export function PageHero({
           {kicker}
         </p>
         <h1 data-reveal data-intro className={`${headingXl} max-w-4xl`}>
-          {title} {alt && <Alt>{alt}</Alt>}
+          {title} {alt && <Alt>{alt}</Alt>}{end && ` ${end}`}
         </h1>
         {intro && (
           <p data-fade="0.2" data-intro className="mt-8 max-w-2xl text-lg leading-relaxed text-ink/70">

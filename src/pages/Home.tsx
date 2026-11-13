@@ -12,7 +12,7 @@ import { asset } from "../lib/asset";
 import { useCart, type OrderMode } from "../lib/cart";
 import { useFormatPrice, useI18n, type Key } from "../lib/i18n";
 import { reducedMotion } from "../lib/motion";
-import { navigate } from "../lib/router";
+import { navigate, routeHref } from "../lib/router";
 
 function Hero() {
   const { t } = useI18n();
@@ -41,7 +41,7 @@ function Hero() {
               {t("book.cta")}
             </button>
           )}
-          <LineButton href="#/menu" onClick={() => navigate("/menu")} className="text-ink">
+          <LineButton href={routeHref("/menu")} onClick={() => navigate("/menu")} className="text-ink">
             {t("home.seeMenu")}
           </LineButton>
         </div>
@@ -111,7 +111,7 @@ function BestSellers() {
               {t("best.title")} <Alt>{t("best.titleAlt")}</Alt>
             </h2>
           </div>
-          <LineButton href="#/commander" onClick={() => commander("best-sellers")} className="shrink-0 text-ink">
+          <LineButton href={routeHref("/commander")} onClick={() => commander("best-sellers")} className="shrink-0 text-ink">
             {t("nav.order")}
           </LineButton>
         </div>

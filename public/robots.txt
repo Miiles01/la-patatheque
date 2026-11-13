@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
 
 Sitemap: https://ghostwhite-butterfly-191855.hostingersite.com/sitemap.xml

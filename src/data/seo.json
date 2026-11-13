@@ -1,0 +1,89 @@
+{
+  "site": "https://ghostwhite-butterfly-191855.hostingersite.com",
+  "routes": {
+    "/": {
+      "fr": {
+        "title": "La Patathèque | Pizza, poutine et sous-marins à Rivière-des-Prairies",
+        "description": "La meilleure pizza de l'Est depuis 45 ans. Pizza, poutine, sous-marins et super spéciaux sur Sherbrooke Est. Commande en ligne pour emporter et réservation de table."
+      },
+      "en": {
+        "title": "La Patathèque | Pizza, poutine and subs in Rivière-des-Prairies",
+        "description": "The best pizza in the East End for 45 years. Pizza, poutine, subs and super specials on Sherbrooke East. Order online for pickup or book a table."
+      }
+    },
+    "/menu": {
+      "fr": {
+        "title": "Menu | Pizza, poutine, sous-marins et spéciaux | La Patathèque",
+        "description": "Le menu complet de La Patathèque : pizzas toutes garnies, poutines, sous-marins, pâtes, burgers et super spéciaux. Prix à jour, commande pour emporter."
+      },
+      "en": {
+        "title": "Menu | Pizza, poutine, subs and specials | La Patathèque",
+        "description": "La Patathèque's full menu: all-dressed pizzas, poutines, subs, pasta, burgers and super specials. Current prices, order for pickup."
+      }
+    },
+    "/commander": {
+      "fr": {
+        "title": "Commander en ligne pour emporter | La Patathèque",
+        "description": "Commandez votre pizza, poutine ou sous-marin en ligne et passez la chercher au comptoir, 13640 rue Sherbrooke Est. Paiement sur place."
+      },
+      "en": {
+        "title": "Order online for pickup | La Patathèque",
+        "description": "Order your pizza, poutine or sub online and pick it up at the counter, 13640 Sherbrooke St. East. Pay in store."
+      }
+    },
+    "/sur-place": {
+      "fr": {
+        "title": "Manger sur place et réserver une table | La Patathèque",
+        "description": "Salle à manger familiale à Rivière-des-Prairies. Réservez une table en ligne pour votre pizza, poutine ou souper en groupe."
+      },
+      "en": {
+        "title": "Dine in and book a table | La Patathèque",
+        "description": "Family dining room in Rivière-des-Prairies. Book a table online for pizza, poutine or a group dinner."
+      }
+    },
+    "/traiteur": {
+      "fr": {
+        "title": "Service traiteur (bientôt) | La Patathèque",
+        "description": "Pizzas, sous-marins et plateaux pour vos fêtes et événements. Le service traiteur de La Patathèque arrive en 2027 : laissez-nous vos coordonnées."
+      },
+      "en": {
+        "title": "Catering (coming soon) | La Patathèque",
+        "description": "Pizzas, subs and platters for your parties and events. La Patathèque catering arrives in 2027: leave us your details."
+      }
+    },
+    "/a-propos": {
+      "fr": {
+        "title": "À propos | 45 ans de pizza dans l'Est | La Patathèque",
+        "description": "Un comptoir de quartier qui n'a jamais changé de recette. L'histoire de La Patathèque, pizzeria familiale de Rivière-des-Prairies depuis 45 ans."
+      },
+      "en": {
+        "title": "About | 45 years of pizza in the East End | La Patathèque",
+        "description": "A neighbourhood counter that never changed its recipe. The story of La Patathèque, a family pizzeria in Rivière-des-Prairies for 45 years."
+      }
+    },
+    "/carrieres": {
+      "fr": {
+        "title": "Carrières | Emplois à Rivière-des-Prairies | La Patathèque",
+        "description": "Postes ouverts en cuisine, au comptoir et en salle à La Patathèque. Postulez en ligne ou envoyez une candidature spontanée."
+      },
+      "en": {
+        "title": "Careers | Jobs in Rivière-des-Prairies | La Patathèque",
+        "description": "Open positions in the kitchen, at the counter and in the dining room at La Patathèque. Apply online or send a general application."
+      }
+    },
+    "/nous-joindre": {
+      "fr": {
+        "title": "Nous joindre | Adresse, heures et téléphone | La Patathèque",
+        "description": "13640, rue Sherbrooke Est, Montréal. Heures d'ouverture, téléphone 514 642-2557 et itinéraire vers La Patathèque."
+      },
+      "en": {
+        "title": "Contact | Address, hours and phone | La Patathèque",
+        "description": "13640 Sherbrooke St. East, Montréal. Opening hours, phone 514 642-2557 and directions to La Patathèque."
+      }
+    },
+    "/admin": {
+      "fr": { "title": "Administration | La Patathèque", "description": "Panneau d'administration." },
+      "en": { "title": "Admin | La Patathèque", "description": "Admin panel." }
+    }
+  }
+}

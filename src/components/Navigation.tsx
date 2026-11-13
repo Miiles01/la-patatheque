@@ -5,7 +5,7 @@ import { businessInfo, telHref } from "../lib/business";
 import { useCart } from "../lib/cart";
 import { useI18n, type Key } from "../lib/i18n";
 import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
-import { Link, navigate, useRoute, type Route } from "../lib/router";
+import { Link, navigate, useRoute, type Route, routeHref } from "../lib/router";
 import { reservationSettings } from "../lib/reservations";
 import { LogoMark } from "./LogoMark";
 import { openReservation } from "./ReservationModal";
@@ -257,7 +257,7 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             {LINKS.map((link) => (
               <a
                 key={link.to}
-                href={`#${link.to}`}
+                href={routeHref(link.to)}
                 aria-current={route === link.to ? "page" : undefined}
                 onClick={(e) => {
                   e.preventDefault();

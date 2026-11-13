@@ -9,6 +9,7 @@ import { asset } from "../lib/asset";
 import { record, type Application } from "../lib/demoStore";
 import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
+import { routeHref } from "../lib/router";
 import { gsap, reducedMotion } from "../lib/motion";
 
 /** Opening hours as set in the admin, grouped for display. */
@@ -52,7 +53,7 @@ export function AboutPage() {
 
   return (
     <>
-      <PageHero kicker={t("about.kicker")} title={t("story.title")} alt={t("story.titleAlt")}>
+      <PageHero kicker={t("about.kicker")} title={t("story.title")} alt={t("story.titleAlt")} end={t("story.titleEnd")}>
         <p data-fade="0.2" data-intro className="mt-8 max-w-2xl text-lg leading-relaxed text-ink/70">
           {t("story.p1", { n: restaurant.yearsOpen })}
         </p>
@@ -460,7 +461,7 @@ export function ContactPage() {
               </dd>
             </div>
             <div data-fade className="sm:col-span-2">
-              <LineButton href="#/commander" onClick={() => commander("contact")} className="text-ink">
+              <LineButton href={routeHref("/commander")} onClick={() => commander("contact")} className="text-ink">
                 {t("home.cta")}
               </LineButton>
             </div>

@@ -1,0 +1,4 @@
+# Hostinger (Apache): every page has its own folder with an index.html.
+Options -Indexes
+DirectorySlash On
+ErrorDocument 404 /404.html

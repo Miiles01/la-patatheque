@@ -1,7 +1,7 @@
 import { restaurant } from "../data/menu";
 import { businessInfo, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
-import { navigate, type Route } from "../lib/router";
+import { navigate, type Route, routeHref } from "../lib/router";
 import { useHours } from "../pages/InfoPages";
 import { DrawLogo } from "./DrawLogo";
 import { SweepLink } from "./LineLink";
@@ -46,7 +46,7 @@ export function Footer() {
             <p className="alt text-lg mb-4">{t("footer.links")}</p>
             <div className="flex flex-col items-start">
               {links.map(([to, key]) => (
-                <SweepLink key={to} href={`#${to}`} onClick={() => navigate(to)}>
+                <SweepLink key={to} href={routeHref(to)} onClick={() => navigate(to)}>
                   {t(key)}
                 </SweepLink>
               ))}
@@ -87,7 +87,7 @@ export function Footer() {
           <span>© {year} La Patathèque · Rivière-des-Prairies – Pointe-aux-Trembles</span>
           <div className="flex items-center gap-5">
             <SweepLink onClick={openPolicy}>{t("footer.privacy")}</SweepLink>
-            <SweepLink href="#/admin" onClick={() => navigate("/admin")}>
+            <SweepLink href={routeHref("/admin")} onClick={() => navigate("/admin")}>
               {t("footer.admin")}
             </SweepLink>
           </div>
