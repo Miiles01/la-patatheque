@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /admin/
 
-Sitemap: https://ghostwhite-butterfly-191855.hostingersite.com/sitemap.xml
+Sitemap: https://mediumaquamarine-stinkbug-445677.hostingersite.com/sitemap.xml
