@@ -239,8 +239,8 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           </section>
 
           {/* Order */}
-          <section className={`min-h-0 flex-col lg:flex lg:w-[55%] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
+          <section className={`relative min-h-0 flex-col lg:flex lg:w-[55%] lg:shrink-0 bg-[#fbfafa] ${view === "order" ? "flex flex-1" : "hidden"}`}>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6 lg:pb-28">
               <div className="inline-flex rounded-full bg-ink/5 p-1">
                 {(
                   [
@@ -356,6 +356,23 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                 </p>
               )}
 
+              {lines.length > 0 && (
+                <div className="mt-3 flex flex-col gap-1 border-t border-ink/10 px-1 pt-3">
+                  {discount > 0 && (
+                    <p className="flex justify-between text-sm text-ink/55">
+                      <span>Rabais 10 %</span>
+                      <span className="tabular-nums">−{money.format(discount)}</span>
+                    </p>
+                  )}
+                  <p className="flex items-baseline justify-between">
+                    <span className="font-semibold">
+                      Total <span className="text-sm font-normal text-ink/50">· {count} article{count > 1 ? "s" : ""}</span>
+                    </span>
+                    <span className="font-display text-2xl font-bold tabular-nums">{money.format(total)}</span>
+                  </p>
+                </div>
+              )}
+
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -366,8 +383,9 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
               />
             </div>
 
-            <div className="hidden lg:block border-t border-ink/10 px-6 py-4">
-              <SendBar total={total} discount={discount} count={count} busy={busy} error={error} onSend={send} editing={!!order} />
+            {/* The button floats over the list; what scrolls behind it fades into the background. */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden lg:flex flex-col items-center bg-linear-to-b from-[#fbfafa]/0 to-[#fbfafa] to-55% px-6 pb-5 pt-12">
+              <SendBar busy={busy} error={error} onSend={send} editing={!!order} />
             </div>
           </section>
         </div>
@@ -381,7 +399,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
             </button>
           ) : (
             <div className="flex flex-col gap-2">
-              <SendBar total={total} discount={discount} count={count} busy={busy} error={error} onSend={send} editing={!!order} />
+              <SendBar busy={busy} error={error} onSend={send} editing={!!order} />
               <button onClick={() => setView("menu")} className="py-1.5 text-sm font-bold text-ink/60">
                 ← Ajouter des plats
               </button>
@@ -393,41 +411,18 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   );
 }
 
-function SendBar({
-  total,
-  discount,
-  count,
-  busy,
-  error,
-  onSend,
-  editing,
-}: {
-  total: number;
-  discount: number;
-  count: number;
-  busy: boolean;
-  error: string;
-  onSend: () => void;
-  editing: boolean;
-}) {
+function SendBar({ busy, error, onSend, editing }: { busy: boolean; error: string; onSend: () => void; editing: boolean }) {
   return (
     <>
       {error && (
-        <p role="alert" className="mb-2 text-sm text-red-600">
+        <p role="alert" className="mb-2 rounded-full bg-white px-3 py-1 text-center text-sm text-red-600">
           {error}
         </p>
       )}
-      <div className="flex items-center justify-between mb-3 text-sm">
-        <span className="text-ink/55">
-          {count} article{count > 1 ? "s" : ""}
-          {discount > 0 && ` · rabais 10 % (−${money.format(discount)})`}
-        </span>
-        <span className="font-display text-xl font-bold tabular-nums">{money.format(total)}</span>
-      </div>
       <button
         onClick={onSend}
         disabled={busy}
-        className="w-full rounded-full bg-red-600 px-6 py-3.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60 transition-colors"
+        className="pointer-events-auto self-center rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
       >
         {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
       </button>
