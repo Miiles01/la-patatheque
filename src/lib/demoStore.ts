@@ -15,6 +15,10 @@ export type Order = {
   mode: "emporter" | "livraison" | "surplace";
   /** Table code for an order eaten on site. */
   table?: string;
+  /** The waiter closed the table (separate from the kitchen status). */
+  closed?: boolean;
+  /** Position in its kitchen column, set when a card is dragged. */
+  rank?: number;
   name: string;
   phone: string;
   email?: string;

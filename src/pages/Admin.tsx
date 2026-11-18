@@ -12,12 +12,12 @@ import {
   update,
   type Collection,
   type Order,
-  type OrderStatus,
   type Stored,
 } from "../lib/demoStore";
 import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
+import { KitchenBoard } from "./admin/KitchenBoard";
 import { NewOrderDialog } from "./admin/NewOrder";
 import { Tables } from "./admin/Reservations";
 import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
@@ -981,36 +981,6 @@ function SampleTag({ show }: { show?: boolean }) {
   return show ? <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span> : null;
 }
 
-const COLUMNS: { status: OrderStatus; title: string }[] = [
-  { status: "nouvelle", title: "Nouvelles" },
-  { status: "preparation", title: "En préparation" },
-  { status: "prete", title: "Prêtes" },
-  { status: "terminee", title: "Terminées" },
-];
-
-const NEXT: Record<OrderStatus, OrderStatus | null> = {
-  nouvelle: "preparation",
-  preparation: "prete",
-  prete: "terminee",
-  terminee: null,
-};
-
-/** Label of the button that moves an order to its next step, worded for pickup or delivery. */
-function nextLabel(o: Order) {
-  const pickup = o.mode === "emporter";
-  const dineIn = o.mode === "surplace";
-  switch (o.status) {
-    case "nouvelle":
-      return "Commencer la préparation";
-    case "preparation":
-      return dineIn ? "Prête à servir" : pickup ? "Prête à récupérer" : "Partie en livraison";
-    case "prete":
-      return dineIn ? "Servie à la table" : pickup ? "Récupérée par le client" : "Livrée";
-    default:
-      return null;
-  }
-}
-
 function DishThumb({ category, size = "h-11 w-11" }: { category?: string; size?: string }) {
   const visual = dishVisual(category);
   return visual.image ? (
@@ -1032,14 +1002,15 @@ function PaidCoin({ o }: { o: Stored<Order> }) {
       aria-pressed={!!o.paid}
       aria-label={o.paid ? "Payée (toucher pour annuler)" : "Non payée (toucher quand c'est payé)"}
       title={o.paid ? "Payée" : "Non payée"}
-      className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+      className={`flex h-10 items-center justify-center gap-1.5 rounded-full pl-2.5 pr-3.5 transition-colors ${
         o.paid ? "bg-green-700 text-paper" : "bg-ink/5 text-ink/35 hover:bg-ink/10 hover:text-ink/55"
       }`}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5 shrink-0" aria-hidden="true">
         <circle cx="12" cy="12" r="8.5" />
         <path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.4 0-2.5.8-2.5 1.9 0 2.6 5 1.4 5 4.1 0 1.1-1.1 2-2.5 2-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5" strokeLinecap="round" />
       </svg>
+      <span className="text-xs font-bold">Payée</span>
     </button>
   );
 }
@@ -1071,8 +1042,6 @@ function OrderKind({ o }: { o: Stored<Order> }) {
 function OrderCard({ o }: { o: Stored<Order> }) {
   const [details, setDetails] = useState(false);
   const dineIn = o.mode === "surplace";
-  const next = NEXT[o.status];
-  const label = nextLabel(o);
   const items = o.lines.reduce((n, l) => n + l.qty, 0);
 
   return (
@@ -1140,14 +1109,6 @@ function OrderCard({ o }: { o: Stored<Order> }) {
         <PaidCoin o={o} />
       </div>
 
-      {next && label && (
-        <button
-          onClick={() => update("orders", o.id, { status: next, ...(next === "terminee" && !o.paid ? { paid: true } : {}) })}
-          className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
-        >
-          {label} →
-        </button>
-      )}
     </article>
   );
 }
@@ -1189,7 +1150,7 @@ function TableCard({ o }: { o: Stored<Order> }) {
         <PaidCoin o={o} />
       </div>
       <button
-        onClick={() => update("orders", o.id, { status: "terminee", paid: true })}
+        onClick={() => update("orders", o.id, { closed: true })}
         className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
       >
         Fermer la table
@@ -1228,99 +1189,112 @@ function TablesDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+type OrdersView = "salle" | "cuisine";
+const VIEW_KEY = "patatheque-orders-view"; // remembered per device: the kitchen tablet stays on Cuisine
+
+const VIEWS: { id: OrdersView; label: string; hint: string; icon: ReactNode }[] = [
+  {
+    id: "salle",
+    label: "Salle",
+    hint: "Les tables : qui a commandé quoi, et qui a payé",
+    icon: <path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />,
+  },
+  {
+    id: "cuisine",
+    label: "Cuisine",
+    hint: "Toutes les commandes, de la réception à la sortie",
+    icon: (
+      <>
+        <path d="M7 13.5a4 4 0 0 1-.6-7.9 5 5 0 0 1 9.2 0 4 4 0 0 1-.6 7.9" strokeLinejoin="round" />
+        <path d="M7 13.5V19h10v-5.5M7 16.5h10" strokeLinejoin="round" />
+      </>
+    ),
+  },
+];
+
 function Orders({ orders }: { orders: Stored<Order>[] }) {
-  const [mode, setMode] = useState<"all" | Order["mode"]>("all");
-  const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [view, setView] = useState<OrdersView>(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === "cuisine" ? "cuisine" : "salle";
+    } catch {
+      return "salle";
+    }
+  });
+  const pickView = (v: OrdersView) => {
+    setView(v);
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      // ignore
+    }
+  };
   const [adding, setAdding] = useState(false);
   const [editingTables, setEditingTables] = useState(false);
-  const openTables = orders.filter((o) => o.mode === "surplace" && o.status !== "terminee" && (!unpaidOnly || !o.paid));
-  const shown = orders.filter((o) => (mode === "all" || o.mode === mode) && (!unpaidOnly || !o.paid));
-
-  const chip = (active: boolean) =>
-    `rounded-full px-4 py-2 text-xs font-bold transition-colors ${active ? "bg-ink text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"}`;
+  // Salle: tables still seated. Closing a table is the waiter's call, apart from the kitchen's status.
+  const openTables = orders
+    .filter((o) => o.mode === "surplace" && !o.closed)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   return (
     <>
       <SectionHead
         title="Commandes"
-        desc="Commandes du site (pour emporter) et prises en salle. Avancez chaque commande d'une colonne à l'autre."
+        desc={VIEWS.find((v) => v.id === view)!.hint + "."}
         action={
-          <button
-            onClick={() => setAdding(true)}
-            className="self-start sm:self-auto inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
-          >
-            <span className="text-lg leading-none">+</span> Ajouter une commande
-          </button>
-        }
-      />
-      {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
-      {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
-
-      {!orders.length ? (
-        <Empty text="Aucune commande pour l'instant. Celles du site et celles ajoutées ici apparaîtront dans ces colonnes." />
-      ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2 mb-5">
-            <button onClick={() => setMode("all")} className={chip(mode === "all")}>
-              Toutes
-            </button>
-            <button onClick={() => setMode("surplace")} className={chip(mode === "surplace")}>
-              Sur place
-            </button>
-            <button onClick={() => setMode("emporter")} className={chip(mode === "emporter")}>
-              Pour emporter
-            </button>
-            <button onClick={() => setUnpaidOnly((v) => !v)} aria-pressed={unpaidOnly} className={chip(unpaidOnly)}>
-              Non payées
-            </button>
+          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
             <button
               onClick={() => setEditingTables(true)}
               title="Modifier les tables"
-              className="ml-auto inline-flex items-center gap-2 rounded-full border border-ink/15 px-4 py-2 text-xs font-bold text-ink/70 hover:border-ink/40 hover:text-ink"
+              className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-4 py-3 text-sm font-bold text-ink/70 hover:border-ink/40 hover:text-ink"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
                 <path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Tables
             </button>
+            <button
+              onClick={() => setAdding(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+            >
+              <span className="text-lg leading-none">+</span> Ajouter une commande
+            </button>
           </div>
+        }
+      />
+      {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
+      {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
-          {mode === "surplace" ? (
-            openTables.length ? (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {openTables
-                  .slice()
-                  .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-                  .map((o) => (
-                    <TableCard key={o.id} o={o} />
-                  ))}
-              </div>
-            ) : (
-              <Empty text="Aucune table occupée. Ajoutez une commande sur place pour la voir ici." />
-            )
-          ) : (
+      <div role="tablist" aria-label="Vue" className="mb-5 inline-flex rounded-full bg-ink/5 p-1">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            role="tab"
+            aria-selected={view === v.id}
+            onClick={() => pickView(v.id)}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${
+              view === v.id ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]" aria-hidden="true">
+              {v.icon}
+            </svg>
+            {v.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto pb-2">
-            <div className="grid grid-flow-col auto-cols-[minmax(270px,1fr)] xl:grid-flow-row xl:grid-cols-4 gap-4">
-              {COLUMNS.map((c) => {
-                const rows = shown.filter((o) => o.status === c.status);
-                return (
-                  <section key={c.status} className="rounded-2xl bg-ink/[0.03] p-3 flex flex-col gap-3 min-h-[200px]">
-                    <h2 className="flex items-center justify-between px-1 text-sm font-bold">
-                      {c.title}
-                      <span className="rounded-full bg-white border border-ink/10 px-2 text-xs tabular-nums">{rows.length}</span>
-                    </h2>
-                    {rows.map((o) => (
-                      <OrderCard key={o.id} o={o} />
-                    ))}
-                    {!rows.length && <p className="px-1 py-6 text-center text-xs text-ink/40">Aucune commande</p>}
-                  </section>
-                );
-              })}
-            </div>
+      {view === "salle" ? (
+        openTables.length ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {openTables.map((o) => (
+              <TableCard key={o.id} o={o} />
+            ))}
           </div>
-          )}
-        </>
+        ) : (
+          <Empty text="Aucune table occupée. Touchez « Ajouter une commande » pour en ouvrir une." />
+        )
+      ) : (
+        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} />
       )}
     </>
   );
@@ -1777,6 +1751,16 @@ function Team({ currentUser }: { currentUser: Member }) {
 
 /** Fills the dashboard with clearly tagged example records so the client can see every view. */
 function loadSamples() {
+  // Loading them again replaces the earlier examples instead of doubling them.
+  for (const c of ["orders", "subscribers", "applications", "catering", "events"]) {
+    try {
+      const key = `patatheque-demo-${c}`;
+      const rows = JSON.parse(localStorage.getItem(key) ?? "[]") as { sample?: boolean }[];
+      localStorage.setItem(key, JSON.stringify(rows.filter((r) => !r.sample)));
+    } catch {
+      // ignore
+    }
+  }
   const ago = (days: number, hours = 0) => {
     const d = new Date();
     d.setDate(d.getDate() - days);

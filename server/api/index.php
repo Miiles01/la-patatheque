@@ -186,7 +186,9 @@ function record_update(string $c, string $id, mixed $patch): array
 {
     if ($c !== 'orders' || !is_array($patch)) throw new HttpError('Introuvable.', 404);
     require_tab('orders');
-    $allowed = array_intersect_key($patch, ['status' => 1, 'paid' => 1]);
+    $allowed = array_intersect_key($patch, ['status' => 1, 'paid' => 1, 'closed' => 1, 'rank' => 1]);
+    if (isset($allowed['rank'])) $allowed['rank'] = (float)$allowed['rank'];
+    if (isset($allowed['closed'])) $allowed['closed'] = (bool)$allowed['closed'];
     if (isset($allowed['status']) && !in_array($allowed['status'], ['nouvelle', 'preparation', 'prete', 'terminee'], true)) throw new HttpError('Statut invalide.', 422);
     if (isset($allowed['paid'])) $allowed['paid'] = (bool)$allowed['paid'];
     $row = db_one('SELECT data FROM records WHERE collection = ? AND id = ?', [$c, $id]) ?? throw new HttpError('Introuvable.', 404);
