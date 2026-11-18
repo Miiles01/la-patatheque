@@ -197,7 +197,7 @@ function record_update(string $c, string $id, mixed $patch): array
     // Staff changed what was ordered (added a dish at the table…): check prices and
     // work the totals out again, keeping the order's progress and payment as they were.
     if (isset($patch['lines'])) {
-        $edited = array_intersect_key($patch, array_flip(['lines', 'notes', 'table', 'name', 'phone', 'when', 'mode']));
+        $edited = array_intersect_key($patch, array_flip(['lines', 'notes', 'table', 'name', 'phone', 'when', 'mode', 'server']));
         $clean = clean_order(array_merge($old, $edited));
         foreach (['status', 'paid', 'closed', 'rank', 'email'] as $k) {
             if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
@@ -242,9 +242,10 @@ function clean_order(array $data): array
     $staff = member_can('orders');
     $dineIn = $staff && ($data['mode'] ?? '') === 'surplace';
     $required = $dineIn ? ['table'] : ($staff ? ['name'] : ['name', 'phone']);
-    $order = clean_fields($data, ['name' => 120, 'phone' => 40, 'email' => 200, 'when' => 60, 'notes' => 1000, 'promoCode' => 40, 'table' => 20], $required);
+    $order = clean_fields($data, ['name' => 120, 'phone' => 40, 'email' => 200, 'when' => 60, 'notes' => 1000, 'promoCode' => 40, 'table' => 20, 'server' => 120], $required);
     $order['mode'] = $dineIn ? 'surplace' : 'emporter';
-    if (!$dineIn) unset($order['table']);
+    // Table and waiter only make sense for an order eaten on site.
+    if (!$dineIn) unset($order['table'], $order['server']);
     if ($staff) unset($order['promoCode']);
     $lines = [];
     foreach (array_slice((array)($data['lines'] ?? []), 0, 60) as $line) {

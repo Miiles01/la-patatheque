@@ -707,7 +707,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
             <Empty text="Votre compte n'a accès à aucune page pour l'instant. Demandez au propriétaire de vous en attribuer dans Équipe." />
           )}
           {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
-          {tab === "orders" && <Orders orders={data.orders} />}
+          {tab === "orders" && <Orders orders={data.orders} user={user} />}
           {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
           {tab === "applications" && <JobsView applications={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
@@ -1086,6 +1086,12 @@ function OrderCard({ o }: { o: Stored<Order> }) {
         {o.lines.length > 4 && <span className="text-xs font-bold text-ink/50 pl-1">+{o.lines.length - 4}</span>}
       </div>
 
+      {dineIn && o.server && (
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink/80">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-paper">{o.server.charAt(0)}</span>
+          {o.server}
+        </p>
+      )}
       <p className="text-sm text-ink/60">
         {items} article{items > 1 ? "s" : ""}
         {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
@@ -1135,6 +1141,12 @@ function TableCard({ o, onOpen }: { o: Stored<Order>; onOpen: () => void }) {
           </svg>
           {elapsed}
         </p>
+        {o.server && (
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-ink/75">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-ink/10 text-[10px] font-bold">{o.server.charAt(0)}</span>
+            {o.server}
+          </p>
+        )}
         <p className="mt-1 text-sm text-ink/60">
           {items} article{items > 1 ? "s" : ""}
           {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
@@ -1210,7 +1222,7 @@ const VIEWS: { id: OrdersView; label: string; hint: string; icon: ReactNode }[] 
   },
 ];
 
-function Orders({ orders }: { orders: Stored<Order>[] }) {
+function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
   const [view, setView] = useState<OrdersView>(() => {
     try {
       return localStorage.getItem(VIEW_KEY) === "cuisine" ? "cuisine" : "salle";
@@ -1257,8 +1269,8 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
           </div>
         }
       />
-      {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
-      {opened && <NewOrderDialog key={opened.id} order={opened} onClose={() => setOpenId(null)} />}
+      {adding && <NewOrderDialog user={user} onClose={() => setAdding(false)} />}
+      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} onClose={() => setOpenId(null)} />}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       <div role="tablist" aria-label="Vue" className="mb-5 inline-flex rounded-full bg-ink/5 p-1">
@@ -1818,4 +1830,10 @@ function loadSamples() {
     { time: "19:00", party: 3, name: "Réservation exemple D", phone: "514 555-0113", highChairs: 0, accessible: true, notes: "Près de l'entrée si possible" },
   ];
   sampleBookings.forEach((b) => addBooking({ date: today, ...b }, true));
+  // Two waiters, so orders can be assigned to someone in the demo.
+  for (const name of ["Lucía", "Marc"]) {
+    const email = `${name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()}@exemple.test`;
+    if (listTeam().some((m) => m.email === email)) continue;
+    addMember({ name, email, employeeNumber: nextEmployeeNumber(listTeam()), role: "serveur", password: generatePassword(), tabs: ROLES.serveur.tabs }).catch(() => {});
+  }
 }

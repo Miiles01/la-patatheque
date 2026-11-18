@@ -17,6 +17,8 @@ export type Order = {
   table?: string;
   /** The waiter closed the table (separate from the kitchen status). */
   closed?: boolean;
+  /** Waiter looking after the table (name). */
+  server?: string;
   /** Position in its kitchen column, set when a card is dragged. */
   rank?: number;
   name: string;

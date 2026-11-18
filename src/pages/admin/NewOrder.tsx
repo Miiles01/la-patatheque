@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dishName } from "../../data/menu";
 import { submit, update, type Order, type Stored } from "../../lib/demoStore";
 import { useMenu } from "../../lib/menuStore";
 import { tablesStore } from "../../lib/reservations";
+import { listTeam, onTeamChange, type Member } from "../../lib/team";
 import { inputCls } from "./ui";
 
 // Staff take an order in the panel: at a table (the default) or by phone for
@@ -16,7 +17,7 @@ type Line = { key: string; name: string; size?: string; price: number; qty: numb
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 const SPECIALS = "super-speciaux";
 
-export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?: Stored<Order> }) {
+export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; order?: Stored<Order>; user: Member }) {
   const { categories, specials } = useMenu();
   const tables = tablesStore.use().filter((t) => t.active);
   const [mode, setMode] = useState<"surplace" | "emporter">(order ? (order.mode === "surplace" ? "surplace" : "emporter") : "surplace");
@@ -25,6 +26,11 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
   const [phone, setPhone] = useState(order?.phone ?? "");
   const [when, setWhen] = useState(order && order.mode !== "surplace" ? order.when : "");
   const [notes, setNotes] = useState(order?.notes ?? "");
+  // Who looks after it: the signed-in member by default.
+  const [server, setServer] = useState(order?.server ?? user.name);
+  const [team, setTeam] = useState(() => listTeam().filter((m) => m.active));
+  useEffect(() => onTeamChange(() => setTeam(listTeam().filter((m) => m.active))), []);
+  const servers = [...new Set([server, ...team.map((m) => m.name)].filter(Boolean))];
   const [lines, setLines] = useState<Line[]>(() =>
     (order?.lines ?? []).map((l) => ({ ...l, category: l.category ?? "", key: `${l.category ?? ""}|${l.name}|${l.size ?? ""}` })),
   );
@@ -74,6 +80,7 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
           phone: mode === "emporter" ? phone.trim() : "",
           when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
           notes: notes.trim(),
+          server: mode === "surplace" ? server : undefined,
           lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
           subtotal: sub,
           discount,
@@ -89,6 +96,7 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
         phone: mode === "emporter" ? phone.trim() : "",
         when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
         notes: notes.trim() || undefined,
+        server: mode === "surplace" ? server : undefined,
         lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
         subtotal: sub,
         discount: 0,
@@ -233,6 +241,29 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
                   <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="Téléphone (facultatif)" aria-label="Téléphone" autoComplete="off" className={inputCls} />
                   <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="Heure (dès que possible)" aria-label="Heure de cueillette" className={inputCls} />
                 </div>
+              )}
+
+              {mode === "surplace" && (
+              <>
+              <p className="mt-5 mb-2 text-sm font-semibold">Serveur·euse</p>
+              <div className="flex flex-wrap gap-2">
+                {servers.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setServer(n)}
+                    aria-pressed={server === n}
+                    className={`inline-flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-sm font-semibold transition-colors ${
+                      server === n ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-white hover:border-ink/40"
+                    }`}
+                  >
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${server === n ? "bg-paper text-red-600" : "bg-ink/10 text-ink/70"}`}>
+                      {n.charAt(0)}
+                    </span>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              </>
               )}
 
               <p className="mt-6 mb-2 text-sm font-semibold">Commande</p>
