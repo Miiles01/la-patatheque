@@ -534,7 +534,6 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const counts: Partial<Record<Tab, number>> = {
     orders: data.orders.filter((o) => o.status === "nouvelle").length,
   };
-  const current = allowed.find((t) => t.id === tab) ?? allowed[0] ?? { id: "dashboard" as Tab, label: "Aucun accès" };
 
   const open = (t: Tab) => {
     if (!allowed.some((a) => a.id === t)) return;
@@ -550,7 +549,11 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
       {/* Desktop: hiding the sidebar shrinks it to an icon rail. Phones: it slides away entirely. */}
       <aside
         aria-label="Sections de l'admin"
-        className={`fixed inset-y-0 left-0 z-40 bg-white border-r border-ink/10 flex flex-col transition-[width,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
+        // Collapsed rail: a click anywhere that isn't a button opens it.
+        onClick={(e) => {
+          if (!sidebar && !(e.target as HTMLElement).closest("button, a")) setSidebar(true);
+        }}
+        className={`group/rail fixed inset-y-0 left-0 z-40 bg-white ${sidebar ? "" : "lg:cursor-e-resize"} border-r border-ink/10 flex flex-col transition-[width,transform] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${
           sidebar ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-[72px] lg:translate-x-0"
         }`}
       >
@@ -572,9 +575,16 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
               </button>
             </>
           ) : (
-            <Link to="/" aria-label="Retour au site" title="La Patathèque">
-              <img src={asset("/favicon.svg")} alt="" className="h-9 w-9" />
-            </Link>
+            // The logo; hovering the rail turns it into the button that opens the menu.
+            <button onClick={() => setSidebar(true)} aria-label="Afficher le menu" title="Afficher le menu" className="relative h-9 w-9">
+              <img src={asset("/favicon.svg")} alt="" className="h-9 w-9 transition-opacity duration-150 group-hover/rail:opacity-0" />
+              <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-red-600 text-paper opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" />
+                  <path d="M9 4v16M13 10l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </button>
           )}
         </div>
 
@@ -649,60 +659,53 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
       </aside>
 
       <div className={`transition-[padding] duration-300 ease-[cubic-bezier(.22,1,.36,1)] ${sidebar ? "lg:pl-64" : "lg:pl-[72px]"}`}>
-        <header className="sticky top-0 z-20 h-16 bg-white/95 backdrop-blur border-b border-ink/10">
-          <div className="h-full px-5 md:px-8 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Only shown while the sidebar is hidden; the sidebar has its own hide button. */}
-              {!sidebar && (
-                <button
-                  onClick={() => setSidebar(true)}
-                  aria-label="Afficher le menu"
-                  className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-ink/60 hover:bg-ink/5 hover:text-ink"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="16" rx="2" />
-                    <path d="M9 4v16M13 10l2 2-2 2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              )}
-              <span className="font-display font-bold text-lg truncate">{current.label}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              {!live && (
+        {/* Phones: the sidebar is off screen; this opens it. */}
+        {!sidebar && (
+          <button
+            onClick={() => setSidebar(true)}
+            aria-label="Afficher le menu"
+            className="lg:hidden fixed top-4 left-4 z-20 w-11 h-11 flex items-center justify-center rounded-full bg-white border border-ink/10 shadow-sm text-ink/70"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+              <path d="M4 7h16M4 12h16M4 17h10" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+
+        {saveError && (
+          <p role="alert" className="sticky top-0 z-20 bg-red-600 px-5 md:px-8 py-2.5 text-sm font-medium text-paper">
+            Modification non enregistrée : {saveError}
+          </p>
+        )}
+        <main className="mx-auto max-w-6xl px-5 md:px-8 pt-20 pb-8 lg:py-10">
+          {/* Demo only: sample data controls. */}
+          {!live && (
+            <div className="mb-6 -mt-2 flex flex-wrap items-center justify-end gap-2">
               <span
                 title="Démo : les données sont enregistrées dans ce navigateur. En production, elles vont dans la base de données."
                 className="rounded-full bg-orange/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-ink/70"
               >
                 Démo
               </span>
+              {user.owner && (
+                <>
+                  <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
+                    Charger des exemples
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Effacer toutes les données de démonstration de ce navigateur ?")) {
+                        (["orders", "subscribers", "applications", "catering", "events"] as Collection[]).forEach(clear);
+                      }
+                    }}
+                    className="rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
+                  >
+                    Vider
+                  </button>
+                </>
               )}
-            {!live && user.owner && (
-              <>
-                <button onClick={loadSamples} className="rounded-full border border-ink/15 px-4 py-2 text-xs font-bold hover:border-ink/40">
-                  Charger des exemples
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm("Effacer toutes les données de démonstration de ce navigateur ?")) {
-                      (["orders", "subscribers", "applications", "catering", "events"] as Collection[]).forEach(clear);
-                    }
-                  }}
-                  className="hidden sm:block rounded-full px-4 py-2 text-xs font-bold text-ink/60 hover:bg-ink/5"
-                >
-                  Vider
-                </button>
-              </>
-            )}
             </div>
-          </div>
-        </header>
-
-        {saveError && (
-          <p role="alert" className="sticky top-16 z-20 bg-red-600 px-5 md:px-8 py-2.5 text-sm font-medium text-paper">
-            Modification non enregistrée : {saveError}
-          </p>
-        )}
-        <main className="mx-auto max-w-6xl px-5 md:px-8 py-8 md:py-10">
+          )}
           {!allowed.length && (
             <Empty text="Votre compte n'a accès à aucune page pour l'instant. Demandez au propriétaire de vous en attribuer dans Équipe." />
           )}
@@ -765,6 +768,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-5">
+      <SectionHead title="Tableau de bord" desc="Vos commandes, ventes et demandes en un coup d'œil." />
       <div className="grid sm:grid-cols-3 gap-4 md:gap-5">
         <Stat label="Commandes" value={String(orders.length)} sub={`${orders.filter((o) => o.status === "nouvelle").length} à traiter`} />
         <Stat label="Ventes (avant taxes)" value={money.format(revenue)} sub={orders.length ? `Panier moyen ${money.format(revenue / orders.length)}` : "—"} />
