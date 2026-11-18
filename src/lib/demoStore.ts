@@ -11,7 +11,10 @@ export type OrderLine = { name: string; size?: string; price: number; qty: numbe
 export type OrderStatus = "nouvelle" | "preparation" | "prete" | "terminee";
 
 export type Order = {
-  mode: "emporter" | "livraison";
+  /** "surplace": taken by staff at a table. */
+  mode: "emporter" | "livraison" | "surplace";
+  /** Table code for an order eaten on site. */
+  table?: string;
   name: string;
   phone: string;
   email?: string;

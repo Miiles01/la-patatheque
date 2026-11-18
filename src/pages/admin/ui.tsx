@@ -9,13 +9,14 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <section className={`rounded-2xl bg-white border border-ink/10 p-5 md:p-6 ${className}`}>{children}</section>;
 }
 
-export function SectionHead({ title, desc, onExport }: { title: string; desc?: string; onExport?: () => void }) {
+export function SectionHead({ title, desc, onExport, action }: { title: string; desc?: string; onExport?: () => void; action?: ReactNode }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
       <div>
         <h1 className="font-display font-extrabold text-3xl">{title}</h1>
         {desc && <p className="text-sm text-ink/55 mt-1 max-w-xl">{desc}</p>}
       </div>
+      {action}
       {onExport && (
         <button onClick={onExport} className="self-start sm:self-auto rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper hover:bg-ink/85">
           Exporter en CSV

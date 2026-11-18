@@ -1,0 +1,294 @@
+import { useMemo, useState } from "react";
+import { dishName } from "../../data/menu";
+import { submit } from "../../lib/demoStore";
+import { useMenu } from "../../lib/menuStore";
+import { tablesStore } from "../../lib/reservations";
+import { inputCls } from "./ui";
+
+// Staff take an order in the panel: at a table (the default) or by phone for
+// pickup. Full screen so the whole menu is at hand; on phones the menu and the
+// order are two views switched from the bottom bar.
+
+type Line = { key: string; name: string; size?: string; price: number; qty: number; category: string };
+
+const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
+const SPECIALS = "super-speciaux";
+
+export function NewOrderDialog({ onClose }: { onClose: () => void }) {
+  const { categories, specials } = useMenu();
+  const tables = tablesStore.use().filter((t) => t.active);
+  const [mode, setMode] = useState<"surplace" | "emporter">("surplace");
+  const [table, setTable] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [when, setWhen] = useState("");
+  const [notes, setNotes] = useState("");
+  const [lines, setLines] = useState<Line[]>([]);
+  const [category, setCategory] = useState(categories[0]?.id ?? SPECIALS);
+  const [search, setSearch] = useState("");
+  const [view, setView] = useState<"menu" | "order">("menu");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const total = lines.reduce((n, l) => n + l.price * l.qty, 0);
+  const count = lines.reduce((n, l) => n + l.qty, 0);
+
+  const add = (item: Omit<Line, "key" | "qty">) => {
+    const key = `${item.category}|${item.name}|${item.size ?? ""}`;
+    setLines((ls) => (ls.some((l) => l.key === key) ? ls.map((l) => (l.key === key ? { ...l, qty: l.qty + 1 } : l)) : [...ls, { ...item, key, qty: 1 }]));
+  };
+  const setQty = (key: string, qty: number) => setLines((ls) => (qty <= 0 ? ls.filter((l) => l.key !== key) : ls.map((l) => (l.key === key ? { ...l, qty } : l))));
+
+  // Searching looks through the whole menu; otherwise one section at a time.
+  const q = search.trim().toLowerCase();
+  const sections = useMemo(() => {
+    const all = [
+      ...categories.map((c) => ({ id: c.id, name: c.name, sizes: c.sizes, items: c.items.map((i) => ({ name: i.name, prices: i.prices })) })),
+      { id: SPECIALS, name: "Super spéciaux", sizes: [""], items: specials.map((s) => ({ name: s.name, prices: [s.price] })) },
+    ];
+    if (!q) return all.filter((s) => s.id === category);
+    return all.map((s) => ({ ...s, items: s.items.filter((i) => i.name.toLowerCase().includes(q)) })).filter((s) => s.items.length);
+  }, [categories, specials, category, q]);
+
+  async function send() {
+    setError("");
+    if (!lines.length) return setError("Ajoutez au moins un plat.");
+    if (mode === "surplace" && !table) return setError("Choisissez la table.");
+    if (mode === "emporter" && !name.trim()) return setError("Indiquez le nom du client.");
+    setBusy(true);
+    try {
+      const subtotal = Math.round(total * 100) / 100;
+      await submit("orders", {
+        mode,
+        table: mode === "surplace" ? table : undefined,
+        name: mode === "surplace" ? `Table ${table}` : name.trim(),
+        phone: mode === "emporter" ? phone.trim() : "",
+        when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
+        notes: notes.trim() || undefined,
+        lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
+        subtotal,
+        discount: 0,
+        total: subtotal,
+        status: "nouvelle",
+        paid: false,
+      });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau. Réessayez.");
+      setBusy(false);
+    }
+  }
+
+  const segment = (active: boolean) =>
+    `flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${active ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"}`;
+
+  return (
+    <div className="fixed inset-0 z-[95] flex items-stretch md:items-center justify-center bg-ink/50 md:p-6" data-lenis-prevent>
+      <div role="dialog" aria-modal="true" aria-labelledby="new-order-title" className="flex h-full w-full flex-col bg-white text-ink md:h-[92vh] md:max-w-6xl md:rounded-3xl md:overflow-hidden">
+        <header className="flex items-center justify-between gap-4 border-b border-ink/10 px-5 py-4 md:px-7">
+          <h2 id="new-order-title" className="font-display font-extrabold text-xl md:text-2xl">
+            Nouvelle commande
+          </h2>
+          <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 rounded-full text-ink/60 hover:bg-ink/5">
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
+          </button>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {/* Menu */}
+          <section className={`min-h-0 min-w-0 flex-1 flex-col lg:flex lg:border-r lg:border-ink/10 ${view === "menu" ? "flex" : "hidden"}`}>
+            <div className="border-b border-ink/10 px-5 pt-4 pb-3 md:px-7">
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Chercher un plat…"
+                aria-label="Chercher un plat"
+                className={inputCls}
+              />
+              {!q && (
+                <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1 md:-mx-7 md:px-7 [scrollbar-width:none]">
+                  {[...categories.map((c) => ({ id: c.id, name: c.name })), { id: SPECIALS, name: "Super spéciaux" }].map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setCategory(c.id)}
+                      className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-bold transition-colors ${
+                        category === c.id ? "bg-red-600 text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-7">
+              {sections.map((s) => (
+                <div key={s.id} className="mb-6">
+                  {q && <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink/45">{s.name}</p>}
+                  <ul className="flex flex-col divide-y divide-ink/5">
+                    {s.items.map((item) => (
+                      <li key={item.name} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="font-semibold leading-tight">{item.name}</span>
+                        <span className="flex flex-wrap gap-1.5 sm:justify-end">
+                          {item.prices.map((price, i) =>
+                            price === null ? null : (
+                              <button
+                                key={i}
+                                onClick={() =>
+                                  add({
+                                    name: s.id === SPECIALS ? item.name : dishName(s.id, item.name),
+                                    size: s.sizes.length > 1 ? s.sizes[i] : undefined,
+                                    price,
+                                    category: s.id,
+                                  })
+                                }
+                                className="rounded-full border border-ink/15 px-3 py-1.5 text-xs font-bold tabular-nums hover:border-red-600 hover:bg-red-600 hover:text-paper transition-colors"
+                              >
+                                {s.sizes.length > 1 && <span className="mr-1 font-normal opacity-70">{s.sizes[i]}</span>}
+                                {money.format(price)}
+                              </button>
+                            ),
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {!sections.length && <p className="py-10 text-center text-sm text-ink/45">Aucun plat ne correspond.</p>}
+            </div>
+          </section>
+
+          {/* Order */}
+          <section className={`min-h-0 flex-col lg:flex lg:w-[400px] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
+              <div className="flex rounded-full bg-ink/5 p-1">
+                <button onClick={() => setMode("surplace")} className={segment(mode === "surplace")}>
+                  Sur place
+                </button>
+                <button onClick={() => setMode("emporter")} className={segment(mode === "emporter")}>
+                  Pour emporter
+                </button>
+              </div>
+
+              {mode === "surplace" ? (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold mb-2">Table</p>
+                  {tables.length ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {tables.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => setTable(t.code)}
+                          aria-pressed={table === t.code}
+                          className={`rounded-xl border px-2 py-2.5 text-sm font-bold transition-colors ${
+                            table === t.code ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-white hover:border-ink/40"
+                          }`}
+                        >
+                          {t.code}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="No de table" className={inputCls} />
+                  )}
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-col gap-3">
+                  <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom du client" aria-label="Nom du client" autoComplete="off" className={inputCls} />
+                  <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="Téléphone (facultatif)" aria-label="Téléphone" autoComplete="off" className={inputCls} />
+                  <input value={when} onChange={(e) => setWhen(e.target.value)} placeholder="Heure (dès que possible)" aria-label="Heure de cueillette" className={inputCls} />
+                </div>
+              )}
+
+              <p className="mt-6 mb-2 text-sm font-semibold">Commande</p>
+              {lines.length ? (
+                <ul className="flex flex-col gap-2">
+                  {lines.map((l) => (
+                    <li key={l.key} className="flex items-center gap-3 rounded-xl bg-white border border-ink/10 px-3 py-2.5">
+                      <span className="min-w-0 flex-1 text-sm leading-tight">
+                        {l.name}
+                        {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <button onClick={() => setQty(l.key, l.qty - 1)} aria-label={`Retirer un ${l.name}`} className="h-8 w-8 rounded-full bg-ink/5 font-bold hover:bg-ink/10">
+                          −
+                        </button>
+                        <span className="w-6 text-center text-sm font-bold tabular-nums">{l.qty}</span>
+                        <button onClick={() => setQty(l.key, l.qty + 1)} aria-label={`Ajouter un ${l.name}`} className="h-8 w-8 rounded-full bg-ink/5 font-bold hover:bg-ink/10">
+                          +
+                        </button>
+                      </span>
+                      <span className="w-16 text-right text-sm font-bold tabular-nums">{money.format(l.price * l.qty)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-xl border border-dashed border-ink/15 px-4 py-6 text-center text-sm text-ink/45">
+                  Touchez un prix dans le menu pour ajouter le plat.
+                </p>
+              )}
+
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder="Note pour la cuisine (allergies, sans oignons…)"
+                aria-label="Note pour la cuisine"
+                className={`${inputCls} mt-4 resize-none`}
+              />
+            </div>
+
+            <div className="hidden lg:block border-t border-ink/10 px-6 py-4">
+              <SendBar total={total} count={count} busy={busy} error={error} onSend={send} />
+            </div>
+          </section>
+        </div>
+
+        {/* Phones and tablets: one bar to switch views and send. */}
+        <div className="lg:hidden border-t border-ink/10 px-5 py-3">
+          {view === "menu" ? (
+            <button onClick={() => setView("order")} className="flex w-full items-center justify-between rounded-full bg-ink px-5 py-3.5 text-sm font-bold text-paper">
+              <span>Voir la commande ({count})</span>
+              <span className="tabular-nums">{money.format(total)}</span>
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <SendBar total={total} count={count} busy={busy} error={error} onSend={send} />
+              <button onClick={() => setView("menu")} className="py-1.5 text-sm font-bold text-ink/60">
+                ← Ajouter des plats
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SendBar({ total, count, busy, error, onSend }: { total: number; count: number; busy: boolean; error: string; onSend: () => void }) {
+  return (
+    <>
+      {error && (
+        <p role="alert" className="mb-2 text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      <div className="flex items-center justify-between mb-3 text-sm">
+        <span className="text-ink/55">
+          {count} article{count > 1 ? "s" : ""} · à payer
+        </span>
+        <span className="font-display text-xl font-bold tabular-nums">{money.format(total)}</span>
+      </div>
+      <button
+        onClick={onSend}
+        disabled={busy}
+        className="w-full rounded-full bg-red-600 px-6 py-3.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60 transition-colors"
+      >
+        {busy ? "Envoi…" : "Envoyer en cuisine"}
+      </button>
+    </>
+  );
+}

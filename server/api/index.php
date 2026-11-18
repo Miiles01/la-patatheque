@@ -149,7 +149,8 @@ const COLLECTIONS = [
 function record_create(string $c, mixed $data): array
 {
     if (!isset(COLLECTIONS[$c]) || !is_array($data)) throw new HttpError('Introuvable.', 404);
-    rate_limit("post:$c", $c === 'events' ? 120 : 20, 600);
+    // Staff taking orders in the panel aren't limited.
+    if (!($c === 'orders' && member_can('orders'))) rate_limit("post:$c", $c === 'events' ? 120 : 20, 600);
 
     $data = match ($c) {
         'orders' => clean_order($data),
@@ -219,8 +220,14 @@ function clean_fields(array $data, array $fields, array $required = []): array
 /** Prices come from the menu on the server; totals are worked out here, not trusted from the browser. */
 function clean_order(array $data): array
 {
-    $order = clean_fields($data, ['name' => 120, 'phone' => 40, 'email' => 200, 'when' => 60, 'notes' => 1000, 'promoCode' => 40], ['name', 'phone']);
-    $order['mode'] = 'emporter';
+    // Staff can also take an order at a table; the site only sends pickup orders.
+    $staff = member_can('orders');
+    $dineIn = $staff && ($data['mode'] ?? '') === 'surplace';
+    $required = $dineIn ? ['table'] : ($staff ? ['name'] : ['name', 'phone']);
+    $order = clean_fields($data, ['name' => 120, 'phone' => 40, 'email' => 200, 'when' => 60, 'notes' => 1000, 'promoCode' => 40, 'table' => 20], $required);
+    $order['mode'] = $dineIn ? 'surplace' : 'emporter';
+    if (!$dineIn) unset($order['table']);
+    if ($staff) unset($order['promoCode']);
     $lines = [];
     foreach (array_slice((array)($data['lines'] ?? []), 0, 60) as $line) {
         $price = round((float)($line['price'] ?? 0), 2);

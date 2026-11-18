@@ -18,6 +18,7 @@ import {
 import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
+import { NewOrderDialog } from "./admin/NewOrder";
 import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
@@ -52,13 +53,6 @@ import {
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 const dateTime = new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" });
 const dayLabel = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric" });
-
-const STATUS: Record<OrderStatus, { label: string; cls: string }> = {
-  nouvelle: { label: "Nouvelle", cls: "bg-red-600 text-paper" },
-  preparation: { label: "En préparation", cls: "bg-orange text-ink" },
-  prete: { label: "Prête", cls: "bg-green-700 text-paper" },
-  terminee: { label: "Terminée", cls: "bg-ink/10 text-ink/70" },
-};
 
 type Tab = AdminTab;
 
@@ -989,7 +983,7 @@ function SampleTag({ show }: { show?: boolean }) {
 const COLUMNS: { status: OrderStatus; title: string }[] = [
   { status: "nouvelle", title: "Nouvelles" },
   { status: "preparation", title: "En préparation" },
-  { status: "prete", title: "Prêtes à récupérer" },
+  { status: "prete", title: "Prêtes" },
   { status: "terminee", title: "Terminées" },
 ];
 
@@ -1003,13 +997,14 @@ const NEXT: Record<OrderStatus, OrderStatus | null> = {
 /** Label of the button that moves an order to its next step, worded for pickup or delivery. */
 function nextLabel(o: Order) {
   const pickup = o.mode === "emporter";
+  const dineIn = o.mode === "surplace";
   switch (o.status) {
     case "nouvelle":
       return "Commencer la préparation";
     case "preparation":
-      return pickup ? "Prête à récupérer" : "Partie en livraison";
+      return dineIn ? "Prête à servir" : pickup ? "Prête à récupérer" : "Partie en livraison";
     case "prete":
-      return pickup ? "Récupérée par le client" : "Livrée";
+      return dineIn ? "Servie à la table" : pickup ? "Récupérée par le client" : "Livrée";
     default:
       return null;
   }
@@ -1031,6 +1026,7 @@ const timeOnly = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-
 function OrderCard({ o }: { o: Stored<Order> }) {
   const [details, setDetails] = useState(false);
   const pickup = o.mode === "emporter";
+  const dineIn = o.mode === "surplace";
   const next = NEXT[o.status];
   const label = nextLabel(o);
   const items = o.lines.reduce((n, l) => n + l.qty, 0);
@@ -1048,15 +1044,17 @@ function OrderCard({ o }: { o: Stored<Order> }) {
       <div>
         <span
           className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-            pickup ? "bg-ink/5 text-ink/70" : "bg-orange/15 text-ink"
+            dineIn ? "bg-red-600 text-paper" : pickup ? "bg-ink/5 text-ink/70" : "bg-orange/15 text-ink"
           }`}
         >
-          {pickup ? "Cueillette" : "Livraison"}
+          {dineIn ? `Sur place · Table ${o.table}` : pickup ? "Cueillette" : "Livraison"}
         </span>
-        <p className="mt-2 font-semibold leading-tight">{o.name}</p>
-        <a href={`tel:${o.phone}`} className="text-sm text-red-600 font-semibold">
-          {o.phone}
-        </a>
+        {!dineIn && <p className="mt-2 font-semibold leading-tight">{o.name}</p>}
+        {o.phone && (
+          <a href={`tel:${o.phone}`} className="text-sm text-red-600 font-semibold">
+            {o.phone}
+          </a>
+        )}
         {o.address && (
           <a
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}`}
@@ -1067,7 +1065,7 @@ function OrderCard({ o }: { o: Stored<Order> }) {
             {o.address}
           </a>
         )}
-        <p className="text-xs text-ink/45 mt-1">{o.when}</p>
+        {!dineIn && <p className="text-xs text-ink/45 mt-1">{o.when}</p>}
       </div>
 
       <div className="flex items-center gap-1.5">
@@ -1108,7 +1106,7 @@ function OrderCard({ o }: { o: Stored<Order> }) {
             o.paid ? "bg-green-700/10 text-green-800" : "bg-orange/15 text-ink hover:bg-orange/25"
           }`}
         >
-          {o.paid ? "Payé ✓" : pickup ? "À payer au comptoir" : "À payer au livreur"}
+          {o.paid ? "Payé ✓" : dineIn ? "À payer" : pickup ? "À payer au comptoir" : "À payer au livreur"}
         </button>
       </div>
 
@@ -1127,6 +1125,7 @@ function OrderCard({ o }: { o: Stored<Order> }) {
 function Orders({ orders }: { orders: Stored<Order>[] }) {
   const [mode, setMode] = useState<"all" | Order["mode"]>("all");
   const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [adding, setAdding] = useState(false);
   const shown = orders.filter((o) => (mode === "all" || o.mode === mode) && (!unpaidOnly || !o.paid));
 
   const chip = (active: boolean) =>
@@ -1136,34 +1135,31 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
     <>
       <SectionHead
         title="Commandes"
-        desc="Commandes pour emporter. Aucun paiement en ligne : le client paie au comptoir. Avancez chaque commande d'une colonne à l'autre."
-        onExport={
-          orders.length
-            ? () =>
-                downloadCsv("commandes.csv", [
-                  ["No", (o: Stored<Order>) => o.id],
-                  ["Date", (o: Stored<Order>) => dateTime.format(new Date(o.createdAt))],
-                  ["Mode", (o: Stored<Order>) => (o.mode === "emporter" ? "Cueillette" : "Livraison")],
-                  ["Client", (o: Stored<Order>) => o.name],
-                  ["Téléphone", (o: Stored<Order>) => o.phone],
-                  ["Adresse", (o: Stored<Order>) => o.address],
-                  ["Articles", (o: Stored<Order>) => o.lines.map((l) => `${l.qty}× ${l.name}${l.size ? ` ${l.size}` : ""}`).join(" | ")],
-                  ["Code promo", (o: Stored<Order>) => o.promoCode],
-                  ["Total", (o: Stored<Order>) => o.total.toFixed(2)],
-                  ["Payé", (o: Stored<Order>) => (o.paid ? "oui" : "non")],
-                  ["Statut", (o: Stored<Order>) => STATUS[o.status].label],
-                ] as never, orders)
-            : undefined
+        desc="Commandes du site (pour emporter) et prises en salle. Avancez chaque commande d'une colonne à l'autre."
+        action={
+          <button
+            onClick={() => setAdding(true)}
+            className="self-start sm:self-auto inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
+          >
+            <span className="text-lg leading-none">+</span> Ajouter une commande
+          </button>
         }
       />
+      {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
 
       {!orders.length ? (
-        <Empty text="Aucune commande. Passez une commande sur le site (bouton Commander) pour la voir apparaître ici." />
+        <Empty text="Aucune commande pour l'instant. Celles du site et celles ajoutées ici apparaîtront dans ces colonnes." />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-2 mb-5">
             <button onClick={() => setMode("all")} className={chip(mode === "all")}>
               Toutes
+            </button>
+            <button onClick={() => setMode("surplace")} className={chip(mode === "surplace")}>
+              Sur place
+            </button>
+            <button onClick={() => setMode("emporter")} className={chip(mode === "emporter")}>
+              Pour emporter
             </button>
             <button onClick={() => setUnpaidOnly((v) => !v)} aria-pressed={unpaidOnly} className={chip(unpaidOnly)}>
               Non payées
