@@ -14,7 +14,7 @@ import {
   type DiningTable,
   type TableKind,
 } from "../../lib/reservations";
-import { Card, Empty, SectionHead, Toggle } from "./ui";
+import { ActivationButton, Card, Empty, SectionHead, Toggle } from "./ui";
 
 // ---------------------------------------------------------------- icons
 
@@ -62,16 +62,23 @@ export function ReservationsView() {
 
   return (
     <>
-      <SectionHead title="Réservations" desc="Les clients réservent une table sur le site ; chaque réservation reçoit automatiquement une table libre adaptée." />
+      <SectionHead
+        title="Réservations"
+        desc="Les clients réservent une table sur le site ; chaque réservation reçoit automatiquement une table libre adaptée."
+        action={
+          <ActivationButton
+            on={settings.enabled}
+            what="les réservations en ligne"
+            onChange={(enabled) => reservationSettings.set({ ...settings, enabled })}
+          />
+        }
+      />
 
       {!settings.enabled && (
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-ink/10 bg-ink/[0.03] p-4">
           <p className="flex-1 text-sm text-ink/70">
             <strong>Les réservations en ligne sont désactivées.</strong> Préparez vos tables et vos heures, puis activez-les : le bouton « Réserver une table » apparaîtra sur le site.
           </p>
-          <button onClick={() => reservationSettings.set({ ...settings, enabled: true })} className="shrink-0 rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700">
-            Activer les réservations
-          </button>
         </div>
       )}
 

@@ -199,3 +199,39 @@ export function EditButton({
     </motion.button>
   );
 }
+
+/**
+ * On/off for a feature (online bookings…). Black while off ("Activer"), red while
+ * on ("Désactiver"); on hover the icon takes the colour of the state it will switch to.
+ */
+export function ActivationButton({ on, onChange, what }: { on: boolean; onChange: (on: boolean) => void; what: string }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <motion.button
+      onClick={() => onChange(!on)}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      aria-pressed={on}
+      aria-label={`${on ? "Désactiver" : "Activer"} ${what}`}
+      className={`relative inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-paper transition-colors duration-200 ${
+        on ? "bg-red-600 hover:bg-red-700" : "bg-ink hover:bg-ink/85"
+      }`}
+    >
+      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+        <svg
+          viewBox="0 0 24 24"
+          fill={hover ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`h-4 w-4 transition-colors duration-[250ms] ${hover ? (on ? "text-ink" : "text-red-500") : "text-paper"}`}
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="8" />
+        </svg>
+      </span>
+      <span className="ml-2.5 tracking-tight">{on ? "Désactiver" : "Activer"}</span>
+    </motion.button>
+  );
+}
