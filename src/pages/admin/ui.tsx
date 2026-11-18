@@ -235,3 +235,45 @@ export function ActivationButton({ on, onChange, what }: { on: boolean; onChange
     </motion.button>
   );
 }
+
+/** Tabs with a dark pill that slides to the selected one (Salle / Cuisine, Agenda / Tables…). */
+export function SegmentedTabs<T extends string>({
+  items,
+  value,
+  onChange,
+  id,
+  label,
+}: {
+  items: { id: T; label: string; icon?: ReactNode }[];
+  value: T;
+  onChange: (v: T) => void;
+  /** Unique per page, so each set of tabs has its own pill. */
+  id: string;
+  label: string;
+}) {
+  return (
+    <div role="tablist" aria-label={label} className="inline-flex rounded-full bg-ink/5 p-1">
+      {items.map((t) => (
+        <button
+          key={t.id}
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 ${
+            value === t.id ? "text-paper" : "text-ink/60 hover:text-ink"
+          }`}
+        >
+          {value === t.id && (
+            <motion.span layoutId={`${id}-pill`} transition={{ type: "spring", stiffness: 500, damping: 38 }} className="absolute inset-0 rounded-full bg-ink" />
+          )}
+          {t.icon && (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="relative w-[18px] h-[18px]" aria-hidden="true">
+              {t.icon}
+            </svg>
+          )}
+          <span className="relative">{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}

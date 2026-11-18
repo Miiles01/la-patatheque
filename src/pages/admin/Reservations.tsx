@@ -14,7 +14,7 @@ import {
   type DiningTable,
   type TableKind,
 } from "../../lib/reservations";
-import { ActivationButton, Card, Empty, SectionHead, Toggle } from "./ui";
+import { ActivationButton, Card, Empty, SectionHead, SegmentedTabs, Toggle } from "./ui";
 
 // ---------------------------------------------------------------- icons
 
@@ -57,22 +57,10 @@ type Sub = "agenda" | "tables" | "settings";
 export function ReservationsView() {
   const settings = reservationSettings.use();
   const [sub, setSub] = useState<Sub>("agenda");
-  const pill = (active: boolean) =>
-    `flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-colors ${active ? "bg-ink text-paper" : "bg-ink/5 text-ink/65 hover:bg-ink/10"}`;
 
   return (
     <>
-      <SectionHead
-        title="Réservations"
-        desc="Les clients réservent une table sur le site ; chaque réservation reçoit automatiquement une table libre adaptée."
-        action={
-          <ActivationButton
-            on={settings.enabled}
-            what="les réservations en ligne"
-            onChange={(enabled) => reservationSettings.set({ ...settings, enabled })}
-          />
-        }
-      />
+      <SectionHead title="Réservations" desc="Les clients réservent une table sur le site ; chaque réservation reçoit automatiquement une table libre adaptée." />
 
       {!settings.enabled && (
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-ink/10 bg-ink/[0.03] p-4">
@@ -82,16 +70,19 @@ export function ReservationsView() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button onClick={() => setSub("agenda")} className={pill(sub === "agenda")}>
-          {svg(<><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></>, "w-4 h-4")} Agenda
-        </button>
-        <button onClick={() => setSub("tables")} className={pill(sub === "tables")}>
-          <span className="[&_svg]:w-4 [&_svg]:h-4">{KIND_ICONS.table}</span> Tables
-        </button>
-        <button onClick={() => setSub("settings")} className={pill(sub === "settings")}>
-          {svg(<><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /></>, "w-4 h-4")} Réglages
-        </button>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs
+          id="reservations-view"
+          label="Section"
+          value={sub}
+          onChange={setSub}
+          items={[
+            { id: "agenda", label: "Agenda", icon: <><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></> },
+            { id: "tables", label: "Tables", icon: <path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" /> },
+            { id: "settings", label: "Réglages", icon: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /></> },
+          ]}
+        />
+        <ActivationButton on={settings.enabled} what="les réservations en ligne" onChange={(enabled) => reservationSettings.set({ ...settings, enabled })} />
       </div>
 
       {sub === "agenda" && <Agenda />}

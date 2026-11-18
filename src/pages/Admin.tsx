@@ -1,4 +1,3 @@
-import { motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
 import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
@@ -27,7 +26,7 @@ import { JobsView } from "./admin/Jobs";
 import { MenuEditor } from "./admin/MenuEditor";
 import { ReservationsView } from "./admin/Reservations";
 import { HoursView, SettingsView } from "./admin/SettingsHours";
-import { Card, EditButton, Empty, inputCls, SectionHead } from "./admin/ui";
+import { Card, EditButton, Empty, inputCls, SectionHead, SegmentedTabs } from "./admin/ui";
 import {
   addMember,
   authenticate,
@@ -1259,42 +1258,19 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       <SectionHead
         title="Commandes"
         desc={VIEWS.find((v) => v.id === view)!.hint + "."}
-        action={
-          <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            <EditButton
-              label="Tables"
-              title="Modifier les tables"
-              onClick={() => setEditingTables(true)}
-              icon={<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />}
-            />
-          </div>
-        }
       />
       {adding && <NewOrderDialog user={user} onClose={() => setAdding(false)} />}
       {opened && <NewOrderDialog key={opened.id} user={user} order={opened} onClose={() => setOpenId(null)} />}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
-      <div role="tablist" aria-label="Vue" className="mb-5 inline-flex rounded-full bg-ink/5 p-1">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            role="tab"
-            aria-selected={view === v.id}
-            onClick={() => pickView(v.id)}
-            className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 ${
-              view === v.id ? "text-paper" : "text-ink/60 hover:text-ink"
-            }`}
-          >
-            {/* One pill that slides to the selected tab. */}
-            {view === v.id && (
-              <motion.span layoutId="orders-view-pill" transition={{ type: "spring", stiffness: 500, damping: 38 }} className="absolute inset-0 rounded-full bg-ink" />
-            )}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="relative w-[18px] h-[18px]" aria-hidden="true">
-              {v.icon}
-            </svg>
-            <span className="relative">{v.label}</span>
-          </button>
-        ))}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <SegmentedTabs id="orders-view" label="Vue" items={VIEWS} value={view} onChange={pickView} />
+        <EditButton
+          label="Tables"
+          title="Modifier les tables"
+          onClick={() => setEditingTables(true)}
+          icon={<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />}
+        />
       </div>
 
       {view === "salle" ? (
