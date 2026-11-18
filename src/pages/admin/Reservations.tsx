@@ -184,14 +184,16 @@ function Agenda() {
       </>
       )}
 
-      {/* Fixed in the corner, whatever the scroll. */}
-      <button
-        onClick={() => setAdding(true)}
-        className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-full bg-red-600 py-3.5 pl-4 pr-5 text-sm font-bold text-paper shadow-lg shadow-red-600/25 hover:bg-red-700 transition-colors"
-      >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-paper/20 text-lg leading-none">+</span>
-        Ajouter une réservation
-      </button>
+      {/* Stays at the bottom of the screen while scrolling, centred on the page. */}
+      <div className="pointer-events-none sticky bottom-6 z-30 mt-2 flex justify-center">
+        <button
+          onClick={() => setAdding(true)}
+          className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-red-600 py-3.5 pl-4 pr-5 text-sm font-bold text-paper shadow-lg shadow-red-600/25 hover:bg-red-700 transition-colors"
+        >
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-paper/20 text-lg leading-none">+</span>
+          Ajouter une réservation
+        </button>
+      </div>
       {adding && <PhoneBooking date={date} onDone={() => setAdding(false)} />}
     </div>
   );
