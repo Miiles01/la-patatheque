@@ -236,7 +236,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           </section>
 
           {/* Order */}
-          <section className={`min-h-0 flex-col lg:flex lg:w-[440px] xl:w-[500px] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
+          <section className={`min-h-0 flex-col lg:flex lg:w-[55%] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
               <div className="flex rounded-full bg-ink/5 p-1">
                 {(
