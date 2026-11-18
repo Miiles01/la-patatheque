@@ -259,16 +259,16 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                   <p className="text-sm font-semibold mb-2">Table</p>
                   {/* Typed on screen (tablets), no keyboard popping up. */}
                   <div className="flex gap-3">
-                    <div className="flex w-28 shrink-0 flex-col items-center justify-center rounded-2xl border border-ink/10 bg-white px-2 py-3">
+                    <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border border-ink/10 bg-white px-3 py-4">
                       <span className="text-[11px] font-bold uppercase tracking-wider text-ink/45">Table</span>
-                      <span aria-live="polite" className="font-display font-extrabold text-6xl leading-none text-red-600 tabular-nums">
+                      <span aria-live="polite" className="font-display font-extrabold text-8xl leading-none text-red-600 tabular-nums">
                         {table || "—"}
                       </span>
                       {table && tables.length > 0 && !tables.some((t) => t.code === table) && (
                         <span className="mt-1.5 text-center text-[11px] leading-tight text-orange">Pas dans vos tables</span>
                       )}
                     </div>
-                    <div className="grid flex-1 grid-cols-3 gap-2">
+                    <div className="grid w-52 shrink-0 grid-cols-3 gap-2">
                       {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map((k) => (
                         <button
                           key={k}
