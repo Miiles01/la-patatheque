@@ -165,11 +165,10 @@ function OwnerSetup({ onSuccess }: { onSuccess: (m: Member) => void }) {
     const f = new FormData(e.currentTarget);
     const password = String(f.get("password"));
     if (password.length < 8) return setError("Le mot de passe doit avoir au moins 8 caractères.");
-    if (password !== String(f.get("confirm"))) return setError("Les deux mots de passe ne sont pas identiques.");
     setBusy(true);
     setError("");
     try {
-      onSuccess(await setupOwner({ name: String(f.get("name")), email: String(f.get("email")), password }));
+      onSuccess(await setupOwner({ name: "Propriétaire", email: String(f.get("email")), password }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur réseau. Réessayez.");
     } finally {
@@ -185,29 +184,18 @@ function OwnerSetup({ onSuccess }: { onSuccess: (m: Member) => void }) {
             <LogoMark className="h-10" />
           </Link>
           <span className="mt-4 rounded-full bg-ink/5 px-3 py-1 text-xs font-bold uppercase tracking-wider text-ink/60">
-            Première connexion
+            Espace admin
           </span>
         </div>
         <form onSubmit={submit} className="rounded-3xl bg-white border border-ink/10 p-7 flex flex-col gap-4">
           <h1 className="font-display font-extrabold text-2xl">Créer le compte propriétaire</h1>
-          <p className="text-sm text-ink/60">
-            Ce compte a accès à tout le panneau et ajoute ensuite l'équipe. Votre numéro d'employé sera le 100.
-          </p>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Nom
-            <input name="name" type="text" autoComplete="name" required className={inputCls} />
-          </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Courriel
             <input name="email" type="email" autoComplete="username" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Mot de passe (8 caractères minimum)
+            Mot de passe
             <input name="password" type="password" autoComplete="new-password" minLength={8} required className={inputCls} />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Confirmer le mot de passe
-            <input name="confirm" type="password" autoComplete="new-password" minLength={8} required className={inputCls} />
           </label>
           {error && (
             <p role="alert" className="text-sm text-red-600">

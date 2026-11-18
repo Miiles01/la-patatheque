@@ -58,20 +58,26 @@ const HERO_VIDEO = window.matchMedia("(min-width: 1024px)").matches ? "/video/he
 
 /** Drone shot of the restaurant on Sherbrooke East: silent, looping, with the same parallax as before. */
 function HeroImage() {
+  // iPhones in Low Power Mode (and slow connections) don't autoplay; Safari then
+  // paints the video black. The cover photo sits underneath and the video only
+  // shows once it is really playing.
+  const [playing, setPlaying] = useState(false);
   return (
     <section data-nav="dark" className="h-[60svh] md:h-[85svh] overflow-hidden bg-red-700" aria-label="La Patathèque vue du ciel">
-      <video
-        data-parallax="-24"
-        src={asset(HERO_VIDEO)}
-        poster={asset("/video/hero-poster.webp")}
-        autoPlay={!reducedMotion}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label="Vue aérienne de La Patathèque, rue Sherbrooke Est"
-        className="h-[124%] w-full object-cover will-change-transform"
-      />
+      <div data-parallax="-24" className="relative h-[124%] w-full will-change-transform">
+        <img src={asset("/video/hero-poster.webp")} alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <video
+          src={asset(HERO_VIDEO)}
+          autoPlay={!reducedMotion}
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onPlaying={() => setPlaying(true)}
+          aria-label="Vue aérienne de La Patathèque, rue Sherbrooke Est"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${playing ? "opacity-100" : "opacity-0"}`}
+        />
+      </div>
     </section>
   );
 }
