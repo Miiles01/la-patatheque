@@ -257,24 +257,32 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
               {mode === "surplace" ? (
                 <div className="mt-4">
                   <p className="text-sm font-semibold mb-2">Table</p>
-                  {tables.length ? (
-                    <div className="grid grid-cols-4 gap-2">
-                      {tables.map((t) => (
+                  {/* Typed on screen (tablets), no keyboard popping up. */}
+                  <div className="flex gap-3">
+                    <div className="flex w-28 shrink-0 flex-col items-center justify-center rounded-2xl border border-ink/10 bg-white px-2 py-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-ink/45">Table</span>
+                      <span aria-live="polite" className="font-display font-extrabold text-6xl leading-none text-red-600 tabular-nums">
+                        {table || "—"}
+                      </span>
+                      {table && tables.length > 0 && !tables.some((t) => t.code === table) && (
+                        <span className="mt-1.5 text-center text-[11px] leading-tight text-orange">Pas dans vos tables</span>
+                      )}
+                    </div>
+                    <div className="grid flex-1 grid-cols-3 gap-2">
+                      {["1", "2", "3", "4", "5", "6", "7", "8", "9", "C", "0", "⌫"].map((k) => (
                         <button
-                          key={t.id}
-                          onClick={() => setTable(t.code)}
-                          aria-pressed={table === t.code}
-                          className={`rounded-xl border px-2 py-2.5 text-sm font-bold transition-colors ${
-                            table === t.code ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-white hover:border-ink/40"
+                          key={k}
+                          onClick={() => setTable((t) => (k === "C" ? "" : k === "⌫" ? t.slice(0, -1) : (t + k).slice(0, 3)))}
+                          aria-label={k === "C" ? "Effacer le numéro" : k === "⌫" ? "Effacer le dernier chiffre" : undefined}
+                          className={`rounded-xl border py-2.5 text-lg font-bold tabular-nums transition-colors active:scale-95 ${
+                            k === "C" || k === "⌫" ? "border-ink/10 bg-ink/5 text-ink/60 hover:bg-ink/10" : "border-ink/15 bg-white hover:border-ink/40"
                           }`}
                         >
-                          {t.code}
+                          {k}
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <input value={table} onChange={(e) => setTable(e.target.value)} placeholder="No de table" className={inputCls} />
-                  )}
+                  </div>
                 </div>
               ) : (
                 <div className="mt-4 flex flex-col gap-3">
