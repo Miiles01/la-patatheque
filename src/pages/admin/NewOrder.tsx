@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import { dishName } from "../../data/menu";
 import { submit, update, type Order, type Stored } from "../../lib/demoStore";
@@ -103,7 +104,7 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
   }
 
   const segment = (active: boolean) =>
-    `flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition-colors ${active ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"}`;
+    `relative flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition-colors duration-200 ${active ? "text-paper" : "text-ink/60 hover:text-ink"}`;
 
   return (
     <div className="fixed inset-0 z-[95] flex items-stretch md:items-center justify-center bg-ink/50 md:p-6" data-lenis-prevent>
@@ -189,12 +190,19 @@ export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?
           <section className={`min-h-0 flex-col lg:flex lg:w-[400px] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
               <div className="flex rounded-full bg-ink/5 p-1">
-                <button onClick={() => setMode("surplace")} className={segment(mode === "surplace")}>
-                  Sur place
-                </button>
-                <button onClick={() => setMode("emporter")} className={segment(mode === "emporter")}>
-                  Pour emporter
-                </button>
+                {(
+                  [
+                    ["surplace", "Sur place"],
+                    ["emporter", "Pour emporter"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button key={id} onClick={() => setMode(id)} aria-pressed={mode === id} className={segment(mode === id)}>
+                    {mode === id && (
+                      <motion.span layoutId="order-mode-pill" transition={{ type: "spring", stiffness: 500, damping: 38 }} className="absolute inset-0 rounded-full bg-ink" />
+                    )}
+                    <span className="relative">{label}</span>
+                  </button>
+                ))}
               </div>
 
               {mode === "surplace" ? (

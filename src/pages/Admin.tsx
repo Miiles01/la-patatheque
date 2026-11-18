@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
 import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
@@ -1219,7 +1220,12 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
         desc={VIEWS.find((v) => v.id === view)!.hint + "."}
         action={
           <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            <EditButton label="Tables" title="Modifier les tables" onClick={() => setEditingTables(true)} />
+            <EditButton
+              label="Tables"
+              title="Modifier les tables"
+              onClick={() => setEditingTables(true)}
+              icon={<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />}
+            />
             <button
               onClick={() => setAdding(true)}
               className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
@@ -1240,14 +1246,18 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
             role="tab"
             aria-selected={view === v.id}
             onClick={() => pickView(v.id)}
-            className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors ${
-              view === v.id ? "bg-ink text-paper" : "text-ink/60 hover:text-ink"
+            className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 ${
+              view === v.id ? "text-paper" : "text-ink/60 hover:text-ink"
             }`}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]" aria-hidden="true">
+            {/* One pill that slides to the selected tab. */}
+            {view === v.id && (
+              <motion.span layoutId="orders-view-pill" transition={{ type: "spring", stiffness: 500, damping: 38 }} className="absolute inset-0 rounded-full bg-ink" />
+            )}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="relative w-[18px] h-[18px]" aria-hidden="true">
               {v.icon}
             </svg>
-            {v.label}
+            <span className="relative">{v.label}</span>
           </button>
         ))}
       </div>

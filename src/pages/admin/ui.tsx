@@ -131,10 +131,23 @@ export function ConfirmDialog({
 const SPRING = { type: "spring", stiffness: 600, damping: 28 } as const;
 
 /**
- * Buttons that open an editor: a pencil on the left at rest; on hover it slides
- * away and an arrow slides in on the right.
+ * Buttons that open an editor: what it edits as an icon on the left at rest; on
+ * hover that icon slides away and a pencil slides in on the right.
  */
-export function EditButton({ label, onClick, title, className = "" }: { label: string; onClick: () => void; title?: string; className?: string }) {
+export function EditButton({
+  label,
+  icon,
+  onClick,
+  title,
+  className = "",
+}: {
+  label: string;
+  /** SVG content (24×24 viewBox) of what the button edits. */
+  icon: ReactNode;
+  onClick: () => void;
+  title?: string;
+  className?: string;
+}) {
   const [hover, setHover] = useState(false);
   return (
     <motion.button
@@ -150,10 +163,9 @@ export function EditButton({ label, onClick, title, className = "" }: { label: s
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {!hover && (
-          <motion.span key="pencil" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={SPRING} className="mr-2 flex shrink-0">
+          <motion.span key="icon" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={SPRING} className="mr-2 flex shrink-0">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
-              <path d="M4 20h4L19 9l-4-4L4 16z" strokeLinejoin="round" />
-              <path d="m13 7 4 4" />
+              {icon}
             </svg>
           </motion.span>
         )}
@@ -161,9 +173,10 @@ export function EditButton({ label, onClick, title, className = "" }: { label: s
       <span>{label}</span>
       <AnimatePresence mode="popLayout" initial={false}>
         {hover && (
-          <motion.span key="arrow" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={SPRING} className="ml-2 flex shrink-0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+          <motion.span key="pencil" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={SPRING} className="ml-2 flex shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path d="M4 20h4L19 9l-4-4L4 16z" strokeLinejoin="round" />
+              <path d="m13 7 4 4" />
             </svg>
           </motion.span>
         )}

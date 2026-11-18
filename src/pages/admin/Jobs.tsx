@@ -80,7 +80,17 @@ export function JobsView({ applications }: { applications: Row[] }) {
           <div className="flex flex-wrap gap-2">
             {job && (
               <>
-                <EditButton label="Modifier" onClick={() => setEditing(job)} className="px-4 py-2" />
+                <EditButton
+                  label="Modifier"
+                  onClick={() => setEditing(job)}
+                  className="px-4 py-2"
+                  icon={
+                    <>
+                      <path d="M6 3h9l4 4v14H6z" strokeLinejoin="round" />
+                      <path d="M9 12h7M9 16h5" strokeLinecap="round" />
+                    </>
+                  }
+                />
                 <button
                   onClick={() => saveJob({ ...job, status: job.status === "published" ? "closed" : "published" })}
                   className={`rounded-full px-4 py-2 text-sm font-bold ${job.status === "published" ? "bg-ink/5 text-ink/70" : "bg-red-600 text-paper"}`}
