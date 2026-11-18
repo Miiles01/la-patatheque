@@ -26,10 +26,11 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   const [phone, setPhone] = useState(order?.phone ?? "");
   const [when, setWhen] = useState(order && order.mode !== "surplace" ? order.when : "");
   const [notes, setNotes] = useState(order?.notes ?? "");
-  // Who looks after it: the signed-in member by default.
-  const [server, setServer] = useState(order?.server ?? user.name);
-  const [team, setTeam] = useState(() => listTeam().filter((m) => m.active));
-  useEffect(() => onTeamChange(() => setTeam(listTeam().filter((m) => m.active))), []);
+  // Only waiters can be picked (not the owner). A waiter taking the order is chosen by default.
+  const waiters = () => listTeam().filter((m) => m.active && !m.owner && m.role === "serveur");
+  const [server, setServer] = useState(order?.server ?? (user.role === "serveur" && !user.owner ? user.name : ""));
+  const [team, setTeam] = useState(waiters);
+  useEffect(() => onTeamChange(() => setTeam(waiters())), []);
   const servers = [...new Set([server, ...team.map((m) => m.name)].filter(Boolean))];
   const [lines, setLines] = useState<Line[]>(() =>
     (order?.lines ?? []).map((l) => ({ ...l, category: l.category ?? "", key: `${l.category ?? ""}|${l.name}|${l.size ?? ""}` })),
@@ -80,7 +81,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           phone: mode === "emporter" ? phone.trim() : "",
           when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
           notes: notes.trim(),
-          server: mode === "surplace" ? server : undefined,
+          server: mode === "surplace" && server ? server : undefined,
           lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
           subtotal: sub,
           discount,
@@ -96,7 +97,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
         phone: mode === "emporter" ? phone.trim() : "",
         when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
         notes: notes.trim() || undefined,
-        server: mode === "surplace" ? server : undefined,
+        server: mode === "surplace" && server ? server : undefined,
         lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
         subtotal: sub,
         discount: 0,
@@ -243,14 +244,14 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                 </div>
               )}
 
-              {mode === "surplace" && (
+              {mode === "surplace" && servers.length > 0 && (
               <>
               <p className="mt-5 mb-2 text-sm font-semibold">Serveur·euse</p>
               <div className="flex flex-wrap gap-2">
                 {servers.map((n) => (
                   <button
                     key={n}
-                    onClick={() => setServer(n)}
+                    onClick={() => setServer(server === n ? "" : n)}
                     aria-pressed={server === n}
                     className={`inline-flex items-center gap-2 rounded-full border py-1.5 pl-1.5 pr-3.5 text-sm font-semibold transition-colors ${
                       server === n ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-white hover:border-ink/40"
