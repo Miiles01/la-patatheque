@@ -19,7 +19,17 @@ const rankOf = (o: Row) => o.rank ?? Date.parse(o.createdAt);
 
 type Drag = { id: string; x: number; y: number; dx: number; dy: number; width: number; col: number | null; index: number };
 
-export function KitchenBoard({ orders, renderCard, onOpen }: { orders: Row[]; renderCard: (o: Row) => ReactNode; onOpen: (o: Row) => void }) {
+export function KitchenBoard({
+  orders,
+  renderCard,
+  onOpen,
+  onAdd,
+}: {
+  orders: Row[];
+  renderCard: (o: Row) => ReactNode;
+  onOpen: (o: Row) => void;
+  onAdd: () => void;
+}) {
   const scroller = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
 
@@ -134,6 +144,15 @@ export function KitchenBoard({ orders, renderCard, onOpen }: { orders: Row[]; re
                 {c.title}
                 <span className="rounded-full bg-white border border-ink/10 px-2 text-xs tabular-nums">{c.rows.length}</span>
               </h2>
+              {ci === 0 && (
+                <button
+                  onClick={onAdd}
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-ink/15 py-4 text-sm font-bold text-ink/50 hover:border-red-600 hover:text-red-600 transition-colors"
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-lg leading-none text-paper">+</span>
+                  Nouvelle commande
+                </button>
+              )}
               {visible.map((o, i) => (
                 <div key={o.id} className="flex flex-col gap-3">
                   {drag?.col === ci && drag.index === i && line}

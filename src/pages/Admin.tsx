@@ -1260,12 +1260,6 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
               onClick={() => setEditingTables(true)}
               icon={<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />}
             />
-            <button
-              onClick={() => setAdding(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
-            >
-              <span className="text-lg leading-none">+</span> Ajouter une commande
-            </button>
           </div>
         }
       />
@@ -1297,17 +1291,21 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       </div>
 
       {view === "salle" ? (
-        openTables.length ? (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {openTables.map((o) => (
-              <TableCard key={o.id} o={o} onOpen={() => setOpenId(o.id)} />
-            ))}
-          </div>
-        ) : (
-          <Empty text="Aucune table occupée. Touchez « Ajouter une commande » pour en ouvrir une." />
-        )
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {/* Always the first card: open a new order, as with the job openings. */}
+          <button
+            onClick={() => setAdding(true)}
+            className="flex min-h-[230px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink/15 text-ink/50 hover:border-red-600 hover:text-red-600 transition-colors"
+          >
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-red-600 text-2xl text-paper">+</span>
+            <span className="font-bold">Nouvelle commande</span>
+          </button>
+          {openTables.map((o) => (
+            <TableCard key={o.id} o={o} onOpen={() => setOpenId(o.id)} />
+          ))}
+        </div>
       ) : (
-        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => setOpenId(o.id)} />
+        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => setOpenId(o.id)} onAdd={() => setAdding(true)} />
       )}
     </>
   );
