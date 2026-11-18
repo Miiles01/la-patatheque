@@ -1770,7 +1770,7 @@ function Team({ currentUser }: { currentUser: Member }) {
 /** Fills the dashboard with clearly tagged example records so the client can see every view. */
 function loadSamples() {
   // Loading them again replaces the earlier examples instead of doubling them.
-  for (const c of ["orders", "subscribers", "applications", "catering", "events"]) {
+  for (const c of ["orders", "subscribers", "applications", "catering", "events", "bookings"]) {
     try {
       const key = `patatheque-demo-${c}`;
       const rows = JSON.parse(localStorage.getItem(key) ?? "[]") as { sample?: boolean }[];

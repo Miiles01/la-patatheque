@@ -102,6 +102,15 @@ function Agenda() {
   const settings = reservationSettings.use();
   const [date, setDate] = useState(todayIso);
   const [adding, setAdding] = useState(false);
+  // Search across every day: name, phone (digits) or booking number.
+  const [search, setSearch] = useState("");
+  const q = search.trim().toLowerCase();
+  const digits = q.replace(/\D/g, "");
+  const found = q
+    ? bookings
+        .filter((b) => b.name.toLowerCase().includes(q) || b.id.toLowerCase().includes(q) || (digits.length >= 3 && b.phone.replace(/\D/g, "").includes(digits)))
+        .sort((a, b) => b.date.localeCompare(a.date) || a.time.localeCompare(b.time))
+    : [];
 
   const day = bookings.filter((b) => b.date === date).sort((a, b) => a.time.localeCompare(b.time));
   const active = day.filter((b) => b.status !== "annulee" && b.status !== "absent");
@@ -110,6 +119,38 @@ function Agenda() {
 
   return (
     <div className="flex flex-col gap-4">
+      <label className="relative block">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16 16 4 4" strokeLinecap="round" />
+        </svg>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Chercher une réservation : nom, téléphone ou numéro…"
+          aria-label="Chercher une réservation"
+          className="w-full rounded-full border border-ink/15 bg-white py-3 pl-12 pr-4 text-sm focus:border-red-600 focus:outline-none"
+        />
+      </label>
+
+      {q ? (
+        found.length ? (
+          <>
+            <p className="text-sm text-ink/55">
+              {found.length} réservation{found.length > 1 ? "s" : ""} trouvée{found.length > 1 ? "s" : ""}
+            </p>
+            <ul className="flex flex-col gap-2">
+              {found.map((b) => (
+                <BookingRow key={b.id} b={b} table={tableOf(b)} showDate />
+              ))}
+            </ul>
+          </>
+        ) : (
+          <Empty text="Aucune réservation ne correspond." />
+        )
+      ) : (
+      <>
       <Card className="flex flex-wrap items-center gap-3">
         <button onClick={() => setDate(shiftDay(date, -1))} aria-label="Jour précédent" className="h-9 w-9 rounded-full border border-ink/15 hover:bg-ink/5">
           ‹
@@ -138,72 +179,84 @@ function Agenda() {
         <Empty text={settings.enabled ? "Aucune réservation ce jour-là." : "Aucune réservation. Activez les réservations pour que les clients puissent réserver sur le site."} />
       ) : (
         <ul className="flex flex-col gap-2">
-          {day.map((b) => {
-            const table = tableOf(b);
-            return (
-              <li key={b.id} className={`rounded-2xl bg-white border border-ink/10 p-4 flex flex-wrap items-center gap-x-5 gap-y-3 ${b.status === "annulee" ? "opacity-50" : ""}`}>
-                <span className="w-16 font-display font-black text-2xl tabular-nums">{b.time}</span>
-                <div className="flex-1 min-w-[180px]">
-                  <p className="font-semibold">
-                    {b.name}
-                    {b.sample && <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span>}
-                  </p>
-                  <a href={`tel:${b.phone}`} className="text-sm text-red-600 font-semibold">
-                    {b.phone}
-                  </a>
-                  {b.notes && <p className="text-xs text-ink/55 mt-1">« {b.notes} »</p>}
-                </div>
-                <span className="flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-sm font-semibold" title="Personnes">
-                  <PersonIcon cls="w-4 h-4" /> {b.party}
-                </span>
-                {table && (
-                  <span className="flex items-center gap-1.5 rounded-full bg-red-600/8 px-3 py-1.5 text-sm font-semibold text-red-700" title={TABLE_KINDS[table.kind].fr}>
-                    <span className="[&_svg]:w-4 [&_svg]:h-4">{KIND_ICONS[table.kind]}</span> {table.code}
-                  </span>
-                )}
-                <span className="flex items-center gap-1 text-ink/60">
-                  {b.highChairs > 0 && (
-                    <span title={`${b.highChairs} chaise(s) haute(s)`} className="flex items-center gap-0.5 rounded-full bg-orange/15 px-2 py-1 text-xs font-bold text-ink">
-                      <BabyIcon /> {b.highChairs}
-                    </span>
-                  )}
-                  {b.accessible && (
-                    <span title="Accès fauteuil roulant" className="rounded-full bg-ink/5 p-1.5">
-                      <WheelchairIcon />
-                    </span>
-                  )}
-                  {b.occasion && (
-                    <span title={b.occasion} className="flex items-center gap-1 rounded-full bg-ink/5 px-2 py-1 text-xs">
-                      <GiftIcon /> {b.occasion}
-                    </span>
-                  )}
-                </span>
-                <select
-                  value={b.status}
-                  onChange={(e) => updateBooking(b.id, { status: e.target.value as BookingStatus })}
-                  aria-label={`Statut de la réservation de ${b.name}`}
-                  className={`rounded-full border-0 px-3 py-2 text-xs font-bold ${STATUS[b.status].cls}`}
-                >
-                  {Object.entries(STATUS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v.label}
-                    </option>
-                  ))}
-                </select>
-              </li>
-            );
-          })}
+          {day.map((b) => (
+            <BookingRow key={b.id} b={b} table={tableOf(b)} />
+          ))}
         </ul>
       )}
 
-      {adding ? (
+      </>
+      )}
+
+      {!q && (adding ? (
         <PhoneBooking date={date} onDone={() => setAdding(false)} />
       ) : (
         <button onClick={() => setAdding(true)} className="self-start rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700">
           + Ajouter une réservation
         </button>
-      )}
+      ))}
     </div>
+  );
+}
+
+const shortDay = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short" });
+
+/** One booking: time, guest, party, table, needs and status. With the date when listed from a search. */
+function BookingRow({ b, table, showDate = false }: { b: Booking; table?: DiningTable; showDate?: boolean }) {
+  return (
+    <li className={`rounded-2xl bg-white border border-ink/10 p-4 flex flex-wrap items-center gap-x-5 gap-y-3 ${b.status === "annulee" ? "opacity-50" : ""}`}>
+      <span className="w-16 font-display font-black text-2xl tabular-nums">
+      {b.time}
+      {showDate && <span className="block font-sans text-xs font-semibold text-ink/50 capitalize">{shortDay.format(new Date(`${b.date}T12:00:00`))}</span>}
+    </span>
+      <div className="flex-1 min-w-[180px]">
+        <p className="font-semibold">
+          {b.name}
+          {b.sample && <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span>}
+        </p>
+        <a href={`tel:${b.phone}`} className="text-sm text-red-600 font-semibold">
+          {b.phone}
+        </a>
+        {b.notes && <p className="text-xs text-ink/55 mt-1">« {b.notes} »</p>}
+      </div>
+      <span className="flex items-center gap-1.5 rounded-full bg-ink/5 px-3 py-1.5 text-sm font-semibold" title="Personnes">
+        <PersonIcon cls="w-4 h-4" /> {b.party}
+      </span>
+      {table && (
+        <span className="flex items-center gap-1.5 rounded-full bg-red-600/8 px-3 py-1.5 text-sm font-semibold text-red-700" title={TABLE_KINDS[table.kind].fr}>
+          <span className="[&_svg]:w-4 [&_svg]:h-4">{KIND_ICONS[table.kind]}</span> {table.code}
+        </span>
+      )}
+      <span className="flex items-center gap-1 text-ink/60">
+        {b.highChairs > 0 && (
+          <span title={`${b.highChairs} chaise(s) haute(s)`} className="flex items-center gap-0.5 rounded-full bg-orange/15 px-2 py-1 text-xs font-bold text-ink">
+            <BabyIcon /> {b.highChairs}
+          </span>
+        )}
+        {b.accessible && (
+          <span title="Accès fauteuil roulant" className="rounded-full bg-ink/5 p-1.5">
+            <WheelchairIcon />
+          </span>
+        )}
+        {b.occasion && (
+          <span title={b.occasion} className="flex items-center gap-1 rounded-full bg-ink/5 px-2 py-1 text-xs">
+            <GiftIcon /> {b.occasion}
+          </span>
+        )}
+      </span>
+      <select
+        value={b.status}
+        onChange={(e) => updateBooking(b.id, { status: e.target.value as BookingStatus })}
+        aria-label={`Statut de la réservation de ${b.name}`}
+        className={`rounded-full border-0 px-3 py-2 text-xs font-bold ${STATUS[b.status].cls}`}
+      >
+        {Object.entries(STATUS).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v.label}
+          </option>
+        ))}
+      </select>
+    </li>
   );
 }
 
