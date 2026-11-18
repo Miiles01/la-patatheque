@@ -62,13 +62,6 @@ export function ReservationsView() {
     <>
       <SectionHead title="Réservations" desc="Les clients réservent une table sur le site ; chaque réservation reçoit automatiquement une table libre adaptée." />
 
-      {!settings.enabled && (
-        <div className="mb-5 flex flex-col sm:flex-row sm:items-center gap-3 rounded-2xl border border-ink/10 bg-ink/[0.03] p-4">
-          <p className="flex-1 text-sm text-ink/70">
-            <strong>Les réservations en ligne sont désactivées.</strong> Préparez vos tables et vos heures, puis activez-les : le bouton « Réserver une table » apparaîtra sur le site.
-          </p>
-        </div>
-      )}
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <SegmentedTabs
@@ -82,7 +75,12 @@ export function ReservationsView() {
             { id: "settings", label: "Réglages", icon: <><circle cx="12" cy="12" r="3" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3" /></> },
           ]}
         />
-        <ActivationButton on={settings.enabled} what="les réservations en ligne" onChange={(enabled) => reservationSettings.set({ ...settings, enabled })} />
+        <ActivationButton
+          on={settings.enabled}
+          what="les réservations en ligne"
+          status={{ on: "Réservations en ligne activées", off: "Réservations en ligne désactivées" }}
+          onChange={(enabled) => reservationSettings.set({ ...settings, enabled })}
+        />
       </div>
 
       {sub === "agenda" && <Agenda />}

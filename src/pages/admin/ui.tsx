@@ -201,38 +201,53 @@ export function EditButton({
 }
 
 /**
- * On/off for a feature (online bookings…). Black while off ("Activer"), red while
- * on ("Désactiver"); on hover the icon takes the colour of the state it will switch to.
+ * On/off for a feature (online bookings…), with a short status beside it.
+ * Off: white with a dark border and a dark dot ("Activer"). On: red with a white
+ * dot ("Désactiver"). On hover the dot previews the state it will switch to.
  */
-export function ActivationButton({ on, onChange, what }: { on: boolean; onChange: (on: boolean) => void; what: string }) {
+export function ActivationButton({
+  on,
+  onChange,
+  what,
+  status,
+}: {
+  on: boolean;
+  onChange: (on: boolean) => void;
+  what: string;
+  /** Short line shown beside the button for each state. */
+  status?: { on: string; off: string };
+}) {
   const [hover, setHover] = useState(false);
+  // The dot: filled when on, hollow when off; hovering shows the other state.
+  const filled = hover ? !on : on;
   return (
-    <motion.button
-      onClick={() => onChange(!on)}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.96 }}
-      aria-pressed={on}
-      aria-label={`${on ? "Désactiver" : "Activer"} ${what}`}
-      className={`relative inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-bold text-paper transition-colors duration-200 ${
-        on ? "bg-red-600 hover:bg-red-700" : "bg-ink hover:bg-ink/85"
-      }`}
-    >
-      <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+    <div className="flex items-center gap-3">
+      {status && <span className={`text-sm ${on ? "text-ink/60" : "text-ink/55"}`}>{on ? status.on : status.off}</span>}
+      <motion.button
+        onClick={() => onChange(!on)}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.96 }}
+        aria-pressed={on}
+        aria-label={`${on ? "Désactiver" : "Activer"} ${what}`}
+        className={`relative inline-flex items-center justify-center rounded-full border px-6 py-3 text-sm font-bold transition-colors duration-200 ${
+          on ? "border-red-600 bg-red-600 text-paper hover:bg-red-700" : "border-ink bg-white text-ink hover:bg-ink/[0.03]"
+        }`}
+      >
         <svg
           viewBox="0 0 24 24"
-          fill={hover ? "currentColor" : "none"}
+          fill={filled ? "currentColor" : "none"}
           stroke="currentColor"
           strokeWidth="2"
-          className={`h-4 w-4 transition-colors duration-[250ms] ${hover ? (on ? "text-ink" : "text-red-500") : "text-paper"}`}
+          className={`h-4 w-4 shrink-0 transition-colors duration-[250ms] ${on ? "text-paper" : hover ? "text-red-600" : "text-ink"}`}
           aria-hidden="true"
         >
           <circle cx="12" cy="12" r="8" />
         </svg>
-      </span>
-      <span className="ml-2.5 tracking-tight">{on ? "Désactiver" : "Activer"}</span>
-    </motion.button>
+        <span className="ml-2.5 tracking-tight">{on ? "Désactiver" : "Activer"}</span>
+      </motion.button>
+    </div>
   );
 }
 
