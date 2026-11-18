@@ -272,11 +272,11 @@ function Modes() {
 }
 
 // Three photos between the order modes and the specials, set at different
-// heights and drifting at different speeds as the page scrolls.
-const GALLERY: { src: string; alt: Key; drift: string; offset: string }[] = [
-  { src: "/gallery/club-fourchette.webp", alt: "gallery.club", drift: "-10", offset: "" },
-  { src: "/gallery/brochette-mains.webp", alt: "gallery.brochette", drift: "8", offset: "mt-10 md:mt-24" },
-  { src: "/gallery/sous-marin-assiette.webp", alt: "gallery.sub", drift: "-16", offset: "mt-4 md:mt-8" },
+// heights. They stay still inside their frames.
+const GALLERY: { src: string; alt: Key; offset: string }[] = [
+  { src: "/gallery/club-fourchette.webp", alt: "gallery.club", offset: "" },
+  { src: "/gallery/brochette-mains.webp", alt: "gallery.brochette", offset: "mt-10 md:mt-24" },
+  { src: "/gallery/sous-marin-assiette.webp", alt: "gallery.sub", offset: "mt-4 md:mt-8" },
 ];
 
 function Gallery() {
@@ -286,7 +286,7 @@ function Gallery() {
       <div className="mx-auto max-w-7xl px-5 md:px-10 grid grid-cols-3 gap-2.5 md:gap-6 items-start">
         {GALLERY.map((g, i) => (
           <div key={g.src} data-fade={i * 0.1} className={`overflow-hidden rounded-2xl md:rounded-3xl bg-red-700 aspect-[3/4] ${g.offset}`}>
-            <img data-parallax={g.drift} src={asset(g.src)} alt={t(g.alt)} loading="lazy" className="h-[112%] w-full object-cover -mt-[6%]" />
+            <img src={asset(g.src)} alt={t(g.alt)} loading="lazy" className="h-full w-full object-cover" />
           </div>
         ))}
       </div>
