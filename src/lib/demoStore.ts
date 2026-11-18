@@ -139,6 +139,15 @@ export function update<C extends Collection>(c: C, id: string, patch: Partial<Co
   }
 }
 
+/** Deletes one record; on the real site the server deletes it too (and an application's CV). */
+export async function remove(c: Collection, id: string) {
+  if (live) await api(`records/${c}/${id}`, { method: "DELETE" });
+  write(
+    c,
+    list(c).filter((r) => r.id !== id),
+  );
+}
+
 export function clear(c: Collection) {
   write(c, []);
 }

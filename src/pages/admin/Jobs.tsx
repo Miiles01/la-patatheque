@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { asset } from "../../lib/asset";
-import { downloadCsv, type Application, type Stored } from "../../lib/demoStore";
+import { downloadCsv, remove, type Application, type Stored } from "../../lib/demoStore";
 import { DESCRIPTION_TEMPLATE, JOB_AREAS, JOB_SCHEDULES, deleteJob, jobsStore, newJob, saveJob, uid, type Job, type JobQuestion, type JobStatus } from "../../lib/jobs";
-import { Card, Empty, SectionHead } from "./ui";
+import { Card, ConfirmDialog, Empty, SectionHead } from "./ui";
 
 const dateTime = new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" });
 type Row = Stored<Application>;
@@ -20,11 +20,31 @@ export function JobsView({ applications }: { applications: Row[] }) {
   const jobs = jobsStore.use();
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<Job | null>(null);
+  const [deleting, setDeleting] = useState<Job | null>(null);
+  // Applications whose opening was deleted show up with the spontaneous ones.
+  const isSpontaneous = (a: Row) => !a.jobId || !jobs.some((j) => j.id === a.jobId);
+  const confirmDialog = deleting && (
+    <ConfirmDialog
+      title="Supprimer cette vacante ?"
+      text={`« ${deleting.title || "Sans titre"} » disparaîtra de la page Carrières. Les candidatures déjà reçues passent dans Candidatures spontanées.`}
+      confirmLabel="Supprimer"
+      onConfirm={() => {
+        deleteJob(deleting.id);
+        setDeleting(null);
+        setEditing(null);
+        setOpen(null);
+      }}
+      onCancel={() => setDeleting(null)}
+    />
+  );
 
   if (editing) {
     return (
+      <>
+      {confirmDialog}
       <JobEditor
         job={editing}
+        onDelete={() => setDeleting(editing)}
         onCancel={() => setEditing(null)}
         onSaved={(job) => {
           saveJob(job);
@@ -32,12 +52,13 @@ export function JobsView({ applications }: { applications: Row[] }) {
           setOpen(job.id);
         }}
       />
+      </>
     );
   }
 
   if (open) {
     const job = jobs.find((j) => j.id === open);
-    const rows = applications.filter((a) => (open === SPONTANEOUS ? !a.jobId : a.jobId === open));
+    const rows = applications.filter((a) => (open === SPONTANEOUS ? isSpontaneous(a) : a.jobId === open));
     return (
       <>
         <button onClick={() => setOpen(null)} className="mb-4 text-sm font-bold text-ink/60 hover:text-red-600">
@@ -97,7 +118,7 @@ export function JobsView({ applications }: { applications: Row[] }) {
     );
   }
 
-  const count = (id: string) => applications.filter((a) => (id === SPONTANEOUS ? !a.jobId : a.jobId === id)).length;
+  const count = (id: string) => applications.filter((a) => (id === SPONTANEOUS ? isSpontaneous(a) : a.jobId === id)).length;
 
   return (
     <>
@@ -114,7 +135,8 @@ export function JobsView({ applications }: { applications: Row[] }) {
           <span className="font-bold">Nouvelle vacante</span>
         </button>
         {jobs.map((j) => (
-          <button key={j.id} onClick={() => setOpen(j.id)} className="text-left rounded-2xl border border-ink/10 bg-white p-5 flex flex-col hover:border-ink/30 transition-colors">
+          <div key={j.id} className="relative flex">
+          <button onClick={() => setOpen(j.id)} className="flex-1 text-left rounded-2xl border border-ink/10 bg-white p-5 flex flex-col hover:border-ink/30 transition-colors">
             <span className={`self-start rounded-full px-3 py-1 text-xs font-bold ${STATUS[j.status].cls}`}>{STATUS[j.status].label}</span>
             <span className="mt-4 font-display font-bold text-xl leading-tight">{j.title || "Sans titre"}</span>
             <span className="mt-1 text-sm text-ink/55">
@@ -127,6 +149,17 @@ export function JobsView({ applications }: { applications: Row[] }) {
               <span className="font-bold text-red-600">Voir →</span>
             </span>
           </button>
+          <button
+            onClick={() => setDeleting(j)}
+            aria-label={`Supprimer la vacante ${j.title || "sans titre"}`}
+            title="Supprimer"
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full text-ink/40 hover:bg-red-600/10 hover:text-red-600 transition-colors"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          </div>
         ))}
         <button onClick={() => setOpen(SPONTANEOUS)} className="text-left rounded-2xl border border-ink/10 bg-white p-5 flex flex-col hover:border-ink/30 transition-colors">
           <span className="self-start rounded-full bg-ink/5 px-3 py-1 text-xs font-bold text-ink/60">Toujours ouverte</span>
@@ -140,12 +173,31 @@ export function JobsView({ applications }: { applications: Row[] }) {
           </span>
         </button>
       </div>
+      {confirmDialog}
     </>
   );
 }
 
 function ApplicantsList({ rows }: { rows: Row[] }) {
   const [viewing, setViewing] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState<Row | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function confirmDelete() {
+    if (!deleting) return;
+    setBusy(true);
+    setError("");
+    try {
+      await remove("applications", deleting.id);
+      setDeleting(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur réseau. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!rows.length) return <Empty text="Personne n'a encore postulé." />;
 
   return (
@@ -164,11 +216,26 @@ function ApplicantsList({ rows }: { rows: Row[] }) {
                   <p className="text-xs text-ink/50">{dateTime.format(new Date(r.createdAt))}</p>
                 </div>
               </div>
-              {r.cv && (
-                <button onClick={() => setViewing(r)} className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper hover:bg-ink/85">
-                  Voir le CV
+              <div className="flex shrink-0 items-center gap-1.5">
+                {r.cv && (
+                  <button onClick={() => setViewing(r)} className="rounded-full bg-ink px-4 py-2 text-xs font-bold text-paper hover:bg-ink/85">
+                    Voir le CV
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setError("");
+                    setDeleting(r);
+                  }}
+                  aria-label={`Supprimer la candidature de ${r.name}`}
+                  title="Supprimer"
+                  className="w-9 h-9 flex items-center justify-center rounded-full text-ink/45 hover:bg-red-600/10 hover:text-red-600 transition-colors"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]" aria-hidden="true">
+                    <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                 </button>
-              )}
+              </div>
             </div>
 
             {!!r.answers?.length && (
@@ -207,6 +274,17 @@ function ApplicantsList({ rows }: { rows: Row[] }) {
         ))}
       </div>
       {viewing?.cv && <CvViewer cv={viewing.cv} name={viewing.name} onClose={() => setViewing(null)} />}
+      {deleting && (
+        <ConfirmDialog
+          title="Supprimer cette candidature ?"
+          text={`La candidature de ${deleting.name}${deleting.cv ? " et son CV" : ""} seront effacés définitivement.`}
+          confirmLabel="Supprimer"
+          busy={busy}
+          error={error}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
     </>
   );
 }
@@ -229,7 +307,7 @@ function Switch({ on, onChange, label, hint }: { on: boolean; onChange: (v: bool
   );
 }
 
-function JobEditor({ job: initial, onCancel, onSaved }: { job: Job; onCancel: () => void; onSaved: (job: Job) => void }) {
+function JobEditor({ job: initial, onCancel, onSaved, onDelete }: { job: Job; onCancel: () => void; onSaved: (job: Job) => void; onDelete: () => void }) {
   const [job, setJob] = useState<Job>(initial);
   const set = (patch: Partial<Job>) => setJob((j) => ({ ...j, ...patch }));
   const setQ = (id: string, patch: Partial<JobQuestion>) => set({ questions: job.questions.map((q) => (q.id === id ? { ...q, ...patch } : q)) });
@@ -411,12 +489,7 @@ function JobEditor({ job: initial, onCancel, onSaved }: { job: Job; onCancel: ()
           </button>
           {!isNew && (
             <button
-              onClick={() => {
-                if (window.confirm("Supprimer cette vacante ? Les candidatures reçues restent dans le panneau.")) {
-                  deleteJob(job.id);
-                  onCancel();
-                }
-              }}
+              onClick={onDelete}
               className="ml-auto text-sm font-bold text-red-600"
             >
               Supprimer

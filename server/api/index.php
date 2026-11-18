@@ -40,6 +40,7 @@ function route(): void
             if ($method === 'POST') reply(record_create($c, body()), 201);
             if ($method === 'GET') reply(record_list($c));
             if ($method === 'PATCH' && isset($parts[2])) reply(record_update($c, $parts[2], body()));
+            if ($method === 'DELETE' && isset($parts[2])) reply(record_delete($c, $parts[2]));
             break;
         case 'bookings':
             if ($method === 'GET') reply(bookings_list((string)($_GET['from'] ?? '')));
@@ -190,6 +191,16 @@ function record_update(string $c, string $id, mixed $patch): array
     $row = db_one('SELECT data FROM records WHERE collection = ? AND id = ?', [$c, $id]) ?? throw new HttpError('Introuvable.', 404);
     $data = array_merge(json_decode($row['data'], true), $allowed);
     db_run('UPDATE records SET data = ? WHERE collection = ? AND id = ?', [json_encode($data, JSON_UNESCAPED_UNICODE), $c, $id]);
+    return ['ok' => true];
+}
+
+/** Staff can delete an application (and its CV file). */
+function record_delete(string $c, string $id): array
+{
+    if ($c !== 'applications') throw new HttpError('Introuvable.', 404);
+    require_tab('applications');
+    db_run('DELETE FROM records WHERE collection = ? AND id = ?', [$c, $id]);
+    @unlink(data_dir() . '/cv/' . basename($id));
     return ['ok' => true];
 }
 

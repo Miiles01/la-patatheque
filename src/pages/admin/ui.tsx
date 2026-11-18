@@ -72,3 +72,56 @@ export function EssentialBanner({ done, text, onConfirm }: { done: boolean; text
     </div>
   );
 }
+
+/** Asks before a change that can't be undone (deleting something). */
+export function ConfirmDialog({
+  title,
+  text,
+  confirmLabel,
+  busy,
+  error,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  text: string;
+  confirmLabel: string;
+  busy?: boolean;
+  error?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/50 p-5" onClick={onCancel} data-lenis-prevent>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-3xl bg-white p-7 text-ink shadow-xl"
+      >
+        <h2 id="confirm-title" className="font-display font-extrabold text-xl">
+          {title}
+        </h2>
+        <p className="mt-2 text-sm text-ink/60">{text}</p>
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <button onClick={onCancel} autoFocus className="rounded-full px-5 py-2.5 text-sm font-bold text-ink/70 hover:bg-ink/5">
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={busy}
+            className="rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60"
+          >
+            {busy ? "Suppression…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
