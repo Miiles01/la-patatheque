@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { dishName } from "../../data/menu";
 import { submit, update, type Order, type Stored } from "../../lib/demoStore";
@@ -37,6 +37,8 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   );
   const [category, setCategory] = useState(categories[0]?.id ?? SPECIALS);
   const [search, setSearch] = useState("");
+  // The dish whose sizes are shown.
+  const [expanded, setExpanded] = useState<string | null>(null);
   // An existing order opens on what was asked for (on phones the order view).
   const [view, setView] = useState<"menu" | "order">(order ? "order" : "menu");
   const [busy, setBusy] = useState(false);
@@ -133,14 +135,20 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           {/* Menu */}
           <section className={`min-h-0 min-w-0 flex-1 flex-col lg:flex lg:border-r lg:border-ink/10 ${view === "menu" ? "flex" : "hidden"}`}>
             <div className="border-b border-ink/10 px-5 pt-4 pb-3 md:px-7">
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Chercher un plat…"
-                aria-label="Chercher un plat"
-                className={inputCls}
-              />
+              <label className="relative block">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" strokeLinecap="round" />
+                </svg>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Chercher un plat…"
+                  aria-label="Chercher un plat"
+                  className={`${inputCls} pl-12`}
+                />
+              </label>
               {!q && (
                 <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1 md:-mx-7 md:px-7 [scrollbar-width:none]">
                   {[...categories.map((c) => ({ id: c.id, name: c.name })), { id: SPECIALS, name: "Super spéciaux" }].map((c) => (
@@ -162,32 +170,64 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                 <div key={s.id} className="mb-6">
                   {q && <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink/45">{s.name}</p>}
                   <ul className="flex flex-col divide-y divide-ink/5">
-                    {s.items.map((item) => (
-                      <li key={item.name} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="font-semibold leading-tight">{item.name}</span>
-                        <span className="flex flex-wrap gap-1.5 sm:justify-end">
-                          {item.prices.map((price, i) =>
-                            price === null ? null : (
-                              <button
-                                key={i}
-                                onClick={() =>
-                                  add({
-                                    name: s.id === SPECIALS ? item.name : dishName(s.id, item.name),
-                                    size: s.sizes.length > 1 ? s.sizes[i] : undefined,
-                                    price,
-                                    category: s.id,
-                                  })
-                                }
-                                className="rounded-full border border-ink/15 px-3 py-1.5 text-xs font-bold tabular-nums hover:border-red-600 hover:bg-red-600 hover:text-paper transition-colors"
+                    {s.items.map((item) => {
+                      const options = item.prices
+                        .map((price, i) => ({ price, size: s.sizes.length > 1 ? s.sizes[i] : undefined }))
+                        .filter((o): o is { price: number; size: string | undefined } => o.price !== null);
+                      const pick = (o: { price: number; size?: string }) =>
+                        add({ name: s.id === SPECIALS ? item.name : dishName(s.id, item.name), size: o.size, price: o.price, category: s.id });
+                      const key = `${s.id}|${item.name}`;
+                      const isOpen = expanded === key;
+                      // One price: a tap adds it. Several sizes: a tap shows them.
+                      const single = options.length === 1;
+                      return (
+                        <li key={item.name}>
+                          <button
+                            onClick={() => (single ? pick(options[0]) : setExpanded(isOpen ? null : key))}
+                            aria-expanded={single ? undefined : isOpen}
+                            className="flex w-full items-center justify-between gap-3 py-3.5 text-left"
+                          >
+                            <span className="font-semibold leading-tight">{item.name}</span>
+                            <span className="flex shrink-0 items-center gap-2 text-sm text-ink/55 tabular-nums">
+                              {single ? (
+                                <span className="rounded-full border border-ink/15 px-3 py-1 font-bold text-ink">+ {money.format(options[0].price)}</span>
+                              ) : (
+                                <>
+                                  dès {money.format(Math.min(...options.map((o) => o.price)))}
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} aria-hidden="true">
+                                    <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </>
+                              )}
+                            </span>
+                          </button>
+                          <AnimatePresence initial={false}>
+                            {isOpen && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                                className="overflow-hidden"
                               >
-                                {s.sizes.length > 1 && <span className="mr-1 font-normal opacity-70">{s.sizes[i]}</span>}
-                                {money.format(price)}
-                              </button>
-                            ),
-                          )}
-                        </span>
-                      </li>
-                    ))}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pb-4">
+                                  {options.map((o) => (
+                                    <button
+                                      key={o.size ?? o.price}
+                                      onClick={() => pick(o)}
+                                      className="flex flex-col items-start rounded-xl border border-ink/15 px-3 py-2.5 text-left hover:border-red-600 hover:bg-red-600 hover:text-paper transition-colors"
+                                    >
+                                      <span className="text-xs opacity-70">{o.size}</span>
+                                      <span className="font-bold tabular-nums">{money.format(o.price)}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}
@@ -196,7 +236,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           </section>
 
           {/* Order */}
-          <section className={`min-h-0 flex-col lg:flex lg:w-[400px] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
+          <section className={`min-h-0 flex-col lg:flex lg:w-[440px] xl:w-[500px] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
               <div className="flex rounded-full bg-ink/5 p-1">
                 {(
@@ -291,7 +331,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                 </ul>
               ) : (
                 <p className="rounded-xl border border-dashed border-ink/15 px-4 py-6 text-center text-sm text-ink/45">
-                  Touchez un prix dans le menu pour ajouter le plat.
+                  Touchez un plat dans le menu, puis sa taille, pour l’ajouter.
                 </p>
               )}
 
