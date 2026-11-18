@@ -1162,7 +1162,7 @@ function TableCard({ o, onOpen }: { o: Stored<Order>; onOpen: () => void }) {
           }}
           className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
         >
-          Fermer la table
+          Libérer
         </button>
       </div>
     </article>
