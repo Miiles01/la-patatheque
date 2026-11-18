@@ -26,7 +26,7 @@ import { JobsView } from "./admin/Jobs";
 import { MenuEditor } from "./admin/MenuEditor";
 import { ReservationsView } from "./admin/Reservations";
 import { HoursView, SettingsView } from "./admin/SettingsHours";
-import { Card, Empty, inputCls, SectionHead } from "./admin/ui";
+import { Card, EditButton, Empty, inputCls, SectionHead } from "./admin/ui";
 import {
   addMember,
   authenticate,
@@ -1219,16 +1219,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
         desc={VIEWS.find((v) => v.id === view)!.hint + "."}
         action={
           <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-            <button
-              onClick={() => setEditingTables(true)}
-              title="Modifier les tables"
-              className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-4 py-3 text-sm font-bold text-ink/70 hover:border-ink/40 hover:text-ink"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
-                <path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Tables
-            </button>
+            <EditButton label="Tables" title="Modifier les tables" onClick={() => setEditingTables(true)} />
             <button
               onClick={() => setAdding(true)}
               className="inline-flex items-center gap-2 rounded-full bg-red-600 px-5 py-3 text-sm font-bold text-paper hover:bg-red-700 transition-colors"

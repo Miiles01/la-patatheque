@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { asset } from "../../lib/asset";
 import { downloadCsv, remove, type Application, type Stored } from "../../lib/demoStore";
 import { DESCRIPTION_TEMPLATE, JOB_AREAS, JOB_SCHEDULES, deleteJob, jobsStore, newJob, saveJob, uid, type Job, type JobQuestion, type JobStatus } from "../../lib/jobs";
-import { Card, ConfirmDialog, Empty, SectionHead } from "./ui";
+import { Card, ConfirmDialog, EditButton, Empty, SectionHead } from "./ui";
 
 const dateTime = new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" });
 type Row = Stored<Application>;
@@ -80,9 +80,7 @@ export function JobsView({ applications }: { applications: Row[] }) {
           <div className="flex flex-wrap gap-2">
             {job && (
               <>
-                <button onClick={() => setEditing(job)} className="rounded-full border border-ink/15 px-4 py-2 text-sm font-bold hover:border-ink/40">
-                  Modifier
-                </button>
+                <EditButton label="Modifier" onClick={() => setEditing(job)} className="px-4 py-2" />
                 <button
                   onClick={() => saveJob({ ...job, status: job.status === "published" ? "closed" : "published" })}
                   className={`rounded-full px-4 py-2 text-sm font-bold ${job.status === "published" ? "bg-ink/5 text-ink/70" : "bg-red-600 text-paper"}`}

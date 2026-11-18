@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useState, type ReactNode } from "react";
 
 // Building blocks shared by the admin panel views.
 
@@ -124,5 +125,49 @@ export function ConfirmDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+const SPRING = { type: "spring", stiffness: 600, damping: 28 } as const;
+
+/**
+ * Buttons that open an editor: a pencil on the left at rest; on hover it slides
+ * away and an arrow slides in on the right.
+ */
+export function EditButton({ label, onClick, title, className = "" }: { label: string; onClick: () => void; title?: string; className?: string }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <motion.button
+      onClick={onClick}
+      title={title}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.96 }}
+      className={`relative inline-flex items-center justify-center rounded-full border border-ink/15 bg-white px-5 py-3 text-sm font-bold text-ink/75 hover:border-ink/35 hover:text-ink transition-colors ${className}`}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        {!hover && (
+          <motion.span key="pencil" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={SPRING} className="mr-2 flex shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path d="M4 20h4L19 9l-4-4L4 16z" strokeLinejoin="round" />
+              <path d="m13 7 4 4" />
+            </svg>
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <span>{label}</span>
+      <AnimatePresence mode="popLayout" initial={false}>
+        {hover && (
+          <motion.span key="arrow" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={SPRING} className="ml-2 flex shrink-0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }
