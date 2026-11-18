@@ -268,7 +268,8 @@ function PhoneBooking({ date, onDone }: { date: string; onDone: () => void }) {
 
 // ---------------------------------------------------------------- tables
 
-function Tables() {
+/** The dining tables: shared by Réservations and the Tables pop-up in Commandes. */
+export function Tables() {
   const tables = tablesStore.use();
   const [editing, setEditing] = useState<string | null>(null);
   const [bulk, setBulk] = useState({ count: 4, seats: 4, kind: "table" as TableKind });

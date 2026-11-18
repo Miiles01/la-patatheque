@@ -19,6 +19,7 @@ import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
 import { NewOrderDialog } from "./admin/NewOrder";
+import { Tables } from "./admin/Reservations";
 import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
@@ -1023,9 +1024,52 @@ function DishThumb({ category, size = "h-11 w-11" }: { category?: string; size?:
 
 const timeOnly = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-digit" });
 
+/** Paid status as a coin: grey until paid, green once paid. Tap to switch. */
+function PaidCoin({ o }: { o: Stored<Order> }) {
+  return (
+    <button
+      onClick={() => update("orders", o.id, { paid: !o.paid })}
+      aria-pressed={!!o.paid}
+      aria-label={o.paid ? "Payée (toucher pour annuler)" : "Non payée (toucher quand c'est payé)"}
+      title={o.paid ? "Payée" : "Non payée"}
+      className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+        o.paid ? "bg-green-700 text-paper" : "bg-ink/5 text-ink/35 hover:bg-ink/10 hover:text-ink/55"
+      }`}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M14.5 9.2c-.5-.8-1.4-1.2-2.5-1.2-1.4 0-2.5.8-2.5 1.9 0 2.6 5 1.4 5 4.1 0 1.1-1.1 2-2.5 2-1.1 0-2.1-.5-2.6-1.3M12 6.5V8M12 16v1.5" strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+}
+
+/** Top left of every order card: the table number, large, or "pour emporter". */
+function OrderKind({ o }: { o: Stored<Order> }) {
+  if (o.mode === "surplace") {
+    return (
+      <div>
+        <span className="block text-[11px] font-bold uppercase tracking-wider text-ink/45">Table</span>
+        <span className="block font-display font-extrabold text-5xl leading-none text-red-600">{o.table}</span>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <span className="block text-[11px] font-bold uppercase tracking-wider text-ink/45">{o.mode === "livraison" ? "Livraison" : "Pour emporter"}</span>
+      <span className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-red-600">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-7 h-7 shrink-0" aria-hidden="true">
+          <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />
+          <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+        </svg>
+        <span className="font-display font-extrabold text-[1.6rem] leading-none">Pick-up</span>
+      </span>
+    </div>
+  );
+}
+
 function OrderCard({ o }: { o: Stored<Order> }) {
   const [details, setDetails] = useState(false);
-  const pickup = o.mode === "emporter";
   const dineIn = o.mode === "surplace";
   const next = NEXT[o.status];
   const label = nextLabel(o);
@@ -1033,23 +1077,17 @@ function OrderCard({ o }: { o: Stored<Order> }) {
 
   return (
     <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between gap-2 text-xs">
-        <span className="font-bold text-ink/80">
-          #{o.id}
+      <div className="flex items-start justify-between gap-2">
+        <OrderKind o={o} />
+        <span className="shrink-0 text-right text-xs text-ink/45 tabular-nums">
+          <span className="block font-bold text-ink/70">#{o.id}</span>
           <SampleTag show={o.sample} />
+          <span className="block">{timeOnly.format(new Date(o.createdAt))}</span>
         </span>
-        <span className="text-ink/45 tabular-nums">{timeOnly.format(new Date(o.createdAt))}</span>
       </div>
 
       <div>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-            dineIn ? "bg-red-600 text-paper" : pickup ? "bg-ink/5 text-ink/70" : "bg-orange/15 text-ink"
-          }`}
-        >
-          {dineIn ? `Sur place · Table ${o.table}` : pickup ? "Cueillette" : "Livraison"}
-        </span>
-        {!dineIn && <p className="mt-2 font-semibold leading-tight">{o.name}</p>}
+        {!dineIn && <p className="font-semibold leading-tight">{o.name}</p>}
         {o.phone && (
           <a href={`tel:${o.phone}`} className="text-sm text-red-600 font-semibold">
             {o.phone}
@@ -1099,15 +1137,7 @@ function OrderCard({ o }: { o: Stored<Order> }) {
 
       <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
         <span className="font-display font-bold tabular-nums">{money.format(o.total)}</span>
-        <button
-          onClick={() => update("orders", o.id, { paid: !o.paid })}
-          aria-pressed={!!o.paid}
-          className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
-            o.paid ? "bg-green-700/10 text-green-800" : "bg-orange/15 text-ink hover:bg-orange/25"
-          }`}
-        >
-          {o.paid ? "Payé ✓" : dineIn ? "À payer" : pickup ? "À payer au comptoir" : "À payer au livreur"}
-        </button>
+        <PaidCoin o={o} />
       </div>
 
       {next && label && (
@@ -1122,10 +1152,88 @@ function OrderCard({ o }: { o: Stored<Order> }) {
   );
 }
 
+/** "Sur place" view: one card per open table, the table number large. */
+function TableCard({ o }: { o: Stored<Order> }) {
+  const [details, setDetails] = useState(false);
+  const items = o.lines.reduce((n, l) => n + l.qty, 0);
+  return (
+    <article className="rounded-2xl bg-white border border-ink/10 p-5 flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <OrderKind o={o} />
+        <span className="text-xs text-ink/45 tabular-nums">{timeOnly.format(new Date(o.createdAt))}</span>
+      </div>
+
+      <button onClick={() => setDetails((v) => !v)} aria-expanded={details} className="text-left text-sm text-ink/70">
+        {details ? (
+          <ul className="flex flex-col gap-1.5">
+            {o.lines.map((l, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span className="leading-tight">
+                  {l.qty}× {l.name}
+                  {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
+                </span>
+                <span className="tabular-nums text-xs">{money.format(l.price * l.qty)}</span>
+              </li>
+            ))}
+            {o.notes && <li className="rounded-lg bg-orange/10 px-2.5 py-2 text-xs">Note : {o.notes}</li>}
+          </ul>
+        ) : (
+          <span>
+            {items} article{items > 1 ? "s" : ""} · <span className="underline underline-offset-2 decoration-ink/20">voir le détail</span>
+          </span>
+        )}
+      </button>
+
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
+        <span className="font-display text-xl font-bold tabular-nums">{money.format(o.total)}</span>
+        <PaidCoin o={o} />
+      </div>
+      <button
+        onClick={() => update("orders", o.id, { status: "terminee", paid: true })}
+        className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
+      >
+        Fermer la table
+      </button>
+    </article>
+  );
+}
+
+function TablesDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[95] flex items-stretch md:items-center justify-center bg-ink/50 md:p-6" onClick={onClose} data-lenis-prevent>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tables-title"
+        onClick={(e) => e.stopPropagation()}
+        className="flex h-full w-full flex-col bg-white md:h-auto md:max-h-[90vh] md:max-w-4xl md:rounded-3xl md:overflow-hidden"
+      >
+        <header className="flex items-center justify-between gap-4 border-b border-ink/10 px-5 py-4 md:px-7">
+          <div>
+            <h2 id="tables-title" className="font-display font-extrabold text-xl md:text-2xl">
+              Tables
+            </h2>
+            <p className="text-xs text-ink/50">Les mêmes que dans Réservations : un changement ici s'y applique aussi.</p>
+          </div>
+          <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 shrink-0 rounded-full text-ink/60 hover:bg-ink/5">
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7">
+          <Tables />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Orders({ orders }: { orders: Stored<Order>[] }) {
   const [mode, setMode] = useState<"all" | Order["mode"]>("all");
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [editingTables, setEditingTables] = useState(false);
+  const openTables = orders.filter((o) => o.mode === "surplace" && o.status !== "terminee" && (!unpaidOnly || !o.paid));
   const shown = orders.filter((o) => (mode === "all" || o.mode === mode) && (!unpaidOnly || !o.paid));
 
   const chip = (active: boolean) =>
@@ -1146,6 +1254,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
         }
       />
       {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
+      {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       {!orders.length ? (
         <Empty text="Aucune commande pour l'instant. Celles du site et celles ajoutées ici apparaîtront dans ces colonnes." />
@@ -1164,7 +1273,32 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
             <button onClick={() => setUnpaidOnly((v) => !v)} aria-pressed={unpaidOnly} className={chip(unpaidOnly)}>
               Non payées
             </button>
+            <button
+              onClick={() => setEditingTables(true)}
+              title="Modifier les tables"
+              className="ml-auto inline-flex items-center gap-2 rounded-full border border-ink/15 px-4 py-2 text-xs font-bold text-ink/70 hover:border-ink/40 hover:text-ink"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-4 h-4" aria-hidden="true">
+                <path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Tables
+            </button>
           </div>
+
+          {mode === "surplace" ? (
+            openTables.length ? (
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {openTables
+                  .slice()
+                  .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+                  .map((o) => (
+                    <TableCard key={o.id} o={o} />
+                  ))}
+              </div>
+            ) : (
+              <Empty text="Aucune table occupée. Ajoutez une commande sur place pour la voir ici." />
+            )
+          ) : (
 
           <div className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto pb-2">
             <div className="grid grid-flow-col auto-cols-[minmax(270px,1fr)] xl:grid-flow-row xl:grid-cols-4 gap-4">
@@ -1185,6 +1319,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
               })}
             </div>
           </div>
+          )}
         </>
       )}
     </>
