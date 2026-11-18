@@ -199,7 +199,7 @@ function migrate(): void
         CREATE TABLE IF NOT EXISTS members (
             id VARCHAR(16) PRIMARY KEY,
             name VARCHAR(120) NOT NULL,
-            email VARCHAR(200) NOT NULL UNIQUE,
+            email VARCHAR(200) NULL UNIQUE,
             employee_number VARCHAR(8) NOT NULL UNIQUE,
             role VARCHAR(20) NOT NULL,
             tabs TEXT NULL,
@@ -216,4 +216,6 @@ function migrate(): void
             KEY by_key (k, at)
         ) DEFAULT CHARSET=ascii;
         SQL);
+    // The owner may sign in with an employee number only, without an email.
+    db()->exec('ALTER TABLE members MODIFY email VARCHAR(200) NULL');
 }

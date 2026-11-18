@@ -413,14 +413,18 @@ function auth_setup(mixed $in): array
 {
     rate_limit('login', 10, 900);
     if (db_one('SELECT id FROM members LIMIT 1')) throw new HttpError('Le compte propriétaire existe déjà.', 409);
-    $email = strtolower(trim((string)($in['email'] ?? '')));
+    // Signs in later with this email, or with this employee number when no email is given.
+    $login = strtolower(trim((string)($in['login'] ?? $in['email'] ?? '')));
     $name = trim((string)($in['name'] ?? '')) ?: 'Propriétaire';
     $password = (string)($in['password'] ?? '');
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) throw new HttpError('Courriel invalide.', 422);
+    $email = str_contains($login, '@') ? $login : null;
+    $number = $email ? '100' : $login;
+    if ($email && !filter_var($email, FILTER_VALIDATE_EMAIL)) throw new HttpError('Courriel invalide.', 422);
+    if (!$email && !preg_match('/^\d{1,8}$/', $number)) throw new HttpError("Entrez un courriel ou un numéro d'employé (chiffres seulement).", 422);
     if (strlen($password) < 8) throw new HttpError('Mot de passe : 8 caractères minimum.', 422);
     $id = 'owner';
     db_run('INSERT INTO members (id, name, email, employee_number, role, tabs, password_hash, active, owner, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?, 1, 1, UTC_TIMESTAMP())',
-        [$id, mb_substr($name, 0, 120), $email, '100', 'proprietaire', password_hash($password, PASSWORD_DEFAULT)]);
+        [$id, mb_substr($name, 0, 120), $email, $number, 'proprietaire', password_hash($password, PASSWORD_DEFAULT)]);
     sign_in($id);
     return ['member' => member_out(current_member(true))];
 }
@@ -549,7 +553,7 @@ function member_out(array $m): array
     return [
         'id' => $m['id'],
         'name' => $m['name'],
-        'email' => $m['email'],
+        'email' => $m['email'] ?? '',
         'employeeNumber' => $m['employee_number'],
         'role' => $m['role'],
         'tabs' => member_tabs($m),

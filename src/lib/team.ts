@@ -119,7 +119,7 @@ export async function restoreSession(): Promise<{ member: Member | null; needsSe
 }
 
 /** Real site: creates the owner account, once, on the first visit to the panel. */
-export async function setupOwner(input: { name: string; email: string; password: string }) {
+export async function setupOwner(input: { login: string; password: string }) {
   const res = await api<{ member: Member }>("auth/setup", { method: "POST", body: input });
   setCache([res.member], res.member);
   return res.member;

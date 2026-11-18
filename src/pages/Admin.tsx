@@ -168,7 +168,7 @@ function OwnerSetup({ onSuccess }: { onSuccess: (m: Member) => void }) {
     setBusy(true);
     setError("");
     try {
-      onSuccess(await setupOwner({ name: "Propriétaire", email: String(f.get("email")), password }));
+      onSuccess(await setupOwner({ login: String(f.get("user")), password }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur réseau. Réessayez.");
     } finally {
@@ -190,8 +190,8 @@ function OwnerSetup({ onSuccess }: { onSuccess: (m: Member) => void }) {
         <form onSubmit={submit} className="rounded-3xl bg-white border border-ink/10 p-7 flex flex-col gap-4">
           <h1 className="font-display font-extrabold text-2xl">Créer le compte propriétaire</h1>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Courriel
-            <input name="email" type="email" autoComplete="username" required className={inputCls} />
+            Courriel ou no d'employé
+            <input name="user" type="text" inputMode="email" autoComplete="username" required className={inputCls} />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Mot de passe
