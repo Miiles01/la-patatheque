@@ -677,7 +677,9 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
             Modification non enregistrée : {saveError}
           </p>
         )}
-        <main className="mx-auto max-w-6xl px-5 md:px-8 pt-20 pb-8 lg:py-10">
+        {/* Top margin where the bar used to be, so pages don't start against the edge.
+            Phones: just enough to clear the menu button. */}
+        <main className="mx-auto max-w-6xl px-5 md:px-8 pt-20 pb-10 md:pt-24 lg:pt-24 lg:pb-12">
           {/* Demo only: sample data controls. */}
           {!live && (
             <div className="mb-6 -mt-2 flex flex-wrap items-center justify-end gap-2">
