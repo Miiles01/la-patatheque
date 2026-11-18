@@ -667,10 +667,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
-  const { orders, subscribers, applications, catering, events } = data;
+  const { orders, subscribers, applications, catering } = data;
   const revenue = orders.reduce((n, o) => n + o.total, 0);
-  const clicks = events.filter((e) => e.event === "commander_click").length;
-  const conversion = clicks ? Math.round((orders.length / clicks) * 100) : 0;
 
   const days = useMemo(() => {
     const out: { date: Date; count: number; total: number }[] = [];
@@ -697,11 +695,10 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+      <div className="grid sm:grid-cols-3 gap-4 md:gap-5">
         <Stat label="Commandes" value={String(orders.length)} sub={`${orders.filter((o) => o.status === "nouvelle").length} à traiter`} />
         <Stat label="Ventes (avant taxes)" value={money.format(revenue)} sub={orders.length ? `Panier moyen ${money.format(revenue / orders.length)}` : "—"} />
         <Stat label="Courriels 10 %" value={String(subscribers.length)} sub={`${subscribers.filter((s) => s.consent).length} avec consentement`} />
-        <Stat label="Clics « Commander »" value={String(clicks)} sub={clicks ? `${conversion} % deviennent une commande` : "Mesuré sur tout le site"} />
       </div>
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">

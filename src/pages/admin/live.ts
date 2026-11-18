@@ -10,7 +10,6 @@ const READS: [Collection, AdminTab][] = [
   ["subscribers", "subscribers"],
   ["applications", "applications"],
   ["catering", "catering"],
-  ["events", "dashboard"],
 ];
 
 /**
