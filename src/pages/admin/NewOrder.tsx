@@ -1,36 +1,43 @@
 import { useMemo, useState } from "react";
 import { dishName } from "../../data/menu";
-import { submit } from "../../lib/demoStore";
+import { submit, update, type Order, type Stored } from "../../lib/demoStore";
 import { useMenu } from "../../lib/menuStore";
 import { tablesStore } from "../../lib/reservations";
 import { inputCls } from "./ui";
 
 // Staff take an order in the panel: at a table (the default) or by phone for
 // pickup. Full screen so the whole menu is at hand; on phones the menu and the
-// order are two views switched from the bottom bar.
+// order are two views switched from the bottom bar. Tapping an order card opens
+// the same pop-up with that order, to see what was asked for or add to it.
 
 type Line = { key: string; name: string; size?: string; price: number; qty: number; category: string };
 
 const money = new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" });
 const SPECIALS = "super-speciaux";
 
-export function NewOrderDialog({ onClose }: { onClose: () => void }) {
+export function NewOrderDialog({ onClose, order }: { onClose: () => void; order?: Stored<Order> }) {
   const { categories, specials } = useMenu();
   const tables = tablesStore.use().filter((t) => t.active);
-  const [mode, setMode] = useState<"surplace" | "emporter">("surplace");
-  const [table, setTable] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [when, setWhen] = useState("");
-  const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
+  const [mode, setMode] = useState<"surplace" | "emporter">(order ? (order.mode === "surplace" ? "surplace" : "emporter") : "surplace");
+  const [table, setTable] = useState(order?.table ?? "");
+  const [name, setName] = useState(order && order.mode !== "surplace" ? order.name : "");
+  const [phone, setPhone] = useState(order?.phone ?? "");
+  const [when, setWhen] = useState(order && order.mode !== "surplace" ? order.when : "");
+  const [notes, setNotes] = useState(order?.notes ?? "");
+  const [lines, setLines] = useState<Line[]>(() =>
+    (order?.lines ?? []).map((l) => ({ ...l, category: l.category ?? "", key: `${l.category ?? ""}|${l.name}|${l.size ?? ""}` })),
+  );
   const [category, setCategory] = useState(categories[0]?.id ?? SPECIALS);
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"menu" | "order">("menu");
+  // An existing order opens on what was asked for (on phones the order view).
+  const [view, setView] = useState<"menu" | "order">(order ? "order" : "menu");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const total = lines.reduce((n, l) => n + l.price * l.qty, 0);
+  const subtotal = lines.reduce((n, l) => n + l.price * l.qty, 0);
+  // Orders from the site may carry the 10 % welcome code.
+  const discount = order?.promoCode ? Math.round(subtotal * 10) / 100 : 0;
+  const total = subtotal - discount;
   const count = lines.reduce((n, l) => n + l.qty, 0);
 
   const add = (item: Omit<Line, "key" | "qty">) => {
@@ -57,7 +64,23 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
     if (mode === "emporter" && !name.trim()) return setError("Indiquez le nom du client.");
     setBusy(true);
     try {
-      const subtotal = Math.round(total * 100) / 100;
+      const sub = Math.round(subtotal * 100) / 100;
+      if (order) {
+        update("orders", order.id, {
+          mode,
+          table: mode === "surplace" ? table : undefined,
+          name: mode === "surplace" ? `Table ${table}` : name.trim(),
+          phone: mode === "emporter" ? phone.trim() : "",
+          when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
+          notes: notes.trim(),
+          lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
+          subtotal: sub,
+          discount,
+          total: Math.round((sub - discount) * 100) / 100,
+        });
+        onClose();
+        return;
+      }
       await submit("orders", {
         mode,
         table: mode === "surplace" ? table : undefined,
@@ -66,9 +89,9 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
         when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
         notes: notes.trim() || undefined,
         lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
-        subtotal,
+        subtotal: sub,
         discount: 0,
-        total: subtotal,
+        total: sub,
         status: "nouvelle",
         paid: false,
       });
@@ -87,7 +110,8 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
       <div role="dialog" aria-modal="true" aria-labelledby="new-order-title" className="flex h-full w-full flex-col bg-white text-ink md:h-[92vh] md:max-w-6xl md:rounded-3xl md:overflow-hidden">
         <header className="flex items-center justify-between gap-4 border-b border-ink/10 px-5 py-4 md:px-7">
           <h2 id="new-order-title" className="font-display font-extrabold text-xl md:text-2xl">
-            Nouvelle commande
+            {order ? (order.mode === "surplace" ? `Table ${order.table}` : order.name) : "Nouvelle commande"}
+            {order && <span className="ml-2 text-sm font-semibold text-ink/40">#{order.id}</span>}
           </h2>
           <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 rounded-full text-ink/60 hover:bg-ink/5">
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
@@ -242,7 +266,7 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="hidden lg:block border-t border-ink/10 px-6 py-4">
-              <SendBar total={total} count={count} busy={busy} error={error} onSend={send} />
+              <SendBar total={total} discount={discount} count={count} busy={busy} error={error} onSend={send} editing={!!order} />
             </div>
           </section>
         </div>
@@ -256,7 +280,7 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
             </button>
           ) : (
             <div className="flex flex-col gap-2">
-              <SendBar total={total} count={count} busy={busy} error={error} onSend={send} />
+              <SendBar total={total} discount={discount} count={count} busy={busy} error={error} onSend={send} editing={!!order} />
               <button onClick={() => setView("menu")} className="py-1.5 text-sm font-bold text-ink/60">
                 ← Ajouter des plats
               </button>
@@ -268,7 +292,23 @@ export function NewOrderDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SendBar({ total, count, busy, error, onSend }: { total: number; count: number; busy: boolean; error: string; onSend: () => void }) {
+function SendBar({
+  total,
+  discount,
+  count,
+  busy,
+  error,
+  onSend,
+  editing,
+}: {
+  total: number;
+  discount: number;
+  count: number;
+  busy: boolean;
+  error: string;
+  onSend: () => void;
+  editing: boolean;
+}) {
   return (
     <>
       {error && (
@@ -278,7 +318,8 @@ function SendBar({ total, count, busy, error, onSend }: { total: number; count: 
       )}
       <div className="flex items-center justify-between mb-3 text-sm">
         <span className="text-ink/55">
-          {count} article{count > 1 ? "s" : ""} · à payer
+          {count} article{count > 1 ? "s" : ""}
+          {discount > 0 && ` · rabais 10 % (−${money.format(discount)})`}
         </span>
         <span className="font-display text-xl font-bold tabular-nums">{money.format(total)}</span>
       </div>
@@ -287,7 +328,7 @@ function SendBar({ total, count, busy, error, onSend }: { total: number; count: 
         disabled={busy}
         className="w-full rounded-full bg-red-600 px-6 py-3.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60 transition-colors"
       >
-        {busy ? "Envoi…" : "Envoyer en cuisine"}
+        {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
       </button>
     </>
   );

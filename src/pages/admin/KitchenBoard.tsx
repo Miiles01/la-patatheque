@@ -19,7 +19,7 @@ const rankOf = (o: Row) => o.rank ?? Date.parse(o.createdAt);
 
 type Drag = { id: string; x: number; y: number; dx: number; dy: number; width: number; col: number | null; index: number };
 
-export function KitchenBoard({ orders, renderCard }: { orders: Row[]; renderCard: (o: Row) => ReactNode }) {
+export function KitchenBoard({ orders, renderCard, onOpen }: { orders: Row[]; renderCard: (o: Row) => ReactNode; onOpen: (o: Row) => void }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
 
@@ -92,6 +92,8 @@ export function KitchenBoard({ orders, renderCard }: { orders: Row[]; renderCard
     };
     const up = () => {
       if (started && current) drop(current);
+      // A tap or click that never became a drag opens the order.
+      else if (!started) onOpen(o);
       cleanup();
     };
     const cleanup = () => {
@@ -135,7 +137,7 @@ export function KitchenBoard({ orders, renderCard }: { orders: Row[]; renderCard
               {visible.map((o, i) => (
                 <div key={o.id} className="flex flex-col gap-3">
                   {drag?.col === ci && drag.index === i && line}
-                  <div data-card={o.id} onPointerDown={(e) => onPointerDown(e, o)} className="cursor-grab active:cursor-grabbing touch-pan-y">
+                  <div data-card={o.id} onPointerDown={(e) => onPointerDown(e, o)} className="cursor-pointer active:cursor-grabbing touch-pan-y">
                     {renderCard(o)}
                   </div>
                 </div>

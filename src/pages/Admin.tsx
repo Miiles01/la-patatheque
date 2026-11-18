@@ -998,7 +998,11 @@ const timeOnly = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-
 function PaidCoin({ o }: { o: Stored<Order> }) {
   return (
     <button
-      onClick={() => update("orders", o.id, { paid: !o.paid })}
+      onClick={(e) => {
+        e.stopPropagation();
+        update("orders", o.id, { paid: !o.paid });
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
       aria-pressed={!!o.paid}
       aria-label={o.paid ? "Payée (toucher pour annuler)" : "Non payée (toucher quand c'est payé)"}
       title={o.paid ? "Payée" : "Non payée"}
@@ -1040,7 +1044,6 @@ function OrderKind({ o }: { o: Stored<Order> }) {
 }
 
 function OrderCard({ o }: { o: Stored<Order> }) {
-  const [details, setDetails] = useState(false);
   const dineIn = o.mode === "surplace";
   const items = o.lines.reduce((n, l) => n + l.qty, 0);
 
@@ -1082,27 +1085,10 @@ function OrderCard({ o }: { o: Stored<Order> }) {
         {o.lines.length > 4 && <span className="text-xs font-bold text-ink/50 pl-1">+{o.lines.length - 4}</span>}
       </div>
 
-      <button onClick={() => setDetails((v) => !v)} aria-expanded={details} className="text-left text-sm text-ink/70">
-        {details ? (
-          <ul className="flex flex-col gap-2">
-            {o.lines.map((l, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <DishThumb category={l.category} size="h-8 w-8" />
-                <span className="flex-1 leading-tight">
-                  {l.qty}× {l.name}
-                  {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
-                </span>
-                <span className="tabular-nums text-xs">{money.format(l.price * l.qty)}</span>
-              </li>
-            ))}
-            {o.notes && <li className="rounded-lg bg-orange/10 px-2.5 py-2 text-xs">Note : {o.notes}</li>}
-          </ul>
-        ) : (
-          <span>
-            {items} article{items > 1 ? "s" : ""} · <span className="underline underline-offset-2 decoration-ink/20">voir le détail</span>
-          </span>
-        )}
-      </button>
+      <p className="text-sm text-ink/60">
+        {items} article{items > 1 ? "s" : ""}
+        {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
+      </p>
 
       <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
         <span className="font-display font-bold tabular-nums">{money.format(o.total)}</span>
@@ -1114,43 +1100,32 @@ function OrderCard({ o }: { o: Stored<Order> }) {
 }
 
 /** "Sur place" view: one card per open table, the table number large. */
-function TableCard({ o }: { o: Stored<Order> }) {
-  const [details, setDetails] = useState(false);
+function TableCard({ o, onOpen }: { o: Stored<Order>; onOpen: () => void }) {
   const items = o.lines.reduce((n, l) => n + l.qty, 0);
   return (
-    <article className="rounded-2xl bg-white border border-ink/10 p-5 flex flex-col gap-4">
+    <article
+      onClick={onOpen}
+      className="cursor-pointer rounded-2xl bg-white border border-ink/10 p-5 flex flex-col gap-4 hover:border-ink/30 transition-colors"
+    >
       <div className="flex items-start justify-between gap-3">
         <OrderKind o={o} />
         <span className="text-xs text-ink/45 tabular-nums">{timeOnly.format(new Date(o.createdAt))}</span>
       </div>
 
-      <button onClick={() => setDetails((v) => !v)} aria-expanded={details} className="text-left text-sm text-ink/70">
-        {details ? (
-          <ul className="flex flex-col gap-1.5">
-            {o.lines.map((l, i) => (
-              <li key={i} className="flex justify-between gap-3">
-                <span className="leading-tight">
-                  {l.qty}× {l.name}
-                  {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
-                </span>
-                <span className="tabular-nums text-xs">{money.format(l.price * l.qty)}</span>
-              </li>
-            ))}
-            {o.notes && <li className="rounded-lg bg-orange/10 px-2.5 py-2 text-xs">Note : {o.notes}</li>}
-          </ul>
-        ) : (
-          <span>
-            {items} article{items > 1 ? "s" : ""} · <span className="underline underline-offset-2 decoration-ink/20">voir le détail</span>
-          </span>
-        )}
-      </button>
+      <p className="text-sm text-ink/60">
+        {items} article{items > 1 ? "s" : ""}
+        {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
+      </p>
 
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
         <span className="font-display text-xl font-bold tabular-nums">{money.format(o.total)}</span>
         <PaidCoin o={o} />
       </div>
       <button
-        onClick={() => update("orders", o.id, { closed: true })}
+        onClick={(e) => {
+          e.stopPropagation();
+          update("orders", o.id, { closed: true });
+        }}
         className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
       >
         Fermer la table
@@ -1229,6 +1204,8 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
     }
   };
   const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = orders.find((o) => o.id === openId);
   const [editingTables, setEditingTables] = useState(false);
   // Salle: tables still seated. Closing a table is the waiter's call, apart from the kitchen's status.
   const openTables = orders
@@ -1262,6 +1239,7 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
         }
       />
       {adding && <NewOrderDialog onClose={() => setAdding(false)} />}
+      {opened && <NewOrderDialog key={opened.id} order={opened} onClose={() => setOpenId(null)} />}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       <div role="tablist" aria-label="Vue" className="mb-5 inline-flex rounded-full bg-ink/5 p-1">
@@ -1287,14 +1265,14 @@ function Orders({ orders }: { orders: Stored<Order>[] }) {
         openTables.length ? (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {openTables.map((o) => (
-              <TableCard key={o.id} o={o} />
+              <TableCard key={o.id} o={o} onOpen={() => setOpenId(o.id)} />
             ))}
           </div>
         ) : (
           <Empty text="Aucune table occupée. Touchez « Ajouter une commande » pour en ouvrir une." />
         )
       ) : (
-        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} />
+        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => setOpenId(o.id)} />
       )}
     </>
   );

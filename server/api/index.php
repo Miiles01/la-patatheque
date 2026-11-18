@@ -192,7 +192,23 @@ function record_update(string $c, string $id, mixed $patch): array
     if (isset($allowed['status']) && !in_array($allowed['status'], ['nouvelle', 'preparation', 'prete', 'terminee'], true)) throw new HttpError('Statut invalide.', 422);
     if (isset($allowed['paid'])) $allowed['paid'] = (bool)$allowed['paid'];
     $row = db_one('SELECT data FROM records WHERE collection = ? AND id = ?', [$c, $id]) ?? throw new HttpError('Introuvable.', 404);
-    $data = array_merge(json_decode($row['data'], true), $allowed);
+    $old = json_decode($row['data'], true);
+    $data = array_merge($old, $allowed);
+    // Staff changed what was ordered (added a dish at the table…): check prices and
+    // work the totals out again, keeping the order's progress and payment as they were.
+    if (isset($patch['lines'])) {
+        $edited = array_intersect_key($patch, array_flip(['lines', 'notes', 'table', 'name', 'phone', 'when', 'mode']));
+        $clean = clean_order(array_merge($old, $edited));
+        foreach (['status', 'paid', 'closed', 'rank', 'email'] as $k) {
+            if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
+        }
+        if (strtoupper($old['promoCode'] ?? '') === 'BIENVENUE10') {
+            $clean['promoCode'] = 'BIENVENUE10';
+            $clean['discount'] = round($clean['subtotal'] * 0.1, 2);
+            $clean['total'] = round($clean['subtotal'] - $clean['discount'], 2);
+        }
+        $data = $clean;
+    }
     db_run('UPDATE records SET data = ? WHERE collection = ? AND id = ?', [json_encode($data, JSON_UNESCAPED_UNICODE), $c, $id]);
     return ['ok' => true];
 }
