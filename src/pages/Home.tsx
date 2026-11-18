@@ -32,12 +32,12 @@ function Hero() {
         <p data-fade="0.35" data-intro className="script text-red-600 text-[clamp(2.2rem,4.5vw,3.6rem)] mt-6 text-balance">
           {t("home.tagline")}
         </p>
-        <div data-fade="0.55" data-intro className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-          <button onClick={() => commander("hero")} className={btnPrimary}>
+        <div data-fade="0.55" data-intro className="mt-10 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-x-8 gap-y-5">
+          <button onClick={() => commander("hero")} className={`${btnPrimary} w-full sm:w-auto`}>
             {t("home.cta")}
           </button>
           {reservations.enabled && (
-            <button onClick={openReservation} className={btnOutline}>
+            <button onClick={openReservation} className={`${btnOutline} w-full sm:w-auto`}>
               {t("book.cta")}
             </button>
           )}
