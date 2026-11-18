@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
 import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
 import { asset } from "../lib/asset";
@@ -18,7 +18,7 @@ import {
 import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
-import { ESSENTIALS, essentialsStore } from "../lib/essentials";
+import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
 import { MenuEditor } from "./admin/MenuEditor";
@@ -364,6 +364,97 @@ function TabIcon({ tab }: { tab: Tab }) {
  * restaurant should set up before going live, each linking to its section.
  * It turns into a small green badge once everything is checked.
  */
+const ESSENTIAL_ICONS: Record<EssentialId, ReactNode> = {
+  info: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <circle cx="9" cy="11" r="2" />
+      <path d="M6 16c.6-1.6 1.7-2.3 3-2.3s2.4.7 3 2.3M14.5 10h3M14.5 13h3" strokeLinecap="round" />
+    </>
+  ),
+  hours: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M6 3h12v18H6z" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6M9 16h4" strokeLinecap="round" />
+    </>
+  ),
+  pickup: (
+    <>
+      <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" />
+    </>
+  ),
+};
+
+/**
+ * The Essentiels as a path: one icon per step, joined by a thick line that runs
+ * from the first circle's centre to the last one's, red at the top fading to white.
+ */
+function EssentialSteps({
+  items,
+  done,
+  onPick,
+}: {
+  items: typeof ESSENTIALS;
+  done: Record<EssentialId, boolean>;
+  onPick: (tab: Tab) => void;
+}) {
+  const list = useRef<HTMLOListElement>(null);
+  const [line, setLine] = useState<{ top: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const circles = list.current?.querySelectorAll<HTMLElement>("[data-step]");
+    if (!circles || circles.length < 2) return setLine(null);
+    const center = (el: HTMLElement) => el.offsetTop + el.offsetHeight / 2;
+    const first = center(circles[0]);
+    setLine({ top: first, height: center(circles[circles.length - 1]) - first });
+  }, [items, done]);
+
+  return (
+    <ol ref={list} className="relative flex flex-col gap-1">
+      {line && (
+        <span
+          aria-hidden="true"
+          className="absolute left-[26px] w-1 -translate-x-1/2 rounded-full bg-linear-to-b from-red-600 to-white"
+          style={{ top: line.top, height: line.height }}
+        />
+      )}
+      {items.map((e) => (
+        <li key={e.id}>
+          <button onClick={() => onPick(e.tab)} className="w-full flex items-start gap-3 rounded-xl p-2 text-left hover:bg-ink/5">
+            <span
+              data-step
+              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                done[e.id] ? "bg-green-700 text-paper" : "border-2 border-red-600 bg-white text-red-600"
+              }`}
+            >
+              {done[e.id] ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="w-4 h-4" aria-hidden="true">
+                  <path d="m5 12.5 4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-[18px] h-[18px]" aria-hidden="true">
+                  {ESSENTIAL_ICONS[e.id]}
+                </svg>
+              )}
+            </span>
+            <span className="pt-1">
+              <span className={`block text-sm font-semibold ${done[e.id] ? "text-ink/45 line-through" : ""}`}>{e.title}</span>
+              {!done[e.id] && <span className="block text-xs text-ink/50">{e.why}</span>}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allowed: Tab[]; onOpen: (t: Tab) => void }) {
   const done = essentialsStore.use();
   const [open, setOpen] = useState(false);
@@ -390,31 +481,14 @@ function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allo
           <p className="text-xs text-ink/55 mb-3">
             {complete ? "Tout est prêt ! Explorez maintenant les autres sections." : "Vérifiez ces points avant d'ouvrir les commandes en ligne."}
           </p>
-          <ol className="flex flex-col gap-1.5">
-            {items.map((e, i) => (
-              <li key={e.id}>
-                <button
-                  onClick={() => {
-                    onOpen(e.tab);
-                    setOpen(false);
-                  }}
-                  className="w-full flex items-start gap-3 rounded-xl p-2 text-left hover:bg-ink/5"
-                >
-                  <span
-                    className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      done[e.id] ? "bg-green-700 text-paper" : "border-2 border-red-600 text-red-600"
-                    }`}
-                  >
-                    {done[e.id] ? "✓" : i + 1}
-                  </span>
-                  <span>
-                    <span className={`block text-sm font-semibold ${done[e.id] ? "text-ink/45 line-through" : ""}`}>{e.title}</span>
-                    {!done[e.id] && <span className="block text-xs text-ink/50">{e.why}</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ol>
+          <EssentialSteps
+            items={items}
+            done={done}
+            onPick={(tab) => {
+              onOpen(tab);
+              setOpen(false);
+            }}
+          />
         </div>
       )}
 
