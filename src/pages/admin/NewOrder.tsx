@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
 import { submit, update, type Order, type Stored } from "../../lib/demoStore";
 import { useMenu } from "../../lib/menuStore";
@@ -37,6 +37,9 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   );
   const [category, setCategory] = useState(categories[0]?.id ?? SPECIALS);
   const [search, setSearch] = useState("");
+  // Category tabs fade out on the side that has more of them.
+  const chips = useRef<HTMLDivElement>(null);
+  const chipFade = useEdgeFade(chips, !search.trim());
   // The dish whose sizes are shown.
   const [expanded, setExpanded] = useState<string | null>(null);
   // An existing order opens on what was asked for (on phones the order view).
@@ -115,7 +118,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   }
 
   const segment = (active: boolean) =>
-    `relative flex-1 rounded-full px-4 py-2.5 text-sm font-bold transition-colors duration-200 ${active ? "text-paper" : "text-ink/60 hover:text-ink"}`;
+    `relative rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 ${active ? "text-paper" : "text-ink/60 hover:text-ink"}`;
 
   return (
     <div className="fixed inset-0 z-[95] flex items-stretch md:items-center justify-center bg-ink/50 md:p-6" data-lenis-prevent>
@@ -150,7 +153,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
                 />
               </label>
               {!q && (
-                <div className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1 md:-mx-7 md:px-7 [scrollbar-width:none]">
+                <div ref={chips} style={chipFade} className="-mx-5 mt-3 flex gap-2 overflow-x-auto px-5 pb-1 md:-mx-7 md:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {[...categories.map((c) => ({ id: c.id, name: c.name })), { id: SPECIALS, name: "Super spéciaux" }].map((c) => (
                     <button
                       key={c.id}
@@ -238,7 +241,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           {/* Order */}
           <section className={`min-h-0 flex-col lg:flex lg:w-[55%] lg:shrink-0 bg-ink/[0.02] ${view === "order" ? "flex flex-1" : "hidden"}`}>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 md:px-6">
-              <div className="flex rounded-full bg-ink/5 p-1">
+              <div className="inline-flex rounded-full bg-ink/5 p-1">
                 {(
                   [
                     ["surplace", "Sur place"],
@@ -430,4 +433,26 @@ function SendBar({
       </button>
     </>
   );
+}
+
+/** Fades a horizontal scroller's edges: the right while more is hidden there, the left once scrolled. */
+function useEdgeFade(ref: RefObject<HTMLDivElement | null>, active: boolean) {
+  const [mask, setMask] = useState<string | undefined>();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return;
+    const update = () => {
+      const left = el.scrollLeft > 4 ? 48 : 0;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4 ? 48 : 0;
+      setMask(`linear-gradient(to right, transparent, #000 ${left}px, #000 calc(100% - ${right}px), transparent)`);
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [ref, active]);
+  return mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined;
 }
