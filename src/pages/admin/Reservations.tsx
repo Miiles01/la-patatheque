@@ -184,13 +184,15 @@ function Agenda() {
       </>
       )}
 
-      {!q && (adding ? (
-        <PhoneBooking date={date} onDone={() => setAdding(false)} />
-      ) : (
-        <button onClick={() => setAdding(true)} className="self-start rounded-full bg-red-600 px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700">
-          + Ajouter une réservation
-        </button>
-      ))}
+      {/* Fixed in the corner, whatever the scroll. */}
+      <button
+        onClick={() => setAdding(true)}
+        className="fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-full bg-red-600 py-3.5 pl-4 pr-5 text-sm font-bold text-paper shadow-lg shadow-red-600/25 hover:bg-red-700 transition-colors"
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-paper/20 text-lg leading-none">+</span>
+        Ajouter une réservation
+      </button>
+      {adding && <PhoneBooking date={date} onDone={() => setAdding(false)} />}
     </div>
   );
 }
@@ -257,16 +259,20 @@ function BookingRow({ b, table, showDate = false }: { b: Booking; table?: Dining
 }
 
 /** For bookings taken by phone or at the counter: same rules as the site. */
-function PhoneBooking({ date, onDone }: { date: string; onDone: () => void }) {
+function PhoneBooking({ date: initialDate, onDone }: { date: string; onDone: () => void }) {
   const settings = reservationSettings.use();
+  const [date, setDate] = useState(initialDate);
   const slots = slotsFor(date, settings);
   const [error, setError] = useState("");
-  const field = "rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm";
+  const [busy, setBusy] = useState(false);
+  const field = "w-full rounded-xl border border-ink/15 bg-white px-3 py-2.5 text-sm focus:border-red-600 focus:outline-none";
+  const label = "flex flex-col gap-1.5 text-xs font-semibold text-ink/60";
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setError("");
+    setBusy(true);
     const booking = await addBooking({
       date,
       time: String(f.get("time")),
@@ -280,38 +286,77 @@ function PhoneBooking({ date, onDone }: { date: string; onDone: () => void }) {
       setError(err.message);
       return undefined;
     });
+    setBusy(false);
     if (booking === undefined) return;
     if (!booking) setError("Aucune table libre pour ce nombre de personnes à cette heure. Essayez une autre heure.");
     else onDone();
   }
 
   return (
-    <Card>
-      <form onSubmit={submit} className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <select name="time" required className={field} aria-label="Heure">
-          {slots.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <input name="party" type="number" min={1} max={settings.maxParty} defaultValue={2} required className={field} aria-label="Personnes" />
-        <input name="name" placeholder="Nom" required className={field} />
-        <input name="phone" type="tel" placeholder="Téléphone" required className={field} />
-        <input name="highChairs" type="number" min={0} max={4} defaultValue={0} className={field} aria-label="Chaises hautes" />
-        <label className="flex items-center gap-2 text-sm">
-          <input name="accessible" type="checkbox" className="h-4 w-4 accent-red-600" /> Fauteuil roulant
-        </label>
-        <input name="notes" placeholder="Note (facultatif)" className={`${field} lg:col-span-2`} />
-        {error && <p className="sm:col-span-2 lg:col-span-4 text-sm text-red-600">{error}</p>}
-        <div className="sm:col-span-2 lg:col-span-4 flex gap-2">
-          <button type="submit" className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper">
-            Réserver
-          </button>
-          <button type="button" onClick={onDone} className="rounded-full px-4 py-2.5 text-sm font-bold text-ink/60 hover:bg-ink/5">
-            Annuler
+    <div className="fixed inset-0 z-[95] flex items-end sm:items-center justify-center bg-ink/50 sm:p-6" onClick={onDone} data-lenis-prevent>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="booking-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-white p-6 text-ink shadow-xl"
+      >
+        <div className="mb-5 flex items-center justify-between">
+          <h2 id="booking-title" className="font-display font-extrabold text-xl">
+            Nouvelle réservation
+          </h2>
+          <button onClick={onDone} aria-label="Fermer" className="relative h-9 w-9 rounded-full text-ink/60 hover:bg-ink/5">
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 bg-current rotate-45" />
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-4 -translate-x-1/2 bg-current -rotate-45" />
           </button>
         </div>
-      </form>
-    </Card>
+        <form onSubmit={submit} className="grid grid-cols-2 gap-3">
+          <label className={`${label} col-span-2`}>
+            Au nom de
+            <input name="name" required autoComplete="off" className={field} />
+          </label>
+          <label className={`${label} col-span-2`}>
+            Téléphone
+            <input name="phone" type="tel" required autoComplete="off" className={field} />
+          </label>
+          <label className={label}>
+            Date
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={field} />
+          </label>
+          <label className={label}>
+            Heure
+            <select name="time" required className={field}>
+              {slots.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label className={label}>
+            Personnes
+            <input name="party" type="number" min={1} max={settings.maxParty} defaultValue={2} required className={field} />
+          </label>
+          <label className={label}>
+            Chaises hautes
+            <input name="highChairs" type="number" min={0} max={4} defaultValue={0} className={field} />
+          </label>
+          <label className="col-span-2 flex items-center gap-2 text-sm">
+            <input name="accessible" type="checkbox" className="h-4 w-4 accent-red-600" /> Accès fauteuil roulant
+          </label>
+          <label className={`${label} col-span-2`}>
+            Note (facultatif)
+            <input name="notes" className={field} />
+          </label>
+          {error && <p className="col-span-2 text-sm text-red-600">{error}</p>}
+          <button
+            type="submit"
+            disabled={busy || !slots.length}
+            className="col-span-2 mt-1 rounded-full bg-red-600 px-5 py-3.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-60"
+          >
+            {busy ? "Réservation…" : slots.length ? "Réserver" : "Plus d'heure libre ce jour-là"}
+          </button>
+        </form>
+      </div>
+    </div>
   );
 }
 

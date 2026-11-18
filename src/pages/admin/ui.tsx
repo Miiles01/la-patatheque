@@ -202,7 +202,7 @@ export function EditButton({
 
 /**
  * On/off for a feature (online bookings…), with a short status beside it.
- * Off: white with a dark border and a dark dot ("Activer"). On: red with a white
+ * Off: white with a light grey border, like the other panel buttons ("Activer"). On: red with a white
  * dot ("Désactiver"). On hover the dot previews the state it will switch to.
  */
 export function ActivationButton({
@@ -232,7 +232,7 @@ export function ActivationButton({
         aria-pressed={on}
         aria-label={`${on ? "Désactiver" : "Activer"} ${what}`}
         className={`relative inline-flex items-center justify-center rounded-full border px-6 py-3 text-sm font-bold transition-colors duration-200 ${
-          on ? "border-red-600 bg-red-600 text-paper hover:bg-red-700" : "border-ink bg-white text-ink hover:bg-ink/[0.03]"
+          on ? "border-red-600 bg-red-600 text-paper hover:bg-red-700" : "border-ink/15 bg-white text-ink/75 hover:border-ink/35 hover:text-ink"
         }`}
       >
         <svg
