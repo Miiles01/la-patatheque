@@ -1101,8 +1101,22 @@ function OrderCard({ o }: { o: Stored<Order> }) {
 }
 
 /** "Sur place" view: one card per open table, the table number large. */
+/** Minutes since an order came in, refreshed every 30 seconds. */
+function useElapsed(iso: string) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const min = Math.max(0, Math.floor((now - Date.parse(iso)) / 60_000));
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
+}
+
 function TableCard({ o, onOpen }: { o: Stored<Order>; onOpen: () => void }) {
   const items = o.lines.reduce((n, l) => n + l.qty, 0);
+  const elapsed = useElapsed(o.createdAt);
   return (
     <article
       onClick={onOpen}
@@ -1110,27 +1124,35 @@ function TableCard({ o, onOpen }: { o: Stored<Order>; onOpen: () => void }) {
     >
       <div className="flex items-start justify-between gap-3">
         <OrderKind o={o} />
-        <span className="text-xs text-ink/45 tabular-nums">{timeOnly.format(new Date(o.createdAt))}</span>
+        <PaidCoin o={o} />
       </div>
 
-      <p className="text-sm text-ink/60">
-        {items} article{items > 1 ? "s" : ""}
-        {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
-      </p>
+      <div>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink/75" title={timeOnly.format(new Date(o.createdAt))}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 text-ink/45" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          {elapsed}
+        </p>
+        <p className="mt-1 text-sm text-ink/60">
+          {items} article{items > 1 ? "s" : ""}
+          {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
+        </p>
+      </div>
 
       <div className="mt-auto flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
         <span className="font-display text-xl font-bold tabular-nums">{money.format(o.total)}</span>
-        <PaidCoin o={o} />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            update("orders", o.id, { closed: true });
+          }}
+          className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
+        >
+          Fermer la table
+        </button>
       </div>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          update("orders", o.id, { closed: true });
-        }}
-        className="rounded-full bg-ink px-4 py-2.5 text-sm font-bold text-paper hover:bg-ink/85 transition-colors"
-      >
-        Fermer la table
-      </button>
     </article>
   );
 }
