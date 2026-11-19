@@ -91,7 +91,7 @@ export function MenuPage() {
                 <button
                   key={c.id}
                   onClick={() => choose(c.id)}
-                  className="w-fit min-w-[15rem] rounded-3xl bg-paper px-10 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:min-w-[17rem] md:px-14 md:py-14"
+                  className="w-72 max-w-full rounded-3xl bg-paper px-6 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:py-14"
                 >
                   <span className="script block text-4xl text-red-600 md:text-5xl">{c.title}</span>
                   <span className="mt-2 block text-sm text-ink/60 md:text-base">{c.sub}</span>
