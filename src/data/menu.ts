@@ -19,6 +19,8 @@ export type MenuCategory = {
   id: string;
   name: string;
   note?: string;
+  /** Icon id shown on the public menu (see MenuIcons); defaults to the section's own. */
+  icon?: string;
   sizes: string[];
   items: MenuItem[];
   hidden?: boolean;

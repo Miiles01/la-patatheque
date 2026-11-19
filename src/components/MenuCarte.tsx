@@ -4,16 +4,17 @@ import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 import { scrollToHash } from "../lib/motion";
+import { MenuIcon as Icon, SPECIALS_ICON } from "./MenuIcons";
 
 const SPECIALS_ID = "super-speciaux";
 
 /** Tabs at the top; each tab groups the menu sections that sit together on the printed menu. */
-const GROUPS: { id: string; label: string; cats: string[] }[] = [
-  { id: "pizzas", label: "carte.pizzas", cats: ["notre-delicieuse-pizza", "promos-pizza"] },
-  { id: "sous-marins", label: "carte.subs", cats: ["sous-marins", "sandwichs"] },
-  { id: "poutines", label: "carte.poutines", cats: ["poutines-speciales", "specialites-italiennes"] },
-  { id: "repas", label: "carte.repas", cats: ["les-repas", "ailes-de-poulet", "les-salades"] },
-  { id: "snacks", label: "carte.snacks", cats: ["les-casse-croutes", "les-breuvages"] },
+const GROUPS: { id: string; icon: string; label: string; cats: string[] }[] = [
+  { id: "pizzas", icon: "notre-delicieuse-pizza", label: "carte.pizzas", cats: ["notre-delicieuse-pizza", "promos-pizza"] },
+  { id: "sous-marins", icon: "sous-marins", label: "carte.subs", cats: ["sous-marins", "sandwichs"] },
+  { id: "poutines", icon: "poutines-speciales", label: "carte.poutines", cats: ["poutines-speciales", "specialites-italiennes"] },
+  { id: "repas", icon: "les-repas", label: "carte.repas", cats: ["les-repas", "ailes-de-poulet", "les-salades"] },
+  { id: "snacks", icon: "les-casse-croutes", label: "carte.snacks", cats: ["les-casse-croutes", "les-breuvages"] },
 ];
 
 /**
@@ -40,6 +41,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
   const [active, setActive] = useState(GROUPS[0]!.id);
   const barRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ start: true, end: false });
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [stuck, setStuck] = useState(false);
 
@@ -77,7 +80,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
     }));
     list[list.length - 1]!.items.push(...categories.filter((c) => !known.has(c.id)));
     const withContent = list.filter((g) => g.items.length > 0);
-    if (specials.length) withContent.push({ id: SPECIALS_ID, label: "order.specials", cats: [], items: [] });
+    if (specials.length) withContent.push({ id: SPECIALS_ID, icon: SPECIALS_ICON, label: "order.specials", cats: [], items: [] });
     return withContent;
   }, [categories, specials]);
 
@@ -93,6 +96,21 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
     els.forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, [groups]);
+
+  const updateEdge = () => {
+    const el = tabsRef.current;
+    if (el) setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
+  };
+  // The carousel fades out on the side that still has tabs to swipe to.
+  const fade = `linear-gradient(to right, ${edge.start ? "#000" : "transparent"} 0, #000 2.5rem, #000 calc(100% - 2.5rem), ${edge.end ? "#000" : "transparent"} 100%)`;
+
+  // Keep the active tab centred in the carousel.
+  useEffect(() => {
+    const box = tabsRef.current;
+    const tab = box?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (box && tab) box.scrollTo({ left: tab.offsetLeft - (box.clientWidth - tab.offsetWidth) / 2, behavior: "smooth" });
+  }, [active]);
+  useEffect(updateEdge, [groups]);
 
   const toggle = (id: string) =>
     setOpen((prev) => {
@@ -116,18 +134,27 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
           stuck ? "before:absolute before:inset-x-0 before:bottom-full before:h-[76px] before:bg-paper before:content-['']" : ""
         }`}
       >
-        <div role="tablist" className="flex overflow-x-auto rounded-2xl border border-ink/15 bg-paper [scrollbar-width:none] md:flex-wrap md:justify-center">
+        <div
+          ref={tabsRef}
+          role="tablist"
+          onScroll={updateEdge}
+          style={{ maskImage: fade, WebkitMaskImage: fade }}
+          className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {groups.map((g) => (
             <button
               key={g.id}
               role="tab"
               aria-selected={active === g.id}
               onClick={() => go(g.id)}
-              className={`shrink-0 grow px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors md:grow-0 md:px-5 ${
-                active === g.id ? "bg-red-600 text-paper" : "text-ink/70 hover:text-ink"
+              className={`shrink-0 snap-center rounded-full border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
+                active === g.id ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-paper text-ink/70 hover:border-ink/40 hover:text-ink"
               }`}
             >
-              {t(g.label as never)}
+              <span className="inline-flex items-center gap-2">
+                <Icon id={g.icon} className="h-5 w-5" />
+                {t(g.label as never)}
+              </span>
             </button>
           ))}
         </div>
@@ -143,8 +170,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                 open={open.has(SPECIALS_ID)}
                 onToggle={toggle}
                 title={t("order.specials")}
-                sub={`${specials.length} ${t("carte.dishes")}`}
-                count={specials.length}
+                sub={`${specials.length} ${specials.length === 1 ? t("carte.dish") : t("carte.dishes")}`}
+                icon={SPECIALS_ICON}
               >
                 {specials.map((s) => (
                   <li key={s.id} className="py-3.5 border-b border-ink/10 last:border-0">
@@ -170,8 +197,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                     open={open.has(c.id)}
                     onToggle={toggle}
                     title={label(c)}
-                    sub={note ?? `${c.items.length} ${t("carte.dishes")}`}
-                    count={c.items.length}
+                    sub={note ?? `${c.items.length} ${c.items.length === 1 ? t("carte.dish") : t("carte.dishes")}`}
+                    icon={c.icon ?? c.id}
                   >
                     {c.items.map((item, i) => (
                       <li key={`${item.name}-${i}`} className="py-3.5 border-b border-ink/10 last:border-0">
@@ -224,7 +251,7 @@ function Card({
   onToggle,
   title,
   sub,
-  count,
+  icon,
   children,
 }: {
   id: string;
@@ -232,7 +259,7 @@ function Card({
   onToggle: (id: string) => void;
   title: string;
   sub: string;
-  count: number;
+  icon: string;
   children: React.ReactNode;
 }) {
   return (
@@ -243,7 +270,9 @@ function Card({
         aria-controls={`panel-${id}`}
         className="flex w-full items-center gap-4 px-5 py-4 text-left"
       >
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-600/10 font-display text-sm font-extrabold text-red-600">{count}</span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-red-600/10 text-red-600">
+          <Icon id={icon} />
+        </span>
         <span className="min-w-0 flex-1">
           <span className="block font-display text-xl font-extrabold leading-tight">{title}</span>
           <span className="block truncate text-sm text-ink/55">{sub}</span>

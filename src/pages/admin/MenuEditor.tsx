@@ -3,6 +3,7 @@ import { dishVisual, type MenuCategory, type MenuItem } from "../../data/menu";
 import { asset } from "../../lib/asset";
 import { essentialsStore, markEssential } from "../../lib/essentials";
 import { compressPhoto, menuStore } from "../../lib/menuStore";
+import { MENU_ICON_CHOICES, MenuIcon } from "../../components/MenuIcons";
 import { Card, EssentialBanner, SectionHead } from "./ui";
 
 const SPECIALS = "__specials";
@@ -155,6 +156,29 @@ export function MenuEditor() {
                 Note sous le titre
                 <input value={category.note ?? ""} onChange={(e) => saveCategory(category.id, { note: e.target.value || undefined })} className={field} />
               </label>
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-ink/60 mb-1">Icône sur le menu du site</p>
+                <div className="flex flex-wrap gap-2">
+                  {MENU_ICON_CHOICES.map((ic) => {
+                    const on = (category.icon ?? category.id) === ic.id;
+                    return (
+                      <button
+                        key={ic.id}
+                        type="button"
+                        onClick={() => saveCategory(category.id, { icon: ic.id })}
+                        title={ic.label}
+                        aria-label={ic.label}
+                        aria-pressed={on}
+                        className={`grid h-11 w-11 place-items-center rounded-xl border transition-colors ${
+                          on ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-white text-ink/70 hover:border-ink/40"
+                        }`}
+                      >
+                        <MenuIcon id={ic.id} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="mt-3">
                 <p className="text-xs font-semibold text-ink/60 mb-1">Formats</p>
                 <div className="flex flex-wrap gap-2">

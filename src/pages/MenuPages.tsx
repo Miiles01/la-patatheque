@@ -51,13 +51,13 @@ export function MenuPage() {
         <div className="mx-auto max-w-7xl px-5 md:px-10">
           {how && (
             <>
-              <div role="group" aria-label={t("menu.popupTitle")} className="mx-auto grid max-w-md grid-cols-2 gap-1 rounded-full bg-ink/5 p-1 text-center">
+              <div role="group" aria-label={t("menu.popupTitle")} className="mx-auto flex w-fit max-w-full gap-1 rounded-full bg-ink/5 p-1 text-center">
                 {choices.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => choose(c.id)}
                     aria-pressed={how === c.id}
-                    className={`rounded-full px-5 py-3 text-sm font-bold transition-colors ${how === c.id ? "bg-red-600 text-paper" : "text-ink/60 hover:text-ink"}`}
+                    className={`rounded-full px-5 py-3 text-sm font-bold whitespace-nowrap transition-colors md:px-8 ${how === c.id ? "bg-red-600 text-paper" : "text-ink/60 hover:text-ink"}`}
                   >
                     {c.title}
                   </button>
@@ -86,12 +86,12 @@ export function MenuPage() {
           >
             <p className="script text-orange-soft text-4xl md:text-6xl">{t("menu.kicker")}</p>
             <h2 className="mt-3 font-display text-[clamp(2rem,6vw,4rem)] font-extrabold leading-tight tracking-tight text-balance">{t("menu.popupTitle")}</h2>
-            <div className="mt-10 grid w-full max-w-2xl gap-4 md:grid-cols-2 md:gap-6">
+            <div className="mt-10 flex flex-col items-center gap-4 md:flex-row md:gap-6">
               {choices.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => choose(c.id)}
-                  className="rounded-3xl bg-paper px-6 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:py-14"
+                  className="w-fit min-w-[15rem] rounded-3xl bg-paper px-10 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:min-w-[17rem] md:px-14 md:py-14"
                 >
                   <span className="script block text-4xl text-red-600 md:text-5xl">{c.title}</span>
                   <span className="mt-2 block text-sm text-ink/60 md:text-base">{c.sub}</span>
