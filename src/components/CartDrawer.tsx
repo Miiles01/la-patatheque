@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { PROMO_CODE, useCart, type OrderMode } from "../lib/cart";
+import { computeCharges, useCharges } from "../lib/charges";
 import { checkPromo, promoDiscount, type PromoReason, type PromoType } from "../lib/promos";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useFormatPrice, useI18n } from "../lib/i18n";
@@ -39,7 +40,8 @@ export function CartDrawer() {
   const [submittedMode, setSubmittedMode] = useState<OrderMode>("emporter");
 
   const discount = applied ? promoDiscount(applied, cart.subtotal) : 0;
-  const total = cart.subtotal - discount;
+  const charges = useCharges();
+  const { lines: chargeLines, total } = computeCharges(cart.subtotal - discount, charges);
   const belowMinimum = cart.mode === "livraison" && cart.subtotal < cart.deliveryMinimum;
 
   useEffect(() => {
@@ -92,6 +94,7 @@ export function CartDrawer() {
       lines: cart.lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
       subtotal: cart.subtotal,
       discount,
+      charges: chargeLines.length ? chargeLines : undefined,
       total,
       status: "nouvelle",
     });
@@ -297,8 +300,16 @@ export function CartDrawer() {
                         <dd className="tabular-nums">−{formatPrice(discount)}</dd>
                       </div>
                     )}
+                    {chargeLines.map((c) => (
+                      <div key={c.id} className="flex justify-between text-ink/65">
+                        <dt>
+                          {c.name} <span className="text-ink/40">({c.percent} %)</span>
+                        </dt>
+                        <dd className="tabular-nums">{formatPrice(c.amount)}</dd>
+                      </div>
+                    ))}
                     <div className="flex justify-between font-display font-bold text-lg text-ink">
-                      <dt>{t("cart.total")}</dt>
+                      <dt>{chargeLines.length ? t("cart.totalFinal") : t("cart.total")}</dt>
                       <dd className="tabular-nums">{formatPrice(total)}</dd>
                     </div>
                   </dl>

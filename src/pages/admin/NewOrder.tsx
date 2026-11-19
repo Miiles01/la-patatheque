@@ -2,7 +2,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
 import { submit, update, type Order, type Stored } from "../../lib/demoStore";
+import { computeCharges, useCharges } from "../../lib/charges";
 import { useMenu } from "../../lib/menuStore";
+import { promoDiscount, promosStore } from "../../lib/promos";
 import { tablesStore } from "../../lib/reservations";
 import { listTeam, onTeamChange, type Member } from "../../lib/team";
 import { inputCls } from "./ui";
@@ -48,9 +50,12 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
   const [error, setError] = useState("");
 
   const subtotal = lines.reduce((n, l) => n + l.price * l.qty, 0);
-  // Orders from the site may carry the 10 % welcome code.
-  const discount = order?.promoCode ? Math.round(subtotal * 10) / 100 : 0;
-  const total = subtotal - discount;
+  // Orders from the site may carry a discount code: keep its rate while dishes are added.
+  const savedPromos = promosStore.use();
+  const code = order?.promoCode ? savedPromos.find((p) => p.code.toUpperCase() === order.promoCode!.toUpperCase()) : undefined;
+  const discount = code ? promoDiscount(code, subtotal) : order?.promoCode && order.subtotal ? Math.round(subtotal * (order.discount / order.subtotal) * 100) / 100 : 0;
+  const chargeList = useCharges();
+  const { lines: chargeLines, total } = computeCharges(Math.round((subtotal - discount) * 100) / 100, chargeList);
   const count = lines.reduce((n, l) => n + l.qty, 0);
 
   const add = (item: Omit<Line, "key" | "qty">) => {
@@ -90,7 +95,8 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
           lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
           subtotal: sub,
           discount,
-          total: Math.round((sub - discount) * 100) / 100,
+          charges: chargeLines.length ? chargeLines : undefined,
+          total,
         });
         onClose();
         return;
@@ -106,7 +112,8 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
         lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
         subtotal: sub,
         discount: 0,
-        total: sub,
+        charges: chargeLines.length ? chargeLines : undefined,
+        total,
         status: "nouvelle",
         paid: false,
       });
@@ -358,12 +365,26 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
 
               {lines.length > 0 && (
                 <div className="mt-3 flex flex-col gap-1 border-t border-ink/10 px-1 pt-3">
+                  {(discount > 0 || chargeLines.length > 0) && (
+                    <p className="flex justify-between text-sm text-ink/55">
+                      <span>Sous-total</span>
+                      <span className="tabular-nums">{money.format(subtotal)}</span>
+                    </p>
+                  )}
                   {discount > 0 && (
                     <p className="flex justify-between text-sm text-ink/55">
-                      <span>Rabais 10 %</span>
+                      <span>Rabais{order?.promoCode ? ` (${order.promoCode})` : ""}</span>
                       <span className="tabular-nums">−{money.format(discount)}</span>
                     </p>
                   )}
+                  {chargeLines.map((c) => (
+                    <p key={c.id} className="flex justify-between text-sm text-ink/55">
+                      <span>
+                        {c.name} ({c.percent} %)
+                      </span>
+                      <span className="tabular-nums">{money.format(c.amount)}</span>
+                    </p>
+                  ))}
                   <p className="flex items-baseline justify-between">
                     <span className="font-semibold">
                       Total <span className="text-sm font-normal text-ink/50">· {count} article{count > 1 ? "s" : ""}</span>

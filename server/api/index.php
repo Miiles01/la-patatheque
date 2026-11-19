@@ -82,6 +82,7 @@ const CONFIG_KEYS = [
     'jobs' => ['applications'],
     'settings' => ['settings'],
     'promos' => ['promos'],
+    'charges' => ['settings'],
 ];
 
 function config_get(string $key): mixed
@@ -211,8 +212,8 @@ function record_update(string $c, string $id, mixed $patch): array
         // The code was already honoured when the order came in: keep it, and work the discount out again on the new subtotal.
         if (!empty($old['promoCode']) && ($promo = promo_find((string)$old['promoCode']))) {
             $clean['promoCode'] = $promo['code'];
-            $clean['discount'] = promo_discount($promo, $clean['subtotal']);
-            $clean['total'] = round($clean['subtotal'] - $clean['discount'], 2);
+            unset($clean['charges']);
+            $clean = order_money($clean['subtotal'], $promo) + $clean;
         }
         $data = $clean;
     }
@@ -270,22 +271,19 @@ function clean_order(array $data): array
     }
     if (!$lines) throw new HttpError('Panier vide.', 422);
     $subtotal = round(array_sum(array_map(fn($l) => $l['price'] * $l['qty'], $lines)), 2);
-    $discount = 0.0;
+    $promo = null;
     if (!$staff && isset($order['promoCode'])) {
         // A code that can't be honoured stops the order instead of silently charging full price.
         $promo = promo_find($order['promoCode']);
         $check = promo_validate($promo, $subtotal, ['phone' => $order['phone'] ?? '', 'email' => $order['email'] ?? '']);
         if (!$check['ok']) throw new HttpError(promo_message($check), 422);
         $order['promoCode'] = $promo['code'];
-        $discount = promo_discount($promo, $subtotal);
     } else {
         unset($order['promoCode']);
     }
     return $order + [
         'lines' => $lines,
-        'subtotal' => $subtotal,
-        'discount' => $discount,
-        'total' => round($subtotal - $discount, 2),
+    ] + order_money($subtotal, $promo) + [
         'status' => 'nouvelle',
         'paid' => false,
     ];
@@ -386,6 +384,36 @@ function promo_check_public(mixed $in): array
     $check = promo_validate($promo, round((float)($in['subtotal'] ?? 0), 2), ['phone' => (string)($in['phone'] ?? ''), 'email' => (string)($in['email'] ?? '')]);
     if (!$check['ok']) return $check + ['message' => promo_message($check)];
     return ['ok' => true, 'code' => $promo['code'], 'type' => ($promo['type'] ?? 'percent') === 'amount' ? 'amount' : 'percent', 'value' => (float)($promo['value'] ?? 0)];
+}
+
+// ---------------------------------------------------------------- taxes and fees
+
+/**
+ * Taxes and extra fees switched on in the panel (config key "charges"): [{ id, name, kind, percent, enabled }].
+ * None are on by default. Each one is a percentage of the amount after the discount.
+ */
+function charges_enabled(): array
+{
+    $list = config_get('charges');
+    if (!is_array($list)) return [];
+    return array_values(array_filter($list, fn($c) => is_array($c) && !empty($c['enabled']) && (float)($c['percent'] ?? 0) > 0 && trim((string)($c['name'] ?? '')) !== ''));
+}
+
+/** subtotal, discount, the charge lines (when there are any) and the total, all worked out here rather than trusted from the browser. */
+function order_money(float $subtotal, ?array $promo): array
+{
+    $discount = $promo ? promo_discount($promo, $subtotal) : 0.0;
+    $base = round($subtotal - $discount, 2);
+    $lines = [];
+    $sum = 0.0;
+    foreach (charges_enabled() as $c) {
+        $amount = round($base * (float)$c['percent'] / 100, 2);
+        $lines[] = ['id' => mb_substr((string)($c['id'] ?? ''), 0, 40), 'name' => mb_substr(trim((string)$c['name']), 0, 60), 'percent' => (float)$c['percent'], 'amount' => $amount];
+        $sum += $amount;
+    }
+    $out = ['subtotal' => $subtotal, 'discount' => $discount, 'total' => round($base + $sum, 2)];
+    if ($lines) $out['charges'] = $lines;
+    return $out;
 }
 
 function price_on_menu(string $category, float $price): bool

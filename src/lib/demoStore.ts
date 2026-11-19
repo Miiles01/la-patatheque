@@ -28,6 +28,8 @@ export type Order = {
   when: string;
   notes?: string;
   promoCode?: string;
+  /** Taxes and fees added to the bill (see lib/charges). */
+  charges?: { id: string; name: string; percent: number; amount: number }[];
   lines: OrderLine[];
   subtotal: number;
   discount: number;

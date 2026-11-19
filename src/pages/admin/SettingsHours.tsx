@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { businessInfo, DAY_NAMES, groupedHours, openingHours, type Hours } from "../../lib/business";
+import { chargesStore, type Charge } from "../../lib/charges";
 import { essentialsStore, markEssential } from "../../lib/essentials";
 import { reservationSettings } from "../../lib/reservations";
 import type { AdminTab } from "../../lib/team";
@@ -80,6 +81,8 @@ export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
           </div>
         </div>
       </Card>
+
+      <ChargesCard />
 
       <Card>
         <div className="divide-y divide-ink/10 -my-5">
@@ -203,5 +206,73 @@ export function HoursView() {
         </Card>
       </div>
     </>
+  );
+}
+
+/** Taxes and extra fees added to every bill. All off by default; the ones switched on show in the cart, on the order and on the staff's bill. */
+function ChargesCard() {
+  const charges = chargesStore.use();
+  const save = (next: Charge[]) => chargesStore.set(next);
+  const patch = (id: string, change: Partial<Charge>) => save(charges.map((c) => (c.id === id ? { ...c, ...change } : c)));
+  const add = (kind: Charge["kind"]) =>
+    save([...charges, { id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, name: kind === "tax" ? "Taxe" : "Frais", kind, percent: 0, enabled: false }]);
+
+  return (
+    <Card className="mb-5">
+      <h2 className="font-display font-bold text-lg mb-1">Taxes et frais</h2>
+      <p className="text-sm text-ink/55 max-w-2xl">
+        Désactivés par défaut : la facture ne montre alors que le total des plats. Activez l'IVA ou ajoutez vos propres taxes et frais (un nom et
+        un pourcentage). Ceux qui sont actifs s'ajoutent au total après le rabais et s'affichent sur le panier du client, sur la commande et sur la
+        facture du personnel.
+      </p>
+
+      <ul className="mt-4 flex flex-col gap-3">
+        {charges.map((c) => (
+          <li key={c.id} className={`rounded-xl border-2 p-4 transition-colors ${c.enabled ? "border-green-700/30 bg-green-700/[0.04]" : "border-ink/10"}`}>
+            <div className="grid gap-3 sm:grid-cols-[1fr_9rem_7rem]">
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Nom sur la facture
+                <input value={c.name} onChange={(e) => patch(c.id, { name: e.target.value })} maxLength={40} className={inputCls} />
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Type
+                <select value={c.kind} onChange={(e) => patch(c.id, { kind: e.target.value as Charge["kind"] })} className={inputCls}>
+                  <option value="tax">Taxe</option>
+                  <option value="fee">Frais</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
+                Pourcentage (%)
+                <input type="number" min={0} max={100} step="0.001" value={c.percent || ""} onChange={(e) => patch(c.id, { percent: Number(e.target.value) })} className={inputCls} />
+              </label>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-[14rem] flex-1">
+                <Toggle
+                  on={c.enabled}
+                  onChange={(v) => patch(c.id, { enabled: v })}
+                  label={c.enabled ? "Activé : s'ajoute à la facture" : "Désactivé"}
+                  desc={c.percent > 0 ? `${c.percent} % du montant après rabais.` : "Indiquez un pourcentage pour pouvoir l'activer."}
+                />
+              </div>
+              {c.id !== "iva" && (
+                <button onClick={() => save(charges.filter((x) => x.id !== c.id))} className="rounded-full px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-600/10">
+                  Supprimer
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={() => add("tax")} className="rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-paper hover:bg-ink/85">
+          + Ajouter une taxe
+        </button>
+        <button onClick={() => add("fee")} className="rounded-full bg-ink/5 px-5 py-2.5 text-sm font-bold hover:bg-ink/10">
+          + Ajouter un frais
+        </button>
+      </div>
+    </Card>
   );
 }
