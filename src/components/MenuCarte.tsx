@@ -5,7 +5,7 @@ import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 import { MenuIcon as Icon, SPECIALS_ICON } from "./MenuIcons";
 import { openReservation } from "./ReservationModal";
-import { btnOutline, btnPrimary } from "./ui";
+import { btnPrimary } from "./ui";
 import { businessInfo, telHref } from "../lib/business";
 import { reservationSettings } from "../lib/reservations";
 
@@ -181,9 +181,6 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
             {t("contact.call")} · {info.phoneDisplay}
           </a>
         )}
-        <button onClick={() => setOpen(new Set())} className={btnOutline}>
-          {t("carte.collapse")}
-        </button>
       </div>
 
       {toast && (
@@ -215,6 +212,7 @@ function Card({
   icon: string;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-2xl bg-white">
       <button
@@ -236,7 +234,19 @@ function Card({
       </button>
       <div id={`panel-${id}`} className={`grid transition-[grid-template-rows] duration-300 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
         <div className="overflow-hidden">
-          <ul className="px-5 pb-3">{children}</ul>
+          <ul className="px-5">{children}</ul>
+          <div className="flex justify-center px-5 pb-4 pt-1">
+            <button
+              onClick={() => onToggle(id)}
+              tabIndex={open ? 0 : -1}
+              className="inline-flex items-center gap-2 rounded-full bg-ink/5 px-5 py-2.5 text-sm font-semibold text-ink/70 transition-colors hover:bg-ink/10 hover:text-ink"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m6 15 6-6 6 6" />
+              </svg>
+              {t("carte.fold")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
