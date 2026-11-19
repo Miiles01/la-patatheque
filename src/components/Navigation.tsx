@@ -97,6 +97,33 @@ function CopyPhone() {
   );
 }
 
+/** Hides the header while scrolling down and brings it back when scrolling up (only where `enabled`). */
+function useHideOnScroll(enabled: boolean) {
+  const [hidden, setHidden] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) {
+      setHidden(false);
+      return;
+    }
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < 80) setHidden(false);
+      else if (y > last + 4) setHidden(true);
+      else if (y < last - 4) setHidden(false);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      setHidden(false);
+    };
+  }, [enabled]);
+
+  return hidden;
+}
+
 export function Navigation() {
   const { t, lang, setLang } = useI18n();
   const cart = useCart();
@@ -104,10 +131,11 @@ export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const dark = useDarkBackdrop(route);
   const onDark = dark && !menuOpen;
+  const hideOnScroll = useHideOnScroll(route === "/menu" && !menuOpen);
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-[80] pointer-events-none">
+      <header className={`fixed inset-x-0 top-0 z-[80] pointer-events-none transition-transform duration-300 ${hideOnScroll ? "-translate-y-full" : ""}`}>
         <div className="mx-auto max-w-7xl px-5 md:px-10 h-[72px] flex items-center justify-between">
           <Link
             to="/"
