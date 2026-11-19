@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { type MenuCategory } from "../data/menu";
+import { dishName, type MenuCategory } from "../data/menu";
+import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 import { scrollToHash } from "../lib/motion";
@@ -17,14 +18,41 @@ const GROUPS: { id: string; label: string; cats: string[] }[] = [
 
 /**
  * Read-only menu: sticky tabs, then one accordion card per section (like a printed carte).
- * Ordering lives on /commander; this is for browsing.
+ * With `orderable`, every price becomes a button that drops that dish and size into the cart (takeout).
  */
-export function MenuCarte() {
+export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const { t, lang } = useI18n();
+  const cart = useCart();
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
+  const add = (item: { name: string; size?: string; price: number; category?: string }) => {
+    cart.add(item);
+    setToast(`${item.name}${item.size ? ` · ${item.size}` : ""}`);
+  };
   const formatPrice = useFormatPrice();
   const { categories, specials } = useMenu();
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
   const [active, setActive] = useState(GROUPS[0]!.id);
+
+  /** A price: plain text when dining in, an add-to-cart button for takeout. */
+  const Price = ({ value, item, className = "" }: { value: number; item: { name: string; size?: string; category?: string }; className?: string }) =>
+    orderable ? (
+      <button
+        onClick={() => add({ ...item, price: value })}
+        aria-label={`${t("order.add")} ${item.name}${item.size ? ` ${item.size}` : ""}`}
+        className={`rounded-full border border-ink/15 px-3 py-1 font-semibold tabular-nums transition-colors hover:border-red-600 hover:bg-red-600 hover:text-paper active:scale-95 ${className}`}
+      >
+        {formatPrice(value)}
+      </button>
+    ) : (
+      <span className={`font-semibold tabular-nums ${className}`}>{formatPrice(value)}</span>
+    );
 
   const label = (c: MenuCategory) => (lang === "en" ? categoryEn[c.id]?.name ?? c.name : c.name);
 
@@ -107,7 +135,7 @@ export function MenuCarte() {
                         <span className="mr-2 font-bold text-red-600">{s.id}</span>
                         {s.name}
                       </span>
-                      <span className="font-semibold tabular-nums">{formatPrice(s.price)}</span>
+                      <Price value={s.price} item={{ name: `${t("specials.number")} ${s.id} — ${s.name}`, category: SPECIALS_ID }} />
                     </div>
                     {s.desc && <p className="mt-0.5 text-sm text-ink/55">{s.desc}</p>}
                   </li>
@@ -134,15 +162,15 @@ export function MenuCarte() {
                             {item.num && <span className="mr-2 font-bold text-red-600">{item.num}</span>}
                             {item.name}
                           </span>
-                          {!multi && item.prices[0] != null && <span className="font-semibold tabular-nums">{formatPrice(item.prices[0])}</span>}
+                          {!multi && item.prices[0] != null && <Price value={item.prices[0]} item={{ name: dishName(c.id, item.name), category: c.id }} />}
                         </div>
                         {item.desc && <p className="mt-0.5 text-sm text-ink/55">{item.desc}</p>}
                         {multi && (
-                          <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink/60">
+                          <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink/60">
                             {c.sizes.map((s, si) =>
                               item.prices[si] == null ? null : (
-                                <span key={s}>
-                                  {s} <b className="font-semibold tabular-nums text-ink">{formatPrice(item.prices[si]!)}</b>
+                                <span key={s} className="inline-flex items-center gap-1.5">
+                                  {s} <Price value={item.prices[si]!} item={{ name: dishName(c.id, item.name), size: s, category: c.id }} className="text-ink" />
                                 </span>
                               ),
                             )}
@@ -159,6 +187,15 @@ export function MenuCarte() {
       ))}
 
       <p className="mt-12 text-center text-xs text-ink/45">{t("order.prices")}</p>
+
+      {toast && (
+        <div role="status" className="fixed z-[60] left-1/2 -translate-x-1/2 bottom-6 md:bottom-8 flex items-center gap-4 rounded-full bg-ink text-paper pl-5 pr-2 py-2 shadow-xl max-w-[92vw]">
+          <span className="truncate text-sm">{toast}</span>
+          <button onClick={() => cart.setOpen(true)} className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-xs font-bold">
+            {t("order.viewCart")} ({cart.count})
+          </button>
+        </div>
+      )}
     </div>
   );
 }

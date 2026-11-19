@@ -1,7 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { commander } from "../components/Navigation";
 import { MenuCarte } from "../components/MenuCarte";
-import { OrderMenu } from "../components/OrderMenu";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnOutline, btnPrimary, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
 import { restaurant } from "../data/menu";
@@ -13,16 +11,23 @@ import { useCart } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
+import { navigate } from "../lib/router";
 
-/** Public menu: the menu is shown right away (read-only); the two cards pick how you eat and what the call to action is. */
+/** Menu chooser: pick how you eat (dine-in first). Each choice opens its own page with the menu. */
 export function MenuPage() {
   const { t } = useI18n();
-  const reservations = reservationSettings.use();
-  const info = businessInfo.use();
-  const [how, setHow] = useState<"emporter" | "sur-place">("emporter");
+  const cart = useCart();
   const choices = [
-    { id: "emporter", title: t("menu.orderTitle"), sub: t("menu.pickEmporterSub") },
-    { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub") },
+    { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub"), go: () => navigate("/sur-place") },
+    {
+      id: "emporter",
+      title: t("menu.orderTitle"),
+      sub: t("menu.pickEmporterSub"),
+      go: () => {
+        if (cart.modes.includes("emporter")) cart.setMode("emporter");
+        navigate("/commander");
+      },
+    },
   ] as const;
 
   return (
@@ -31,39 +36,19 @@ export function MenuPage() {
       <section className="bg-paper pb-24 md:pb-36">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
           <div data-fade className="mx-auto grid max-w-2xl grid-cols-2 gap-3 md:gap-5 text-center">
-            {choices.map((c) => (
+            {choices.map((c, i) => (
               <button
                 key={c.id}
-                onClick={() => setHow(c.id)}
-                aria-pressed={how === c.id}
-                className={`rounded-3xl px-3 py-6 md:px-6 md:py-8 transition-colors ${
-                  how === c.id ? "bg-red-600 text-paper" : "bg-cream text-ink hover:bg-ink/10"
+                onClick={c.go}
+                className={`rounded-3xl px-3 py-8 md:px-6 md:py-12 transition-colors ${
+                  i === 0 ? "bg-cream text-ink hover:bg-ink/10" : "bg-red-600 text-paper hover:bg-red-700"
                 }`}
               >
-                <span className={`script block text-3xl md:text-4xl ${how === c.id ? "text-paper" : "text-red-600"}`}>{c.title}</span>
-                <span className={`mt-1.5 block text-xs md:text-sm ${how === c.id ? "text-paper/85" : "text-ink/60"}`}>{c.sub}</span>
+                <span className={`script block text-3xl md:text-5xl ${i === 0 ? "text-red-600" : "text-paper"}`}>{c.title}</span>
+                <span className={`mt-2 block text-xs md:text-base ${i === 0 ? "text-ink/60" : "text-paper/85"}`}>{c.sub}</span>
+                <span className={`mt-5 block text-sm font-bold ${i === 0 ? "text-ink" : "text-paper"}`}>{t("menu.seeMenu")} →</span>
               </button>
             ))}
-          </div>
-
-          <div className="mt-8 flex justify-center">
-            {how === "emporter" ? (
-              <button onClick={() => commander("menu-page")} className={btnPrimary}>
-                {t("menu.orderCta")} →
-              </button>
-            ) : reservations.enabled ? (
-              <button onClick={openReservation} className={btnPrimary}>
-                {t("surPlace.reserve")}
-              </button>
-            ) : (
-              <a href={telHref(info.phoneDisplay)} onClick={() => track("call_click", { from: "menu" })} className={btnPrimary}>
-                {t("contact.call")} · {info.phoneDisplay}
-              </a>
-            )}
-          </div>
-
-          <div className="mt-14 md:mt-20">
-            <MenuCarte />
           </div>
         </div>
       </section>
@@ -98,7 +83,7 @@ export function OrderPage() {
       </PageHero>
       <section className="bg-paper pb-24 md:pb-36">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <OrderMenu />
+          <MenuCarte orderable />
         </div>
       </section>
     </>
@@ -136,26 +121,7 @@ export function SurPlacePage() {
 
       <section className="bg-paper pb-24 md:pb-36">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <p data-fade className="mb-6 inline-flex items-center gap-2 rounded-full bg-green-700/10 px-4 py-2 text-sm font-semibold text-green-800">
-            ↓ {t("surPlace.cheaper")}
-          </p>
-          <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-            {(
-              [
-                ["surPlace.breakfast", "surPlace.breakfastHours"],
-                ["surPlace.dineIn", "surPlace.dineInHours"],
-              ] as const
-            ).map(([title, hours], i) => (
-              <article key={title} data-fade={i * 0.1} className="rounded-3xl bg-cream p-8 md:p-10 flex flex-col min-h-[300px]">
-                <h2 className="script text-red-600 text-4xl md:text-5xl">{t(title)}</h2>
-                <p className="mt-2 font-semibold text-ink">{t(hours)}</p>
-                <div className="mt-auto pt-10">
-                  <p className="font-display font-bold text-lg">{t("surPlace.soon")}</p>
-                  <p className="mt-1 text-ink/60 max-w-sm">{t("surPlace.soonText")}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+          <MenuCarte />
         </div>
       </section>
     </>
