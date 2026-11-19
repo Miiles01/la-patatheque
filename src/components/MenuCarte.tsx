@@ -263,7 +263,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-ink/10 bg-white/70">
+    <div className="overflow-hidden rounded-2xl bg-cream">
       <button
         onClick={() => onToggle(id)}
         aria-expanded={open}
