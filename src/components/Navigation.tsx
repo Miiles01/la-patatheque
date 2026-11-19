@@ -413,7 +413,7 @@ function YouTubeIcon() {
   );
 }
 
-function BagIcon() {
+export function BagIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
       <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />

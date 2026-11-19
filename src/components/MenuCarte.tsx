@@ -4,6 +4,8 @@ import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 import { MenuIcon as Icon, SPECIALS_ICON } from "./MenuIcons";
+import { BagIcon } from "./Navigation";
+import { scrollToHash } from "../lib/motion";
 import { openReservation } from "./ReservationModal";
 import { btnPrimary } from "./ui";
 import { businessInfo, telHref } from "../lib/business";
@@ -110,7 +112,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                 icon={SPECIALS_ICON}
               >
                 {specials.map((s) => (
-                  <li key={s.id} className="py-3.5 border-b border-ink/10 last:border-0">
+                  <li key={s.id} style={{ "--i": Math.min(specials.indexOf(s), 12) } as React.CSSProperties} className="py-3.5 border-b border-ink/10 last:border-0">
                     <div className="flex items-baseline justify-between gap-4">
                       <span className="font-medium">
                         <span className="mr-2 font-bold text-red-600">{s.id}</span>
@@ -137,7 +139,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                     icon={c.icon ?? c.id}
                   >
                     {c.items.map((item, i) => (
-                      <li key={`${item.name}-${i}`} className="py-3.5 border-b border-ink/10 last:border-0">
+                      <li key={`${item.name}-${i}`} style={{ "--i": Math.min(i, 12) } as React.CSSProperties} className="py-3.5 border-b border-ink/10 last:border-0">
                         <div className="flex items-baseline justify-between gap-4">
                           <span className="font-medium">
                             {item.name}
@@ -195,7 +197,9 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
           <span className="whitespace-nowrap text-sm">
             <b className="font-bold">{cart.count}</b> {cart.count === 1 ? t("carte.dish") : t("carte.dishes")} · <b className="font-bold">{formatPrice(cart.subtotal)}</b>
           </span>
-          <span className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-xs font-bold">{t("order.viewCart")}</span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-600 text-paper">
+            <BagIcon />
+          </span>
         </button>
       )}
 
@@ -230,7 +234,7 @@ function Card({
 }) {
   const { t } = useI18n();
   return (
-    <div className="overflow-hidden rounded-2xl bg-white">
+    <div id={`card-${id}`} className="overflow-hidden rounded-2xl bg-white">
       <button
         onClick={() => onToggle(id)}
         aria-expanded={open}
@@ -248,12 +252,20 @@ function Card({
           <path d="m6 9 6 6 6-6" />
         </svg>
       </button>
-      <div id={`panel-${id}`} className={`grid transition-[grid-template-rows] duration-300 ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+      <div
+        id={`panel-${id}`}
+        className={`grid transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+      >
         <div className="overflow-hidden">
-          <ul className="px-5">{children}</ul>
+          {/* Opening: the dishes rise into place one after another. */}
+          <ul className={`px-5 ${open ? "menu-reveal" : ""}`}>{children}</ul>
           <div className="flex justify-center px-5 pb-4 pt-1">
             <button
-              onClick={() => onToggle(id)}
+              onClick={() => {
+                // Closing a long list from its bottom would leave the page far below it: go back to the section first.
+                scrollToHash(`#card-${id}`, -90, true);
+                onToggle(id);
+              }}
               tabIndex={open ? 0 : -1}
               className="inline-flex items-center gap-2 rounded-full bg-ink/5 px-5 py-2.5 text-sm font-semibold text-ink/70 transition-colors hover:bg-ink/10 hover:text-ink"
             >

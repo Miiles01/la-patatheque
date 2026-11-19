@@ -29,15 +29,15 @@ export function scrollToTop(immediate = true) {
   else window.scrollTo({ top: 0 });
 }
 
-export function scrollToHash(hash: string, offset = -72) {
+export function scrollToHash(hash: string, offset = -72, immediate = false) {
   const target = hash === "#accueil" ? 0 : document.querySelector<HTMLElement>(hash);
   if (target === null) return;
   if (lenis) {
-    lenis.scrollTo(target, { offset, duration: 1.4 });
+    lenis.scrollTo(target, immediate ? { offset, immediate: true, force: true } : { offset, duration: 1.4 });
   } else if (typeof target === "number") {
     window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
   } else {
-    target.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
+    target.scrollIntoView({ behavior: immediate || reducedMotion ? "auto" : "smooth" });
   }
 }
 
