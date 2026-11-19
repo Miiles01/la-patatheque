@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { dishName, type MenuCategory } from "../data/menu";
 import { useCart } from "../lib/cart";
@@ -114,7 +115,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                 {specials.map((s) => (
                   <li key={s.id} style={{ "--i": Math.min(specials.indexOf(s), 12) } as React.CSSProperties} className="py-3.5 border-b border-ink/10 last:border-0">
                     <div className="flex items-baseline justify-between gap-4">
-                      <span className="font-medium">
+                      <span className="font-bold text-red-600">
                         <span className="mr-2 font-bold text-red-600">{s.id}</span>
                         {s.name}
                       </span>
@@ -141,7 +142,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                     {c.items.map((item, i) => (
                       <li key={`${item.name}-${i}`} style={{ "--i": Math.min(i, 12) } as React.CSSProperties} className="py-3.5 border-b border-ink/10 last:border-0">
                         <div className="flex items-baseline justify-between gap-4">
-                          <span className="font-medium">
+                          <span className="font-bold text-red-600">
                             {item.name}
                           </span>
                           {!multi && item.prices[0] != null && <Price value={item.prices[0]} item={{ name: dishName(c.id, item.name), category: c.id }} />}
@@ -188,30 +189,45 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
         )}
       </div>
 
-      {/* While the header is tucked away (scrolling down), the cart rides along at the bottom; scrolling up brings the header back and this goes. */}
-      {orderable && navHidden && !toast && cart.count > 0 && (
-        <button
-          onClick={() => cart.setOpen(true)}
-          aria-label={t("order.viewCart")}
-          className="fixed bottom-5 left-1/2 z-[60] flex max-w-[92vw] -translate-x-1/2 items-center gap-4 rounded-full bg-ink py-2 pl-5 pr-2 text-paper shadow-xl"
-        >
-          <span className="whitespace-nowrap text-sm">
-            <b className="font-bold">{cart.count}</b> {cart.count === 1 ? t("carte.dish") : t("carte.dishes")} · <b className="font-bold">{formatPrice(cart.subtotal)}</b>
-          </span>
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-600 text-paper">
-            <BagIcon />
-          </span>
-        </button>
-      )}
-
-      {toast && (
-        <div role="status" className="fixed z-[60] left-1/2 -translate-x-1/2 bottom-6 md:bottom-8 flex items-center gap-4 rounded-full bg-ink text-paper pl-5 pr-2 py-2 shadow-xl max-w-[92vw]">
-          <span className="truncate text-sm">{toast}</span>
-          <button onClick={() => cart.setOpen(true)} className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-xs font-bold">
-            {t("order.viewCart")} ({cart.count})
-          </button>
-        </div>
-      )}
+      {/* Cart bar: slides up from the bottom while the header is tucked away (scrolling down) or right after adding a dish,
+          and slides back down when the header returns. */}
+      <AnimatePresence>
+        {orderable && (navHidden || toast) && (
+          <motion.div
+            key="cart-bar"
+            role="status"
+            initial={{ y: 96, opacity: 0, scale: 0.96 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 96, opacity: 0, scale: 0.96, transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } }}
+            transition={{ type: "spring", stiffness: 360, damping: 30, mass: 0.9 }}
+            className="pointer-events-none fixed inset-x-0 bottom-5 z-[60] flex justify-center px-4"
+          >
+            <button
+              onClick={() => cart.setOpen(true)}
+              aria-label={t("order.viewCart")}
+              className="pointer-events-auto flex max-w-full items-center gap-4 rounded-full bg-ink py-2 pl-5 pr-2 text-paper shadow-xl"
+            >
+              <span className="min-w-0 truncate text-sm">
+                {toast ? (
+                  toast
+                ) : cart.count > 0 ? (
+                  <>
+                    <b className="font-bold">{cart.count}</b> {cart.count === 1 ? t("carte.dish") : t("carte.dishes")} · <b className="font-bold">{formatPrice(cart.subtotal)}</b>
+                  </>
+                ) : (
+                  t("cart.empty")
+                )}
+              </span>
+              <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full bg-red-600 text-paper">
+                <BagIcon />
+                {cart.count > 0 && (
+                  <span className="absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-paper px-1 text-[10px] font-bold leading-[18px] text-red-600">{cart.count}</span>
+                )}
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
