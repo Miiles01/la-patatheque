@@ -5,6 +5,7 @@ import { businessInfo, telHref } from "../lib/business";
 import { useCart } from "../lib/cart";
 import { useI18n, type Key } from "../lib/i18n";
 import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
+import { setNavHidden } from "../lib/navVisibility";
 import { Link, navigate, useRoute, type Route, routeHref } from "../lib/router";
 import { reservationSettings } from "../lib/reservations";
 import { LogoMark } from "./LogoMark";
@@ -99,7 +100,11 @@ function CopyPhone() {
 
 /** Hides the header while scrolling down and brings it back when scrolling up (only where `enabled`). */
 function useHideOnScroll(enabled: boolean) {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHiddenState] = useState(false);
+  const setHidden = (v: boolean) => {
+    setHiddenState(v);
+    setNavHidden(v);
+  };
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {

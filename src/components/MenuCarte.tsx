@@ -8,6 +8,7 @@ import { openReservation } from "./ReservationModal";
 import { btnPrimary } from "./ui";
 import { businessInfo, telHref } from "../lib/business";
 import { reservationSettings } from "../lib/reservations";
+import { useNavHidden } from "../lib/navVisibility";
 
 const SPECIALS_ID = "super-speciaux";
 
@@ -28,6 +29,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const { t, lang } = useI18n();
   const cart = useCart();
   const [toast, setToast] = useState<string | null>(null);
+  const navHidden = useNavHidden();
 
   useEffect(() => {
     if (!toast) return;
@@ -182,6 +184,20 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
           </a>
         )}
       </div>
+
+      {/* While the header is tucked away (scrolling down), the cart rides along at the bottom; scrolling up brings the header back and this goes. */}
+      {orderable && navHidden && !toast && cart.count > 0 && (
+        <button
+          onClick={() => cart.setOpen(true)}
+          aria-label={t("order.viewCart")}
+          className="fixed bottom-5 left-1/2 z-[60] flex max-w-[92vw] -translate-x-1/2 items-center gap-4 rounded-full bg-ink py-2 pl-5 pr-2 text-paper shadow-xl"
+        >
+          <span className="whitespace-nowrap text-sm">
+            <b className="font-bold">{cart.count}</b> {cart.count === 1 ? t("carte.dish") : t("carte.dishes")} · <b className="font-bold">{formatPrice(cart.subtotal)}</b>
+          </span>
+          <span className="shrink-0 rounded-full bg-red-600 px-4 py-2 text-xs font-bold">{t("order.viewCart")}</span>
+        </button>
+      )}
 
       {toast && (
         <div role="status" className="fixed z-[60] left-1/2 -translate-x-1/2 bottom-6 md:bottom-8 flex items-center gap-4 rounded-full bg-ink text-paper pl-5 pr-2 py-2 shadow-xl max-w-[92vw]">
