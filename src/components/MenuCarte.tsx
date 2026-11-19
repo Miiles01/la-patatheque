@@ -55,12 +55,12 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
       <button
         onClick={() => add({ ...item, price: value })}
         aria-label={`${t("order.add")} ${item.name}${item.size ? ` ${item.size}` : ""}`}
-        className={`rounded-full border border-ink/15 px-3 py-1 font-semibold tabular-nums transition-colors hover:border-red-600 hover:bg-red-600 hover:text-paper active:scale-95 ${className}`}
+        className={`rounded-full border border-ink/15 px-3 py-1 tabular-nums transition-colors hover:border-red-600 hover:bg-red-600 hover:text-paper active:scale-95 ${className || "font-semibold"}`}
       >
         {formatPrice(value)}
       </button>
     ) : (
-      <span className={`font-semibold tabular-nums ${className}`}>{formatPrice(value)}</span>
+      <span className={`tabular-nums ${className || "font-semibold"}`}>{formatPrice(value)}</span>
     );
 
   const label = (c: MenuCategory) => (lang === "en" ? categoryEn[c.id]?.name ?? c.name : c.name);
@@ -152,7 +152,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                             {c.sizes.map((s, si) =>
                               item.prices[si] == null ? null : (
                                 <span key={s} className="inline-flex items-center gap-1.5">
-                                  {s} <Price value={item.prices[si]!} item={{ name: dishName(c.id, item.name), size: s, category: c.id }} className="text-ink" />
+                                  <b className="font-bold text-ink">{s}</b>{" "}
+                                  <Price value={item.prices[si]!} item={{ name: dishName(c.id, item.name), size: s, category: c.id }} className="font-normal text-ink" />
                                 </span>
                               ),
                             )}
