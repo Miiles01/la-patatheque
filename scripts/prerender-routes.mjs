@@ -36,10 +36,14 @@ for (const route of routes) {
   await writeFile(file, page(route));
 }
 
-// Unknown URLs: the app falls back to the home page; never indexed.
+// Unknown URLs: the host serves this file (see .htaccess) and the app shows the 404 page; never indexed.
 await writeFile(
   join(dist, "404.html"),
-  page("/").replace(/(<meta name="robots" content=")[^"]*/, "$1noindex,nofollow").replace(/\s*<link rel="canonical"[^>]*>/, ""),
+  page("/")
+    .replace(/<title>[^<]*<\/title>/, "<title>Page introuvable | La Patathèque</title>")
+    .replace(/(<meta name="robots" content=")[^"]*/, "$1noindex,nofollow")
+    .replace(/\s*<link rel="canonical"[^>]*>/, "")
+    .replace(/\s*<meta property="og:url"[^>]*>/, ""),
 );
 
 const today = new Date().toISOString().slice(0, 10);

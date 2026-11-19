@@ -11,7 +11,7 @@ import { submit as submitRecord, type Application } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
-import { routeHref } from "../lib/router";
+import { Link, routeHref } from "../lib/router";
 import { gsap, reducedMotion } from "../lib/motion";
 
 /** Opening hours as set in the admin, grouped for display. */
@@ -490,5 +490,25 @@ export function ContactPage() {
         </div>
       </section>
     </>
+  );
+}
+
+/** Shown for any address that isn't a page (and served by the host as 404.html). */
+export function NotFoundPage() {
+  const { t } = useI18n();
+  return (
+    <PageHero center kicker={t("notFound.kicker")} title={t("notFound.title")} alt={t("notFound.titleAlt")} intro={t("notFound.intro")}>
+      <div data-fade="0.3" data-intro className="mt-10 flex flex-wrap justify-center gap-3">
+        <Link to="/" className={btnPrimary}>
+          {t("notFound.home")}
+        </Link>
+        <Link to="/menu" className={btnOutline}>
+          {t("menu.seeMenu")}
+        </Link>
+        <Link to="/nous-joindre" className={btnOutline}>
+          {t("notFound.contact")}
+        </Link>
+      </div>
+    </PageHero>
   );
 }

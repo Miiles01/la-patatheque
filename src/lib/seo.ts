@@ -8,10 +8,15 @@ import type { Route } from "./router";
 // them right while visitors move between pages or switch language.
 
 type Meta = { title: string; description: string };
-const ROUTES = seo.routes as Record<Route, Record<Lang, Meta>>;
+const ROUTES = seo.routes as Record<Exclude<Route, "/404">, Record<Lang, Meta>>;
+
+const NOT_FOUND: Record<Lang, Meta> = {
+  fr: { title: "Page introuvable | La Patathèque", description: "Cette page n'existe pas ou a été déplacée." },
+  en: { title: "Page not found | La Patathèque", description: "This page doesn't exist or has moved." },
+};
 
 /** Canonical URL on the real domain, e.g. https://…/menu/ */
-export function canonicalUrl(route: Route) {
+export function canonicalUrl(route: Exclude<Route, "/404">) {
   return seo.site + (route === "/" ? "/" : `${route}/`);
 }
 
@@ -21,6 +26,15 @@ function setMeta(selector: string, attr: string, value: string) {
 
 export function usePageMeta(route: Route, lang: Lang) {
   useEffect(() => {
+    if (route === "/404") {
+      const meta = NOT_FOUND[lang];
+      document.title = meta.title;
+      setMeta('meta[name="description"]', "content", meta.description);
+      setMeta('meta[name="robots"]', "content", "noindex,nofollow");
+      document.head.querySelector('link[rel="canonical"]')?.remove();
+      return;
+    }
+    setMeta('meta[name="robots"]', "content", route === "/admin" ? "noindex,nofollow" : "index,follow");
     const meta = ROUTES[route][lang];
     const url = canonicalUrl(route);
     document.title = meta.title;

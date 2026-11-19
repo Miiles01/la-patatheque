@@ -11,7 +11,7 @@ import { scrollToTop, useScrollEffects, useSmoothScroll } from "./lib/motion";
 import { useRoute, type Route } from "./lib/router";
 import { usePageMeta } from "./lib/seo";
 import { Home } from "./pages/Home";
-import { AboutPage, CareersPage, ContactPage } from "./pages/InfoPages";
+import { AboutPage, CareersPage, ContactPage, NotFoundPage } from "./pages/InfoPages";
 import { CateringPage, MenuPage, OrderPage, SurPlacePage } from "./pages/MenuPages";
 
 // The admin panel is only for staff: load its code on demand so visitors don't download it.
@@ -31,6 +31,7 @@ const PAGES: Record<Exclude<Route, "/admin">, () => React.JSX.Element> = {
   "/a-propos": AboutPage,
   "/carrieres": CareersPage,
   "/nous-joindre": ContactPage,
+  "/404": NotFoundPage,
 };
 
 function Site({ route }: { route: Exclude<Route, "/admin"> }) {

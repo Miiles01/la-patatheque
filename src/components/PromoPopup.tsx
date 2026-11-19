@@ -33,7 +33,7 @@ export function PromoPopup() {
   const send = useSend();
 
   useEffect(() => {
-    if (route === "/admin" || !shouldShow()) return;
+    if (route === "/admin" || route === "/404" || !shouldShow()) return;
     const id = window.setTimeout(() => {
       setOpen(true);
       try {

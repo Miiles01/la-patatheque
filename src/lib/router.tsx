@@ -13,7 +13,9 @@ export type Route =
   | "/a-propos"
   | "/carrieres"
   | "/nous-joindre"
-  | "/admin";
+  | "/admin"
+  /** Any address that isn't a page: shows the 404 page. Never linked, never in the sitemap. */
+  | "/404";
 
 export const ROUTES: Route[] = ["/", "/menu", "/commander", "/sur-place", "/traiteur", "/a-propos", "/carrieres", "/nous-joindre", "/admin"];
 
@@ -26,8 +28,9 @@ export function routeHref(to: Route) {
 }
 
 function current(): Route {
-  const path = "/" + window.location.pathname.slice(BASE.length).replace(/\/+$/, "");
-  return (ROUTES as string[]).includes(path) ? (path as Route) : "/";
+  const path = "/" + window.location.pathname.slice(BASE.length).replace(/(^|\/)index\.html$/, "").replace(/\/+$/, "");
+  if (path === "/404.html") return "/404";
+  return (ROUTES as string[]).includes(path) ? (path as Route) : "/404";
 }
 
 // Links shared before the switch used "#/menu": send them to the real URL.
