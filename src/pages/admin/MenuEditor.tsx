@@ -157,11 +157,11 @@ export function MenuEditor() {
                 <input value={category.note ?? ""} onChange={(e) => saveCategory(category.id, { note: e.target.value || undefined })} className={field} />
               </label>
               <label className="mt-3 flex flex-col gap-1 text-xs font-semibold text-ink/60">
-                Onglet sur le menu du site (les sections avec le même nom d'onglet sont regroupées)
+                Groupe sur le menu du site (les sections avec le même nom de groupe sont regroupées)
                 <input
                   value={category.tab ?? ""}
                   onChange={(e) => saveCategory(category.id, { tab: e.target.value || undefined })}
-                  placeholder="Laisser vide pour l'onglet habituel"
+                  placeholder="Laisser vide pour le groupe habituel"
                   className={field}
                 />
               </label>

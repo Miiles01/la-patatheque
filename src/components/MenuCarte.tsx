@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dishName, type MenuCategory } from "../data/menu";
 import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
-import { scrollToHash } from "../lib/motion";
 import { MenuIcon as Icon, SPECIALS_ICON } from "./MenuIcons";
 
 const SPECIALS_ID = "super-speciaux";
@@ -18,7 +17,7 @@ const GROUPS: { id: string; icon: string; label: string; cats: string[] }[] = [
 ];
 
 /**
- * Read-only menu: sticky tabs, then one accordion card per section (like a printed carte).
+ * The menu: one accordion card per section, grouped under a small heading (like a printed carte).
  * With `orderable`, every price becomes a button that drops that dish and size into the cart (takeout).
  */
 export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
@@ -39,21 +38,6 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const formatPrice = useFormatPrice();
   const { categories, specials } = useMenu();
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
-  const [activeId, setActive] = useState<string | null>(null);
-  const barRef = useRef<HTMLDivElement>(null);
-  const tabsRef = useRef<HTMLDivElement>(null);
-  const [edge, setEdge] = useState({ start: true, end: false });
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [stuck, setStuck] = useState(false);
-
-  // The cover under the site header only exists while the tab bar is stuck to it.
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([e]) => setStuck(!e!.isIntersecting && e!.boundingClientRect.top < 76), { rootMargin: "-76px 0px 0px 0px" });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   /** A price: plain text when dining in, an add-to-cart button for takeout. */
   const Price = ({ value, item, className = "" }: { value: number; item: { name: string; size?: string; category?: string }; className?: string }) =>
@@ -93,35 +77,6 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, specials, lang]);
-  const active = activeId ?? groups[0]?.id ?? "";
-
-  useEffect(() => {
-    const els = groups.map((g) => document.getElementById(`carte-${g.id}`)).filter((e): e is HTMLElement => Boolean(e));
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const hit = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (hit) setActive(hit.target.id.replace("carte-", ""));
-      },
-      { rootMargin: "-140px 0px -65% 0px" },
-    );
-    els.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [groups]);
-
-  const updateEdge = () => {
-    const el = tabsRef.current;
-    if (el) setEdge({ start: el.scrollLeft <= 2, end: el.scrollLeft + el.clientWidth >= el.scrollWidth - 2 });
-  };
-  // The carousel fades out on the side that still has tabs to swipe to.
-  const fade = `linear-gradient(to right, ${edge.start ? "#000" : "transparent"} 0, #000 2.5rem, #000 calc(100% - 2.5rem), ${edge.end ? "#000" : "transparent"} 100%)`;
-
-  // Keep the active tab centred in the carousel.
-  useEffect(() => {
-    const box = tabsRef.current;
-    const tab = box?.querySelector<HTMLElement>('[aria-selected="true"]');
-    if (box && tab) box.scrollTo({ left: tab.offsetLeft - (box.clientWidth - tab.offsetWidth) / 2, behavior: "smooth" });
-  }, [active]);
-  useEffect(updateEdge, [groups]);
 
   const toggle = (id: string) =>
     setOpen((prev) => {
@@ -131,46 +86,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
       return next;
     });
 
-  const go = (id: string) => {
-    setActive(id);
-    scrollToHash(`#carte-${id}`, -(76 + (barRef.current?.offsetHeight ?? 60) + 8));
-  };
-
   return (
     <div className="mx-auto max-w-2xl">
-      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
-      <div
-        ref={barRef}
-        className={`sticky top-[76px] z-10 -mx-5 px-5 py-3 bg-paper md:mx-0 md:px-0 ${
-          stuck ? "before:absolute before:inset-x-0 before:bottom-full before:h-[76px] before:bg-paper before:content-['']" : ""
-        }`}
-      >
-        <div
-          ref={tabsRef}
-          role="tablist"
-          onScroll={updateEdge}
-          style={{ maskImage: fade, WebkitMaskImage: fade }}
-          className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        >
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              role="tab"
-              aria-selected={active === g.id}
-              onClick={() => go(g.id)}
-              className={`shrink-0 snap-center rounded-full border px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors ${
-                active === g.id ? "border-red-600 bg-red-600 text-paper" : "border-ink/15 bg-paper text-ink/70 hover:border-ink/40 hover:text-ink"
-              }`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <Icon id={g.icon} className="h-5 w-5" />
-                {g.title}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {groups.map((g) => (
         <section key={g.id} id={`carte-${g.id}`} className="pt-8">
           <p className="alt text-ink/55 mb-3 px-1">{g.title}</p>
