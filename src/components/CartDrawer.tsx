@@ -1,14 +1,25 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
-import { PROMO_CODE, PROMO_RATE, useCart, type OrderMode } from "../lib/cart";
+import { PROMO_CODE, useCart, type OrderMode } from "../lib/cart";
+import { checkPromo, promoDiscount, type PromoReason, type PromoType } from "../lib/promos";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useFormatPrice, useI18n } from "../lib/i18n";
 import { navigate } from "../lib/router";
 import { useSend } from "../lib/useSend";
-import { btnPrimary, TextArea, TextField } from "./ui";
+import { btnOutline, btnPrimary, TextArea, TextField } from "./ui";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
+
+const PROMO_MESSAGES = {
+  unknown: "form.promoBad",
+  inactive: "form.promoBad",
+  early: "form.promoEarly",
+  expired: "form.promoExpired",
+  used_up: "form.promoUsedUp",
+  already_used: "form.promoAlreadyUsed",
+  min: "form.promoBad",
+} as const;
 
 type Step = "cart" | "details" | "done";
 
@@ -19,12 +30,15 @@ export function CartDrawer() {
   const [step, setStep] = useState<Step>("cart");
   const send = useSend();
   const [promo, setPromo] = useState("");
-  const [promoState, setPromoState] = useState<"idle" | "ok" | "bad">("idle");
+  const [promoState, setPromoState] = useState<"idle" | "ok" | "bad" | "checking">("idle");
+  const [applied, setApplied] = useState<{ code: string; type: PromoType; value: number } | null>(null);
+  const [promoReason, setPromoReason] = useState<PromoReason>("unknown");
+  const [promoMin, setPromoMin] = useState(0);
   const [when, setWhen] = useState<"asap" | "later">("asap");
   const [orderId, setOrderId] = useState("");
   const [submittedMode, setSubmittedMode] = useState<OrderMode>("emporter");
 
-  const discount = promoState === "ok" ? Math.round(cart.subtotal * PROMO_RATE * 100) / 100 : 0;
+  const discount = applied ? promoDiscount(applied, cart.subtotal) : 0;
   const total = cart.subtotal - discount;
   const belowMinimum = cart.mode === "livraison" && cart.subtotal < cart.deliveryMinimum;
 
@@ -40,8 +54,25 @@ export function CartDrawer() {
     if (step === "done") setStep("cart");
   }
 
-  function applyPromo() {
-    setPromoState(promo.trim().toUpperCase() === PROMO_CODE ? "ok" : "bad");
+  async function applyPromo() {
+    if (!promo.trim()) return;
+    setPromoState("checking");
+    try {
+      const r = await checkPromo(promo, cart.subtotal);
+      if (r.ok) {
+        setApplied({ code: r.code, type: r.type, value: r.value });
+        setPromoState("ok");
+      } else {
+        setApplied(null);
+        setPromoReason(r.reason);
+        setPromoMin(r.minSubtotal ?? 0);
+        setPromoState("bad");
+      }
+    } catch {
+      setApplied(null);
+      setPromoReason("unknown");
+      setPromoState("bad");
+    }
   }
 
   function submit(e: FormEvent<HTMLFormElement>) {
@@ -57,7 +88,7 @@ export function CartDrawer() {
       address: cart.mode === "livraison" ? get("address") : undefined,
       when: when === "asap" ? t("form.asap") : get("time"),
       notes: get("notes") || undefined,
-      promoCode: promoState === "ok" ? PROMO_CODE : undefined,
+      promoCode: applied?.code,
       lines: cart.lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
       subtotal: cart.subtotal,
       discount,
@@ -70,6 +101,7 @@ export function CartDrawer() {
     cart.clear();
     setPromo("");
     setPromoState("idle");
+    setApplied(null);
     setStep("done");
     });
   }
@@ -122,7 +154,7 @@ export function CartDrawer() {
                 <p className="text-ink/70 max-w-xs mb-2">
                   {submittedMode === "livraison" ? t("cart.confirmDelivery") : t("cart.confirmPickup")}
                 </p>
-                <p className="text-sm text-ink/50 max-w-xs mb-8">{t("cart.payNote")}</p>
+                <div className="mb-8" />
                 <button onClick={close} className={btnPrimary}>
                   {t("cart.done")}
                 </button>
@@ -142,12 +174,8 @@ export function CartDrawer() {
               </div>
             ) : (
               <>
+                {cart.modes.length > 1 && (
                 <div className="px-6 pt-5">
-                  {cart.modes.length === 1 ? (
-                    <p className="rounded-full bg-ink/5 py-2.5 text-center text-sm font-bold text-ink/70">
-                      {cart.mode === "emporter" ? t("cart.emporter") : t("cart.livraison")}
-                    </p>
-                  ) : (
                   <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-full bg-ink/5 p-1">
                     {cart.modes.map((m) => (
                       <button
@@ -163,8 +191,8 @@ export function CartDrawer() {
                       </button>
                     ))}
                   </div>
-                  )}
                 </div>
+                )}
 
                 {step === "cart" ? (
                   <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -232,18 +260,25 @@ export function CartDrawer() {
                           onChange={(e) => {
                             setPromo(e.target.value);
                             setPromoState("idle");
+                            setApplied(null);
                           }}
                           placeholder={PROMO_CODE}
                           aria-label={t("form.promo")}
                           className="flex-1 min-w-0 rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 uppercase placeholder:normal-case placeholder:text-ink/30 focus:border-red-600 focus:outline-none"
                         />
-                        <button type="button" onClick={applyPromo} className="rounded-xl bg-ink px-4 text-sm font-bold text-paper">
+                        <button type="button" onClick={applyPromo} disabled={promoState === "checking"} className="rounded-xl bg-ink px-4 text-sm font-bold text-paper disabled:opacity-60">
                           {t("form.apply")}
                         </button>
                       </div>
-                      {promoState !== "idle" && (
+                      {(promoState === "ok" || promoState === "bad") && (
                         <p role="status" className={`mt-1.5 text-sm ${promoState === "ok" ? "text-green-700" : "text-red-600"}`}>
-                          {promoState === "ok" ? t("form.promoOk") : t("form.promoBad")}
+                          {promoState === "ok" && applied
+                            ? applied.type === "amount"
+                              ? t("form.promoOkAmount", { n: applied.value })
+                              : t("form.promoOkPercent", { n: applied.value })
+                            : promoReason === "min"
+                              ? t("form.promoMin", { n: promoMin })
+                              : t(PROMO_MESSAGES[promoReason])}
                         </p>
                       )}
                     </div>
@@ -279,13 +314,14 @@ export function CartDrawer() {
                           {send.error}
                         </p>
                       )}
-                      <button type="submit" form="checkout" disabled={belowMinimum || send.busy} className={`${btnPrimary} w-full`}>
-                        {send.busy ? t("form.sending") : t("cart.submit")}
-                      </button>
-                      <p className="text-xs text-ink/50 text-center mt-3">{t("cart.payNote")}</p>
-                      <button onClick={() => setStep("cart")} className="block mx-auto mt-2 text-sm font-semibold text-ink/60 underline underline-offset-4 py-2">
-                        {t("cart.back")}
-                      </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button type="button" onClick={() => setStep("cart")} className={`${btnOutline} w-full`}>
+                          {t("cart.backShort")}
+                        </button>
+                        <button type="submit" form="checkout" disabled={belowMinimum || send.busy} className={`${btnPrimary} w-full`}>
+                          {send.busy ? t("form.sending") : t("cart.order")}
+                        </button>
+                      </div>
                     </>
                   )}
                 </footer>

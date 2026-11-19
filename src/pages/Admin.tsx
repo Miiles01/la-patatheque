@@ -20,6 +20,7 @@ import { useLiveSync, useSaveError } from "./admin/live";
 import { KitchenBoard } from "./admin/KitchenBoard";
 import { NewOrderDialog } from "./admin/NewOrder";
 import { Tables } from "./admin/Reservations";
+import { PromosView } from "./admin/Promos";
 import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
@@ -64,6 +65,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "menu", label: "Menu" },
   { id: "hours", label: "Horaires" },
   { id: "subscribers", label: "Courriels 10 %" },
+  { id: "promos", label: "Codes promo" },
   { id: "applications", label: "Candidatures" },
   { id: "catering", label: "Traiteur" },
   // "Contenu du site" (content) is hidden for now; its view stays below for later.
@@ -315,6 +317,12 @@ const TAB_ICONS: Record<Tab, ReactNode> = {
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="m3.5 6.5 8.5 6.5 8.5-6.5" strokeLinejoin="round" />
+    </>
+  ),
+  promos: (
+    <>
+      <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" strokeLinejoin="round" />
+      <circle cx="7.5" cy="7.5" r="1.2" />
     </>
   ),
   applications: (
@@ -714,6 +722,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} user={user} />}
           {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
+          {tab === "promos" && <PromosView orders={data.orders} />}
           {tab === "applications" && <JobsView applications={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
           {tab === "content" && <Content />}

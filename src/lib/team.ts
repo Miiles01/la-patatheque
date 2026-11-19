@@ -17,6 +17,7 @@ export type AdminTab =
   | "menu"
   | "hours"
   | "subscribers"
+  | "promos"
   | "applications"
   | "catering"
   | "content"
@@ -29,17 +30,17 @@ export const ROLES: Record<Role, { label: string; access: string; tabs: AdminTab
   proprietaire: {
     label: "Propriétaire",
     access: "Tout le panneau, y compris les paramètres et l'équipe",
-    tabs: ["dashboard", "orders", "reservations", "menu", "hours", "subscribers", "applications", "catering", "content", "settings", "team"],
+    tabs: ["dashboard", "orders", "reservations", "menu", "hours", "subscribers", "promos", "applications", "catering", "content", "settings", "team"],
   },
   gerant: {
     label: "Gérant(e)",
-    access: "Tableau de bord, commandes, réservations, menu, horaires, candidatures, traiteur et paramètres",
-    tabs: ["dashboard", "orders", "reservations", "menu", "hours", "applications", "catering", "settings"],
+    access: "Tableau de bord, commandes, réservations, menu, horaires, codes promo, candidatures, traiteur et paramètres",
+    tabs: ["dashboard", "orders", "reservations", "menu", "hours", "promos", "applications", "catering", "settings"],
   },
   marketing: {
     label: "Marketing",
-    access: "Tableau de bord et courriels 10 %",
-    tabs: ["dashboard", "subscribers", "content"],
+    access: "Tableau de bord, courriels 10 % et codes promo",
+    tabs: ["dashboard", "subscribers", "promos", "content"],
   },
   comptoir: { label: "Comptoir", access: "Commandes et réservations", tabs: ["orders", "reservations"] },
   serveur: { label: "Serveur(euse)", access: "Commandes et réservations", tabs: ["orders", "reservations"] },

@@ -42,6 +42,9 @@ function route(): void
             if ($method === 'PATCH' && isset($parts[2])) reply(record_update($c, $parts[2], body()));
             if ($method === 'DELETE' && isset($parts[2])) reply(record_delete($c, $parts[2]));
             break;
+        case 'promos':
+            if ($method === 'POST' && ($parts[1] ?? '') === 'check') reply(promo_check_public(body()));
+            break;
         case 'bookings':
             if ($method === 'GET') reply(bookings_list((string)($_GET['from'] ?? '')));
             if ($method === 'POST') reply(booking_create(body()), 201);
@@ -78,6 +81,7 @@ const CONFIG_KEYS = [
     'essentials' => ['dashboard', 'orders', 'reservations', 'menu', 'hours', 'subscribers', 'applications', 'catering', 'settings'],
     'jobs' => ['applications'],
     'settings' => ['settings'],
+    'promos' => ['promos'],
 ];
 
 function config_get(string $key): mixed
@@ -92,6 +96,8 @@ function config_all(): array
     foreach (db_all('SELECT k, v FROM kv') as $row) {
         if (isset(CONFIG_KEYS[$row['k']])) $out[$row['k']] = json_decode($row['v'], true);
     }
+    // Discount codes are private: visitors only ever test the one they type (promos/check).
+    if (!current_member()) unset($out['promos']);
     // Visitors only see published openings.
     if (isset($out['jobs']) && !current_member()) {
         $out['jobs'] = array_values(array_filter($out['jobs'], fn($j) => ($j['status'] ?? '') === 'published'));
@@ -202,9 +208,10 @@ function record_update(string $c, string $id, mixed $patch): array
         foreach (['status', 'paid', 'closed', 'rank', 'email'] as $k) {
             if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
         }
-        if (strtoupper($old['promoCode'] ?? '') === 'BIENVENUE10') {
-            $clean['promoCode'] = 'BIENVENUE10';
-            $clean['discount'] = round($clean['subtotal'] * 0.1, 2);
+        // The code was already honoured when the order came in: keep it, and work the discount out again on the new subtotal.
+        if (!empty($old['promoCode']) && ($promo = promo_find((string)$old['promoCode']))) {
+            $clean['promoCode'] = $promo['code'];
+            $clean['discount'] = promo_discount($promo, $clean['subtotal']);
             $clean['total'] = round($clean['subtotal'] - $clean['discount'], 2);
         }
         $data = $clean;
@@ -263,9 +270,17 @@ function clean_order(array $data): array
     }
     if (!$lines) throw new HttpError('Panier vide.', 422);
     $subtotal = round(array_sum(array_map(fn($l) => $l['price'] * $l['qty'], $lines)), 2);
-    $promo = strtoupper($order['promoCode'] ?? '') === 'BIENVENUE10';
-    if (!$promo) unset($order['promoCode']);
-    $discount = $promo ? round($subtotal * 0.1, 2) : 0;
+    $discount = 0.0;
+    if (!$staff && isset($order['promoCode'])) {
+        // A code that can't be honoured stops the order instead of silently charging full price.
+        $promo = promo_find($order['promoCode']);
+        $check = promo_validate($promo, $subtotal, ['phone' => $order['phone'] ?? '', 'email' => $order['email'] ?? '']);
+        if (!$check['ok']) throw new HttpError(promo_message($check), 422);
+        $order['promoCode'] = $promo['code'];
+        $discount = promo_discount($promo, $subtotal);
+    } else {
+        unset($order['promoCode']);
+    }
     return $order + [
         'lines' => $lines,
         'subtotal' => $subtotal,
@@ -274,6 +289,103 @@ function clean_order(array $data): array
         'status' => 'nouvelle',
         'paid' => false,
     ];
+}
+
+// ---------------------------------------------------------------- discount codes
+
+/**
+ * The codes the restaurant created in the panel (config key "promos"). Until it saves its own list, the welcome code
+ * BIENVENUE10 (10 %) offered by the sign-up pop-up works as before.
+ *
+ * A code: code, type (percent | amount), value, active, expiresAt (YYYY-MM-DD, last valid day), startsAt,
+ * maxUses (all customers together; empty = unlimited), oncePerCustomer, minSubtotal.
+ */
+function promos_all(): array
+{
+    $list = config_get('promos');
+    if (!is_array($list)) {
+        return [['id' => 'welcome', 'code' => 'BIENVENUE10', 'type' => 'percent', 'value' => 10, 'active' => true]];
+    }
+    return $list;
+}
+
+function promo_find(string $code): ?array
+{
+    $code = strtoupper(trim($code));
+    foreach (promos_all() as $p) {
+        if (strtoupper((string)($p['code'] ?? '')) === $code && $code !== '') return $p;
+    }
+    return null;
+}
+
+function promo_discount(array $promo, float $subtotal): float
+{
+    $value = max(0.0, (float)($promo['value'] ?? 0));
+    $d = ($promo['type'] ?? 'percent') === 'amount' ? min($value, $subtotal) : $subtotal * min($value, 100.0) / 100;
+    return round($d, 2);
+}
+
+/** Orders that already used this code. */
+function promo_orders(string $code): array
+{
+    $rows = db_all('SELECT data FROM records WHERE collection = ? AND data LIKE ?', ['orders', '%"promoCode":' . json_encode($code) . '%']);
+    return array_map(fn($r) => json_decode($r['data'], true) ?: [], $rows);
+}
+
+function digits(string $s): string
+{
+    return preg_replace('/\D+/', '', $s) ?? '';
+}
+
+/** ['ok' => true] or ['ok' => false, 'reason' => unknown|inactive|early|expired|used_up|already_used|min, …]. */
+function promo_validate(?array $promo, float $subtotal, array $who = []): array
+{
+    if (!$promo) return ['ok' => false, 'reason' => 'unknown'];
+    if (isset($promo['active']) && !$promo['active']) return ['ok' => false, 'reason' => 'inactive'];
+    $today = gmdate('Y-m-d', time() - 5 * 3600); // the restaurant's day (Montréal)
+    if (!empty($promo['startsAt']) && $today < $promo['startsAt']) return ['ok' => false, 'reason' => 'early'];
+    if (!empty($promo['expiresAt']) && $today > $promo['expiresAt']) return ['ok' => false, 'reason' => 'expired'];
+    $min = (float)($promo['minSubtotal'] ?? 0);
+    if ($min > 0 && $subtotal < $min) return ['ok' => false, 'reason' => 'min', 'minSubtotal' => $min];
+    $maxUses = (int)($promo['maxUses'] ?? 0);
+    $oncePer = !empty($promo['oncePerCustomer']);
+    if ($maxUses > 0 || $oncePer) {
+        $used = promo_orders((string)$promo['code']);
+        if ($maxUses > 0 && count($used) >= $maxUses) return ['ok' => false, 'reason' => 'used_up'];
+        if ($oncePer) {
+            $phone = digits((string)($who['phone'] ?? ''));
+            $email = strtolower(trim((string)($who['email'] ?? '')));
+            foreach ($used as $o) {
+                if (($phone !== '' && digits((string)($o['phone'] ?? '')) === $phone) || ($email !== '' && strtolower((string)($o['email'] ?? '')) === $email)) {
+                    return ['ok' => false, 'reason' => 'already_used'];
+                }
+            }
+        }
+    }
+    return ['ok' => true];
+}
+
+function promo_message(array $check): string
+{
+    return match ($check['reason'] ?? '') {
+        'expired' => 'Ce code promo est expiré.',
+        'early' => "Ce code promo n'est pas encore valide.",
+        'used_up' => "Ce code promo n'est plus disponible.",
+        'already_used' => 'Vous avez déjà utilisé ce code promo.',
+        'min' => 'Ce code demande une commande d’au moins ' . number_format((float)($check['minSubtotal'] ?? 0), 2, ',', ' ') . ' $.',
+        default => 'Code promo invalide.',
+    };
+}
+
+/** The cart asks whether a typed code works (it never sees the list of codes). */
+function promo_check_public(mixed $in): array
+{
+    if (!is_array($in)) throw new HttpError('Requête invalide.', 422);
+    rate_limit('promo-check', 40, 600);
+    $promo = promo_find((string)($in['code'] ?? ''));
+    $check = promo_validate($promo, round((float)($in['subtotal'] ?? 0), 2), ['phone' => (string)($in['phone'] ?? ''), 'email' => (string)($in['email'] ?? '')]);
+    if (!$check['ok']) return $check + ['message' => promo_message($check)];
+    return ['ok' => true, 'code' => $promo['code'], 'type' => ($promo['type'] ?? 'percent') === 'amount' ? 'amount' : 'percent', 'value' => (float)($promo['value'] ?? 0)];
 }
 
 function price_on_menu(string $category, float $price): bool
@@ -548,9 +660,9 @@ function team_remove(string $id): array
 }
 
 const ROLE_TABS = [
-    'proprietaire' => ['dashboard', 'orders', 'reservations', 'menu', 'hours', 'subscribers', 'applications', 'catering', 'content', 'settings', 'team'],
-    'gerant' => ['dashboard', 'orders', 'reservations', 'menu', 'hours', 'applications', 'catering', 'settings'],
-    'marketing' => ['dashboard', 'subscribers', 'content'],
+    'proprietaire' => ['dashboard', 'orders', 'reservations', 'menu', 'hours', 'subscribers', 'promos', 'applications', 'catering', 'content', 'settings', 'team'],
+    'gerant' => ['dashboard', 'orders', 'reservations', 'menu', 'hours', 'promos', 'applications', 'catering', 'settings'],
+    'marketing' => ['dashboard', 'subscribers', 'promos', 'content'],
     'comptoir' => ['orders', 'reservations'],
     'serveur' => ['orders', 'reservations'],
     'cuisine' => ['orders'],
