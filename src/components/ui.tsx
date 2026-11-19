@@ -22,6 +22,7 @@ export function PageHero({
   alt,
   end,
   intro,
+  center,
   children,
 }: {
   kicker: string;
@@ -30,19 +31,21 @@ export function PageHero({
   /** Words after the italic part, e.g. "changé de recette." */
   end?: string;
   intro?: string;
+  /** Center the kicker, title and intro. */
+  center?: boolean;
   children?: ReactNode;
 }) {
   return (
     <section className="bg-paper">
-      <div className="mx-auto max-w-7xl px-5 md:px-10 pt-32 md:pt-44 pb-12 md:pb-20">
+      <div className={`mx-auto max-w-7xl px-5 md:px-10 pt-32 md:pt-44 pb-12 md:pb-20 ${center ? "text-center" : ""}`}>
         <p data-fade data-intro className="script text-red-600 text-5xl md:text-6xl mb-4">
           {kicker}
         </p>
-        <h1 data-reveal data-intro className={`${headingXl} max-w-4xl`}>
+        <h1 data-reveal data-intro className={`${headingXl} max-w-4xl ${center ? "mx-auto" : ""}`}>
           {title} {alt && <Alt>{alt}</Alt>}{end && ` ${end}`}
         </h1>
         {intro && (
-          <p data-fade="0.2" data-intro className="mt-8 max-w-2xl text-lg leading-relaxed text-ink/70">
+          <p data-fade="0.2" data-intro className={`mt-8 max-w-2xl text-lg leading-relaxed text-ink/70 ${center ? "mx-auto" : ""}`}>
             {intro}
           </p>
         )}

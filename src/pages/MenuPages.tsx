@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { commander } from "../components/Navigation";
+import { MenuCarte } from "../components/MenuCarte";
 import { OrderMenu } from "../components/OrderMenu";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnOutline, btnPrimary, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
@@ -12,48 +13,58 @@ import { useCart } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
-import { navigate } from "../lib/router";
 
-/** Menu chooser: dine-in and takeout/delivery are priced differently, so they never share a page. */
+/** Public menu: the menu is shown right away (read-only); the two cards pick how you eat and what the call to action is. */
 export function MenuPage() {
   const { t } = useI18n();
+  const reservations = reservationSettings.use();
+  const info = businessInfo.use();
+  const [how, setHow] = useState<"emporter" | "sur-place">("emporter");
+  const choices = [
+    { id: "emporter", title: t("menu.orderTitle"), sub: t("menu.pickEmporterSub") },
+    { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub") },
+  ] as const;
+
   return (
     <>
-      <PageHero kicker={t("menu.kicker")} title={t("menu.title")} alt={t("menu.titleAlt")} intro={t("menu.intro")} />
+      <PageHero center kicker={t("menu.kicker")} title={t("menu.title")} alt={t("menu.titleAlt")} intro={t("menu.intro")} />
       <section className="bg-paper pb-24 md:pb-36">
-        <div className="mx-auto max-w-7xl px-5 md:px-10 grid md:grid-cols-2 gap-4 md:gap-6">
-          <button
-            data-fade
-            onClick={() => commander("menu-chooser")}
-            className="group relative overflow-hidden rounded-3xl bg-red-700 text-paper text-left min-h-[360px] md:min-h-[460px] flex flex-col justify-end p-8 md:p-12"
-          >
-            <img
-              src={asset("/images/hero.webp")}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-40 mix-blend-multiply transition-transform duration-700 group-hover:scale-105"
-            />
-            <span className="relative script text-orange-soft text-4xl">{t("menu.orderTitle")}</span>
-            <span className="relative mt-3 max-w-sm text-paper/85">{t("menu.orderDesc")}</span>
-            <span className="relative mt-8 w-fit rounded-full bg-paper px-7 py-3.5 text-sm font-bold text-red-700">
-              {t("menu.orderCta")} →
-            </span>
-          </button>
-          <button
-            data-fade="0.1"
-            onClick={() => navigate("/sur-place")}
-            className="group relative overflow-hidden rounded-3xl bg-cream text-ink text-left min-h-[360px] md:min-h-[460px] flex flex-col justify-end p-8 md:p-12"
-          >
-            <img
-              src={asset("/images/pizza.webp")}
-              alt=""
-              className="absolute -top-16 -right-16 w-[70%] max-w-sm transition-transform duration-1000 group-hover:rotate-45"
-            />
-            <span className="relative script text-red-600 text-4xl">{t("menu.surPlaceTitle")}</span>
-            <span className="relative mt-3 max-w-sm text-ink/70">{t("menu.surPlaceDesc")}</span>
-            <span className="relative mt-8 w-fit rounded-full border border-ink/20 px-7 py-3.5 text-sm font-bold">
-              {t("menu.surPlaceCta")} →
-            </span>
-          </button>
+        <div className="mx-auto max-w-7xl px-5 md:px-10">
+          <div data-fade className="mx-auto grid max-w-2xl grid-cols-2 gap-3 md:gap-5 text-center">
+            {choices.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setHow(c.id)}
+                aria-pressed={how === c.id}
+                className={`rounded-3xl px-3 py-6 md:px-6 md:py-8 transition-colors ${
+                  how === c.id ? "bg-red-600 text-paper" : "bg-cream text-ink hover:bg-ink/10"
+                }`}
+              >
+                <span className={`script block text-3xl md:text-4xl ${how === c.id ? "text-paper" : "text-red-600"}`}>{c.title}</span>
+                <span className={`mt-1.5 block text-xs md:text-sm ${how === c.id ? "text-paper/85" : "text-ink/60"}`}>{c.sub}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-8 flex justify-center">
+            {how === "emporter" ? (
+              <button onClick={() => commander("menu-page")} className={btnPrimary}>
+                {t("menu.orderCta")} →
+              </button>
+            ) : reservations.enabled ? (
+              <button onClick={openReservation} className={btnPrimary}>
+                {t("surPlace.reserve")}
+              </button>
+            ) : (
+              <a href={telHref(info.phoneDisplay)} onClick={() => track("call_click", { from: "menu" })} className={btnPrimary}>
+                {t("contact.call")} · {info.phoneDisplay}
+              </a>
+            )}
+          </div>
+
+          <div className="mt-14 md:mt-20">
+            <MenuCarte />
+          </div>
         </div>
       </section>
     </>
