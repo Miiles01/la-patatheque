@@ -609,7 +609,7 @@ export const categoryEn: Record<string, { name: string; note?: string }> = {
   "promos-pizza": { name: "Pizza deals" },
   "sous-marins": {
     name: "Subs",
-    note: "All subs come with melted cheese, fried onions, lettuce, tomatoes and our spice blend (except no. 6: no lettuce or tomatoes)",
+    note: "All subs come with melted cheese, fried onions, lettuce, tomatoes and our spice blend (except the Pizza Sub: no lettuce or tomatoes)",
   },
   "poutines-speciales": { name: "Special poutines" },
   "specialites-italiennes": { name: "Italian specialties", note: "Garlic bread $2.50 · 10\" au gratin $4.50" },

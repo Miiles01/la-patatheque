@@ -21,6 +21,8 @@ export type MenuCategory = {
   note?: string;
   /** Icon id shown on the public menu (see MenuIcons); defaults to the section's own. */
   icon?: string;
+  /** Tab on the public menu this section sits under; sections sharing a tab name share the tab. */
+  tab?: string;
   sizes: string[];
   items: MenuItem[];
   hidden?: boolean;

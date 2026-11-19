@@ -39,7 +39,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const formatPrice = useFormatPrice();
   const { categories, specials } = useMenu();
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
-  const [active, setActive] = useState(GROUPS[0]!.id);
+  const [activeId, setActive] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [edge, setEdge] = useState({ start: true, end: false });
@@ -71,18 +71,29 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
 
   const label = (c: MenuCategory) => (lang === "en" ? categoryEn[c.id]?.name ?? c.name : c.name);
 
-  // Sections the admin added that aren't in a known group land in the last one.
+  // Tabs: sections with the same tab name (set in the admin) share one tab. Without a name, the built-in grouping
+  // applies, and any other section gets a tab of its own. The tab's icon is its first section's icon.
   const groups = useMemo(() => {
-    const known = new Set(GROUPS.flatMap((g) => g.cats));
-    const list = GROUPS.map((g) => ({
-      ...g,
-      items: g.cats.map((id) => categories.find((c) => c.id === id)).filter((c): c is MenuCategory => Boolean(c)),
-    }));
-    list[list.length - 1]!.items.push(...categories.filter((c) => !known.has(c.id)));
-    const withContent = list.filter((g) => g.items.length > 0);
-    if (specials.length) withContent.push({ id: SPECIALS_ID, icon: SPECIALS_ICON, label: "order.specials", cats: [], items: [] });
-    return withContent;
-  }, [categories, specials]);
+    const defaultTab = new Map<string, string>();
+    GROUPS.forEach((g) => g.cats.forEach((id) => defaultTab.set(id, t(g.label as never))));
+    const rank = (id: string) => {
+      const i = GROUPS.findIndex((g) => g.cats.includes(id));
+      return i === -1 ? GROUPS.length : i;
+    };
+    const sorted = categories.map((c, i) => ({ c, i })).sort((x, y) => rank(x.c.id) - rank(y.c.id) || x.i - y.i).map((x) => x.c);
+    const byTitle = new Map<string, { id: string; icon: string; title: string; items: MenuCategory[] }>();
+    for (const c of sorted) {
+      const title = c.tab?.trim() || defaultTab.get(c.id) || label(c);
+      const g = byTitle.get(title) ?? { id: `tab-${byTitle.size}`, icon: c.icon ?? c.id, title, items: [] };
+      g.items.push(c);
+      byTitle.set(title, g);
+    }
+    const list = [...byTitle.values()];
+    if (specials.length) list.push({ id: SPECIALS_ID, icon: SPECIALS_ICON, title: t("order.specials"), items: [] });
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, specials, lang]);
+  const active = activeId ?? groups[0]?.id ?? "";
 
   useEffect(() => {
     const els = groups.map((g) => document.getElementById(`carte-${g.id}`)).filter((e): e is HTMLElement => Boolean(e));
@@ -153,7 +164,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
             >
               <span className="inline-flex items-center gap-2">
                 <Icon id={g.icon} className="h-5 w-5" />
-                {t(g.label as never)}
+                {g.title}
               </span>
             </button>
           ))}
@@ -162,7 +173,7 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
 
       {groups.map((g) => (
         <section key={g.id} id={`carte-${g.id}`} className="pt-8">
-          <p className="alt text-ink/55 mb-3 px-1">{t(g.label as never)}</p>
+          <p className="alt text-ink/55 mb-3 px-1">{g.title}</p>
           <div className="grid gap-3">
             {g.id === SPECIALS_ID ? (
               <Card
@@ -204,7 +215,6 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
                       <li key={`${item.name}-${i}`} className="py-3.5 border-b border-ink/10 last:border-0">
                         <div className="flex items-baseline justify-between gap-4">
                           <span className="font-medium">
-                            {item.num && <span className="mr-2 font-bold text-red-600">{item.num}</span>}
                             {item.name}
                           </span>
                           {!multi && item.prices[0] != null && <Price value={item.prices[0]} item={{ name: dishName(c.id, item.name), category: c.id }} />}
