@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { PROMO_CODE, useCart, type OrderMode } from "../lib/cart";
 import { computeCharges, useCharges } from "../lib/charges";
@@ -26,7 +26,8 @@ type Step = "cart" | "details" | "done";
 
 export function CartDrawer() {
   const cart = useCart();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const formShownAt = useRef(0);
   const formatPrice = useFormatPrice();
   const [step, setStep] = useState<Step>("cart");
   const send = useSend();
@@ -43,6 +44,11 @@ export function CartDrawer() {
   const charges = useCharges();
   const { lines: chargeLines, total } = computeCharges(cart.subtotal - discount, charges);
   const belowMinimum = cart.mode === "livraison" && cart.subtotal < cart.deliveryMinimum;
+
+  // How long the customer spends on the form: a robot sends it instantly.
+  useEffect(() => {
+    if (step === "details") formShownAt.current = Date.now();
+  }, [step]);
 
   useEffect(() => {
     if (!cart.open) return;
@@ -91,6 +97,9 @@ export function CartDrawer() {
       when: when === "asap" ? t("form.asap") : get("time"),
       notes: get("notes") || undefined,
       promoCode: applied?.code,
+      website: get("website"),
+      ttf: Date.now() - formShownAt.current,
+      lang,
       lines: cart.lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
       subtotal: cart.subtotal,
       discount,
@@ -230,6 +239,8 @@ export function CartDrawer() {
                   </div>
                 ) : (
                   <form id="checkout" onSubmit={submit} className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+                    {/* Robot trap: invisible to people; anything typed here marks the order as spam. */}
+                    <input name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 opacity-0" />
                     <TextField label={t("form.name")} name="name" required autoComplete="name" />
                     <TextField label={t("form.phone")} name="phone" type="tel" required autoComplete="tel" />
                     <TextField label={t("form.email")} optional={t("form.optional")} name="email" type="email" autoComplete="email" />

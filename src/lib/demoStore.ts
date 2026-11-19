@@ -28,6 +28,10 @@ export type Order = {
   when: string;
   notes?: string;
   promoCode?: string;
+  /** Anti-abuse signals sent with the order (the server reads and drops them): hidden robot trap, ms spent on the form, site language. */
+  website?: string;
+  ttf?: number;
+  lang?: string;
   /** Taxes and fees added to the bill (see lib/charges). */
   charges?: { id: string; name: string; percent: number; amount: number }[];
   lines: OrderLine[];

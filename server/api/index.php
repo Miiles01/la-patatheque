@@ -157,7 +157,15 @@ function record_create(string $c, mixed $data): array
 {
     if (!isset(COLLECTIONS[$c]) || !is_array($data)) throw new HttpError('Introuvable.', 404);
     // Staff taking orders in the panel aren't limited.
-    if (!($c === 'orders' && member_can('orders'))) rate_limit("post:$c", $c === 'events' ? 120 : 20, 600);
+    $publicOrder = $c === 'orders' && !member_can('orders');
+    if (!($c === 'orders' && !$publicOrder)) rate_limit("post:$c", $c === 'events' ? 120 : 20, 600);
+    $src = '';
+    $lang = ($data['lang'] ?? 'fr') === 'en' ? 'en' : 'fr';
+    if ($publicOrder) {
+        $src = order_src();
+        // A robot is told it worked; nothing is saved.
+        if (order_guard_before($data, $src)) return ['id' => strtoupper(bin2hex(random_bytes(3))), 'createdAt' => gmdate('Y-m-d\TH:i:s.v\Z')];
+    }
 
     $data = match ($c) {
         'orders' => clean_order($data),
@@ -168,6 +176,11 @@ function record_create(string $c, mixed $data): array
     };
     if (isset($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) throw new HttpError('Courriel invalide.', 422);
 
+    if ($publicOrder) {
+        order_guard_count($data, $src, $lang);
+        $data['src'] = $src; // who sent it, kept to spot floods; never sent back to the customer
+    }
+
     $id = strtoupper(bin2hex(random_bytes(3)));
     $cv = $data['_cv'] ?? null;
     unset($data['_cv']);
@@ -176,6 +189,7 @@ function record_create(string $c, mixed $data): array
         $data['cv'] = ['name' => $cv['name'], 'size' => strlen($cv['bytes']), 'type' => $cv['type'], 'url' => "api/cv/$id"];
     }
     db_run('INSERT INTO records (id, collection, data, created_at) VALUES (?, ?, ?, UTC_TIMESTAMP(3))', [$id, $c, json_encode($data, JSON_UNESCAPED_UNICODE)]);
+    unset($data['src']);
     return ['id' => $id, 'createdAt' => gmdate('Y-m-d\TH:i:s.v\Z')] + $data;
 }
 
@@ -287,6 +301,95 @@ function clean_order(array $data): array
         'status' => 'nouvelle',
         'paid' => false,
     ];
+}
+
+// ---------------------------------------------------------------- order abuse guard
+
+/**
+ * Public orders only. Real customers send one, sometimes two; someone flooding the kitchen with fake orders is cut off:
+ *   – 4 orders within 2 minutes (a script)            → blocked for 1 hour
+ *   – 6 orders within 1 hour                          → blocked for 3 hours
+ *   – 10 orders within 24 hours                       → blocked for 24 hours
+ * "Same person" = same connection or same phone number. When the limit is hit, their orders that are still waiting
+ * (status "nouvelle", not paid) are deleted so the kitchen doesn't prepare them; anything already being prepared stays.
+ * Also: a hidden form field only robots fill in, and a form sent faster than a person can type is refused.
+ */
+const ORDER_TIERS = [[120, 4, 3600], [3600, 6, 10800], [86400, 10, 86400]];
+
+function order_src(): string
+{
+    return substr(hash('sha256', 'src|' . visitor_ip()), 0, 16);
+}
+
+function block_key(string $src): string
+{
+    return substr(hash('sha256', 'block|' . $src), 0, 32);
+}
+
+function order_block_seconds(string $src): int
+{
+    $row = db_one('SELECT TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), MAX(at)) AS s FROM hits WHERE k = ? AND at > UTC_TIMESTAMP()', [block_key($src)]);
+    return max(0, (int)($row['s'] ?? 0));
+}
+
+function wait_label(int $seconds, string $lang): string
+{
+    $m = max(1, (int)ceil($seconds / 60));
+    if ($m < 60) return $lang === 'en' ? "$m minute" . ($m > 1 ? 's' : '') : "$m minute" . ($m > 1 ? 's' : '');
+    $h = (int)ceil($m / 60);
+    return $lang === 'en' ? "$h hour" . ($h > 1 ? 's' : '') : "$h heure" . ($h > 1 ? 's' : '');
+}
+
+function abuse_error(string $kind, int $seconds, string $lang): HttpError
+{
+    $wait = wait_label($seconds, $lang);
+    $msg = match ([$kind, $lang]) {
+        ['blocked', 'en'] => "Ordering is temporarily suspended from this connection for security. Try again in $wait, or call the restaurant.",
+        ['blocked', 'fr'] => "Les commandes sont suspendues temporairement depuis cette connexion, par sécurité. Réessayez dans $wait, ou appelez le restaurant.",
+        ['tripped', 'en'] => "You sent too many orders in a short time. For security we cancelled your pending orders. You can place a single new order in $wait.",
+        ['tripped', 'fr'] => "Vous avez envoyé trop de commandes en peu de temps. Par sécurité, nous avons annulé vos commandes en attente. Vous pourrez refaire une seule commande dans $wait.",
+        ['fast', 'en'] => 'That was sent too fast. Check your details and try again.',
+        default => 'Envoyé trop vite. Vérifiez vos informations et réessayez.',
+    };
+    return new HttpError($msg, 429);
+}
+
+/** Before the order is read: robots and blocked connections. Returns true when the order must be silently dropped (a robot). */
+function order_guard_before(array $in, string $src): bool
+{
+    $lang = ($in['lang'] ?? 'fr') === 'en' ? 'en' : 'fr';
+    // A field no person sees: only a script fills it in. It is told everything went fine.
+    if (trim((string)($in['website'] ?? '')) !== '') return true;
+    $left = order_block_seconds($src);
+    if ($left > 0) throw abuse_error('blocked', $left, $lang);
+    if (isset($in['ttf']) && is_numeric($in['ttf']) && (int)$in['ttf'] < 1200) throw abuse_error('fast', 0, $lang);
+    return false;
+}
+
+/** After the order is checked, before it is saved: is this person sending too many? */
+function order_guard_count(array $order, string $src, string $lang): void
+{
+    $phone = digits((string)($order['phone'] ?? ''));
+    $rows = db_all("SELECT id, data, TIMESTAMPDIFF(SECOND, created_at, UTC_TIMESTAMP(3)) AS age FROM records WHERE collection = 'orders' AND created_at > UTC_TIMESTAMP(3) - INTERVAL 1 DAY ORDER BY created_at DESC LIMIT 1000");
+    $mine = [];
+    foreach ($rows as $r) {
+        $d = json_decode($r['data'], true) ?: [];
+        $same = ($d['src'] ?? '') === $src || (strlen($phone) >= 7 && digits((string)($d['phone'] ?? '')) === $phone);
+        if ($same) $mine[] = ['id' => $r['id'], 'age' => (int)$r['age'], 'pending' => ($d['status'] ?? '') === 'nouvelle' && empty($d['paid'])];
+    }
+    foreach (ORDER_TIERS as [$window, $max, $block]) {
+        $n = count(array_filter($mine, fn($m) => $m['age'] <= $window));
+        if ($n + 1 < $max) continue; // this order would be the one that reaches the limit
+        $cancel = array_values(array_map(fn($m) => $m['id'], array_filter($mine, fn($m) => $m['pending'])));
+        foreach ($cancel as $id) db_run("DELETE FROM records WHERE collection = 'orders' AND id = ?", [$id]);
+        db_run('INSERT INTO hits (k, at) VALUES (?, UTC_TIMESTAMP() + INTERVAL ? SECOND)', [block_key($src), $block]);
+        // A trace for the owner (not shown on the site).
+        db_run(
+            "INSERT INTO records (id, collection, data, created_at) VALUES (?, 'security', ?, UTC_TIMESTAMP(3))",
+            [strtoupper(bin2hex(random_bytes(3))), json_encode(['event' => 'orders_blocked', 'src' => $src, 'orders' => $n + 1, 'windowSeconds' => $window, 'cancelled' => count($cancel), 'blockedSeconds' => $block], JSON_UNESCAPED_UNICODE)],
+        );
+        throw abuse_error('tripped', $block, $lang);
+    }
 }
 
 // ---------------------------------------------------------------- discount codes
