@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dishName, type MenuCategory } from "../data/menu";
 import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
@@ -39,6 +39,18 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
   const { categories, specials } = useMenu();
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
   const [active, setActive] = useState(GROUPS[0]!.id);
+  const barRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+
+  // The cover under the site header only exists while the tab bar is stuck to it.
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([e]) => setStuck(!e!.isIntersecting && e!.boundingClientRect.top < 76), { rootMargin: "-76px 0px 0px 0px" });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   /** A price: plain text when dining in, an add-to-cart button for takeout. */
   const Price = ({ value, item, className = "" }: { value: number; item: { name: string; size?: string; category?: string }; className?: string }) =>
@@ -92,20 +104,26 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
 
   const go = (id: string) => {
     setActive(id);
-    scrollToHash(`#carte-${id}`, -150);
+    scrollToHash(`#carte-${id}`, -(76 + (barRef.current?.offsetHeight ?? 60) + 8));
   };
 
   return (
     <div className="mx-auto max-w-2xl">
-      <div className="sticky top-[76px] z-10 -mx-5 px-5 py-3 bg-paper md:mx-0 md:px-0 before:absolute before:inset-x-0 before:bottom-full before:h-[76px] before:bg-paper before:content-['']">
-        <div role="tablist" className="flex overflow-x-auto rounded-2xl border border-ink/15 bg-paper [scrollbar-width:none]">
+      <div ref={sentinelRef} aria-hidden="true" className="h-px" />
+      <div
+        ref={barRef}
+        className={`sticky top-[76px] z-10 -mx-5 px-5 py-3 bg-paper md:mx-0 md:px-0 ${
+          stuck ? "before:absolute before:inset-x-0 before:bottom-full before:h-[76px] before:bg-paper before:content-['']" : ""
+        }`}
+      >
+        <div role="tablist" className="flex overflow-x-auto rounded-2xl border border-ink/15 bg-paper [scrollbar-width:none] md:flex-wrap md:justify-center">
           {groups.map((g) => (
             <button
               key={g.id}
               role="tab"
               aria-selected={active === g.id}
               onClick={() => go(g.id)}
-              className={`shrink-0 grow px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+              className={`shrink-0 grow px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors md:grow-0 md:px-5 ${
                 active === g.id ? "bg-red-600 text-paper" : "text-ink/70 hover:text-ink"
               }`}
             >
