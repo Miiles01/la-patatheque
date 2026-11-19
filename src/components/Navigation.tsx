@@ -100,15 +100,18 @@ function CopyPhone() {
 /** Hides the header while scrolling down and brings it back when scrolling up (only where `enabled`). */
 function useHideOnScroll(enabled: boolean) {
   const [hidden, setHidden] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setHidden(false);
+      setScrolled(false);
       return;
     }
     let last = window.scrollY;
     const onScroll = () => {
       const y = window.scrollY;
+      setScrolled(y > 80);
       if (y < 80) setHidden(false);
       else if (y > last + 4) setHidden(true);
       else if (y < last - 4) setHidden(false);
@@ -118,10 +121,11 @@ function useHideOnScroll(enabled: boolean) {
     return () => {
       window.removeEventListener("scroll", onScroll);
       setHidden(false);
+      setScrolled(false);
     };
   }, [enabled]);
 
-  return hidden;
+  return { hidden, scrolled };
 }
 
 export function Navigation() {
@@ -131,11 +135,11 @@ export function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
   const dark = useDarkBackdrop(route);
   const onDark = dark && !menuOpen;
-  const hideOnScroll = useHideOnScroll(route === "/menu" && !menuOpen);
+  const { hidden: hideOnScroll, scrolled: solidBar } = useHideOnScroll(route === "/menu" && !menuOpen);
 
   return (
     <>
-      <header className={`fixed inset-x-0 top-0 z-[80] pointer-events-none transition-transform duration-300 ${hideOnScroll ? "-translate-y-full" : ""}`}>
+      <header className={`fixed inset-x-0 top-0 z-[80] pointer-events-none transition-transform duration-300 ${hideOnScroll ? "-translate-y-full" : ""} ${solidBar ? "bg-paper/95 backdrop-blur" : ""}`}>
         <div className="mx-auto max-w-7xl px-5 md:px-10 h-[72px] flex items-center justify-between">
           <Link
             to="/"

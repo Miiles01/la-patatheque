@@ -4,6 +4,10 @@ import { useCart } from "../lib/cart";
 import { useMenu } from "../lib/menuStore";
 import { categoryEn, useFormatPrice, useI18n } from "../lib/i18n";
 import { MenuIcon as Icon, SPECIALS_ICON } from "./MenuIcons";
+import { openReservation } from "./ReservationModal";
+import { btnOutline, btnPrimary } from "./ui";
+import { businessInfo, telHref } from "../lib/business";
+import { reservationSettings } from "../lib/reservations";
 
 const SPECIALS_ID = "super-speciaux";
 
@@ -36,6 +40,8 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
     setToast(`${item.name}${item.size ? ` · ${item.size}` : ""}`);
   };
   const formatPrice = useFormatPrice();
+  const reservations = reservationSettings.use();
+  const info = businessInfo.use();
   const { categories, specials } = useMenu();
   const [open, setOpen] = useState<Set<string>>(() => new Set([GROUPS[0]!.cats[0]!]));
 
@@ -159,6 +165,26 @@ export function MenuCarte({ orderable = false }: { orderable?: boolean }) {
       ))}
 
       <p className="mt-12 text-center text-xs text-ink/45">{t("order.prices")}</p>
+
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        {orderable ? (
+          <button onClick={() => cart.setOpen(true)} className={btnPrimary}>
+            {t("order.viewCart")}
+            {cart.count > 0 ? ` (${cart.count})` : ""}
+          </button>
+        ) : reservations.enabled ? (
+          <button onClick={openReservation} className={btnPrimary}>
+            {t("surPlace.reserve")}
+          </button>
+        ) : (
+          <a href={telHref(info.phoneDisplay)} className={btnPrimary}>
+            {t("contact.call")} · {info.phoneDisplay}
+          </a>
+        )}
+        <button onClick={() => setOpen(new Set())} className={btnOutline}>
+          {t("carte.collapse")}
+        </button>
+      </div>
 
       {toast && (
         <div role="status" className="fixed z-[60] left-1/2 -translate-x-1/2 bottom-6 md:bottom-8 flex items-center gap-4 rounded-full bg-ink text-paper pl-5 pr-2 py-2 shadow-xl max-w-[92vw]">

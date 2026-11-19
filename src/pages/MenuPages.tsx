@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { MenuCarte } from "../components/MenuCarte";
 import { openReservation } from "../components/ReservationModal";
-import { Alt, btnOutline, btnPrimary, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
+import { Alt, btnOutline, btnPrimary, headingXl, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
 import { businessInfo, telHref } from "../lib/business";
@@ -46,28 +46,48 @@ export function MenuPage() {
 
   return (
     <>
-      <PageHero center kicker={t("menu.kicker")} title={t("menu.title")} alt={t("menu.titleAlt")} />
-      <section className="bg-paper pb-24 md:pb-36">
+      <section
+        data-nav="dark"
+        className="relative isolate overflow-hidden bg-[#150102] text-paper min-h-[max(100svh,calc(129vw+22rem))] md:min-h-[max(100svh,calc(40vw+21rem))]"
+      >
+        {/* Photo sits at the bottom at its own proportions; its dark top melts into the section so the title stays on plain velvet. */}
+        <div className="absolute inset-x-0 bottom-0 -z-10">
+          <picture>
+            <source media="(min-width: 768px)" srcSet={asset("/images/menu-hero.webp")} />
+            <img src={asset("/images/menu-hero-mobile.webp")} alt="" className="block h-auto w-full" />
+          </picture>
+          <div className="absolute inset-x-0 top-0 h-[22%] bg-gradient-to-b from-[#150102] to-transparent" />
+        </div>
+        <div className="mx-auto max-w-7xl px-5 pt-32 text-center md:px-10 md:pt-40">
+          <p data-fade data-intro className="script mb-4 text-5xl text-orange-soft md:text-6xl">
+            {t("menu.kicker")}
+          </p>
+          <h1 data-reveal data-intro className={`${headingXl.replace("text-ink", "text-paper")} mx-auto max-w-4xl`}>
+            {t("menu.title")} <Alt className="text-orange-soft">{t("menu.titleAlt")}</Alt>
+          </h1>
+        </div>
+        {/* Under the sandwich, on the empty tabletop, so it never covers the photo. */}
+        {how && (
+          <div className="absolute inset-x-0 bottom-5 flex justify-center px-5 md:bottom-7">
+            <div role="group" aria-label={t("menu.popupTitle")} className="flex w-fit max-w-full gap-0.5 rounded-full bg-ink/45 p-0.5 text-center backdrop-blur">
+              {choices.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => choose(c.id)}
+                  aria-pressed={how === c.id}
+                  className={`rounded-full px-4 py-2 text-xs font-bold whitespace-nowrap transition-colors md:px-6 md:py-2.5 md:text-sm ${how === c.id ? "bg-red-600 text-paper" : "text-paper/80 hover:text-paper"}`}
+                >
+                  {c.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="bg-paper pb-24 pt-12 md:pb-36 md:pt-16">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          {how && (
-            <>
-              <div role="group" aria-label={t("menu.popupTitle")} className="mx-auto flex w-fit max-w-full gap-1 rounded-full bg-ink/5 p-1 text-center">
-                {choices.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => choose(c.id)}
-                    aria-pressed={how === c.id}
-                    className={`rounded-full px-5 py-3 text-sm font-bold whitespace-nowrap transition-colors md:px-8 ${how === c.id ? "bg-red-600 text-paper" : "text-ink/60 hover:text-ink"}`}
-                  >
-                    {c.title}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-10 md:mt-14">
-                <MenuCarte key={how} orderable={how === "emporter"} />
-              </div>
-            </>
-          )}
+          {how && <MenuCarte key={how} orderable={how === "emporter"} />}
         </div>
       </section>
 
