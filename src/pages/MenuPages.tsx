@@ -111,9 +111,9 @@ export function MenuPage() {
                 <button
                   key={c.id}
                   onClick={() => choose(c.id)}
-                  className="w-72 max-w-full rounded-3xl bg-paper px-6 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:py-14"
+                  className="flex h-40 w-72 max-w-full flex-col items-center justify-center rounded-3xl bg-paper px-4 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:h-52 md:w-[22rem]"
                 >
-                  <span className="script block text-4xl text-red-600 md:text-5xl">{c.title}</span>
+                  <span className="script block whitespace-nowrap text-4xl text-red-600 md:text-[2.75rem]">{c.title}</span>
                   <span className="mt-2 block text-sm text-ink/60 md:text-base">{c.sub}</span>
                 </button>
               ))}
