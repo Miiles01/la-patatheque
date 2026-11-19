@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState, type FormEvent } from "react";
 import { MenuCarte } from "../components/MenuCarte";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnOutline, btnPrimary, PageHero, SelectField, Success, TextArea, TextField } from "../components/ui";
@@ -11,47 +12,95 @@ import { useCart } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
-import { navigate } from "../lib/router";
+import { scrollToTop, startScroll, stopScroll } from "../lib/motion";
 
-/** Menu chooser: pick how you eat (dine-in first). Each choice opens its own page with the menu. */
+/**
+ * The menu page. A full-screen pop-up first asks how you eat (dine-in first); picking one closes it and shows the menu:
+ * dine-in is read-only, takeout has add-to-cart buttons.
+ */
 export function MenuPage() {
   const { t } = useI18n();
   const cart = useCart();
+  const [how, setHow] = useState<"emporter" | "sur-place" | null>(null);
   const choices = [
-    { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub"), go: () => navigate("/sur-place") },
-    {
-      id: "emporter",
-      title: t("menu.orderTitle"),
-      sub: t("menu.pickEmporterSub"),
-      go: () => {
-        if (cart.modes.includes("emporter")) cart.setMode("emporter");
-        navigate("/commander");
-      },
-    },
+    { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub") },
+    { id: "emporter", title: t("menu.orderTitle"), sub: t("menu.pickEmporterSub") },
   ] as const;
+
+  const choose = (id: "emporter" | "sur-place") => {
+    setHow(id);
+    if (id === "emporter" && cart.modes.includes("emporter")) cart.setMode("emporter");
+    scrollToTop(false);
+  };
+
+  // The page behind the pop-up doesn't scroll until a choice is made.
+  useEffect(() => {
+    if (how !== null) return;
+    stopScroll();
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+      startScroll();
+    };
+  }, [how]);
 
   return (
     <>
-      <PageHero center kicker={t("menu.kicker")} title={t("menu.title")} alt={t("menu.titleAlt")} intro={t("menu.intro")} />
+      <PageHero center kicker={t("menu.kicker")} title={t("menu.title")} alt={t("menu.titleAlt")} />
       <section className="bg-paper pb-24 md:pb-36">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          <div data-fade className="mx-auto grid max-w-2xl grid-cols-2 gap-3 md:gap-5 text-center">
-            {choices.map((c, i) => (
-              <button
-                key={c.id}
-                onClick={c.go}
-                className={`rounded-3xl px-3 py-8 md:px-6 md:py-12 transition-colors ${
-                  i === 0 ? "bg-cream text-ink hover:bg-ink/10" : "bg-red-600 text-paper hover:bg-red-700"
-                }`}
-              >
-                <span className={`script block text-3xl md:text-5xl ${i === 0 ? "text-red-600" : "text-paper"}`}>{c.title}</span>
-                <span className={`mt-2 block text-xs md:text-base ${i === 0 ? "text-ink/60" : "text-paper/85"}`}>{c.sub}</span>
-                <span className={`mt-5 block text-sm font-bold ${i === 0 ? "text-ink" : "text-paper"}`}>{t("menu.seeMenu")} →</span>
-              </button>
-            ))}
-          </div>
+          {how && (
+            <>
+              <div role="group" aria-label={t("menu.popupTitle")} className="mx-auto grid max-w-md grid-cols-2 gap-1 rounded-full bg-ink/5 p-1 text-center">
+                {choices.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => choose(c.id)}
+                    aria-pressed={how === c.id}
+                    className={`rounded-full px-5 py-3 text-sm font-bold transition-colors ${how === c.id ? "bg-red-600 text-paper" : "text-ink/60 hover:text-ink"}`}
+                  >
+                    {c.title}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-10 md:mt-14">
+                <MenuCarte key={how} orderable={how === "emporter"} />
+              </div>
+            </>
+          )}
         </div>
       </section>
+
+      <AnimatePresence>
+        {how === null && (
+          <motion.div
+            key="menu-chooser"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("menu.popupTitle")}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[89] flex flex-col items-center justify-center overflow-y-auto bg-red-700 px-5 py-12 text-center text-paper"
+          >
+            <p className="script text-orange-soft text-4xl md:text-6xl">{t("menu.kicker")}</p>
+            <h2 className="mt-3 font-display text-[clamp(2rem,6vw,4rem)] font-extrabold leading-tight tracking-tight text-balance">{t("menu.popupTitle")}</h2>
+            <div className="mt-10 grid w-full max-w-2xl gap-4 md:grid-cols-2 md:gap-6">
+              {choices.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => choose(c.id)}
+                  className="rounded-3xl bg-paper px-6 py-9 text-ink transition-transform duration-300 hover:scale-[1.03] active:scale-[0.98] md:py-14"
+                >
+                  <span className="script block text-4xl text-red-600 md:text-5xl">{c.title}</span>
+                  <span className="mt-2 block text-sm text-ink/60 md:text-base">{c.sub}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
