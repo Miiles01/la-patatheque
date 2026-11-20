@@ -81,6 +81,16 @@
         "description": "La Patathèque, 13640 Sherbrooke St. East, Montréal, Quebec H1A 4B2. Opening hours, phone 514 642-2557 and directions to find us easily."
       }
     },
+    "/confidentialite": {
+      "fr": {
+        "title": "Politique de confidentialité | La Patathèque",
+        "description": "Comment La Patathèque recueille, utilise et protège vos renseignements personnels : commandes, réservations, courriels, vos droits d'accès et nos coordonnées."
+      },
+      "en": {
+        "title": "Privacy policy | La Patathèque",
+        "description": "How La Patathèque collects, uses and protects your personal information: orders, bookings, emails, your access rights and how to reach us."
+      }
+    },
     "/admin": {
       "fr": {
         "title": "Administration | La Patathèque",

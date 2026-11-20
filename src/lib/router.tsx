@@ -13,11 +13,12 @@ export type Route =
   | "/a-propos"
   | "/carrieres"
   | "/nous-joindre"
+  | "/confidentialite"
   | "/admin"
   /** Any address that isn't a page: shows the 404 page. Never linked, never in the sitemap. */
   | "/404";
 
-export const ROUTES: Route[] = ["/", "/menu", "/commander", "/sur-place", "/traiteur", "/a-propos", "/carrieres", "/nous-joindre", "/admin"];
+export const ROUTES: Route[] = ["/", "/menu", "/commander", "/sur-place", "/traiteur", "/a-propos", "/carrieres", "/nous-joindre", "/confidentialite", "/admin"];
 
 const BASE = import.meta.env.BASE_URL; // "/" or "/la-patatheque/"
 const CHANGE = "patatheque-route-change";

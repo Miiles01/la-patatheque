@@ -6,7 +6,6 @@ import { useHours } from "../pages/InfoPages";
 import { DrawLogo } from "./DrawLogo";
 import { SweepLink } from "./LineLink";
 import { SOCIALS } from "./Navigation";
-import { openPolicy } from "./PolicyModal";
 
 export function Footer() {
   const { t } = useI18n();
@@ -86,7 +85,9 @@ export function Footer() {
         <div className="py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-paper/60">
           <span>© {year} La Patathèque · Rivière-des-Prairies – Pointe-aux-Trembles</span>
           <div className="flex items-center gap-5">
-            <SweepLink onClick={openPolicy}>{t("footer.privacy")}</SweepLink>
+            <SweepLink href={routeHref("/confidentialite")} onClick={() => navigate("/confidentialite")}>
+              {t("footer.privacy")}
+            </SweepLink>
             <SweepLink href={routeHref("/admin")} onClick={() => navigate("/admin")}>
               {t("footer.admin")}
             </SweepLink>

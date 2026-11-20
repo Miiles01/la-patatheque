@@ -2,7 +2,6 @@ import { lazy, Suspense, useEffect } from "react";
 import { CartDrawer } from "./components/CartDrawer";
 import { Footer } from "./components/Footer";
 import { Navigation } from "./components/Navigation";
-import { PolicyModal } from "./components/PolicyModal";
 import { PromoPopup } from "./components/PromoPopup";
 import { ReservationModal } from "./components/ReservationModal";
 import { CartProvider } from "./lib/cart";
@@ -13,6 +12,7 @@ import { usePageMeta } from "./lib/seo";
 import { Home } from "./pages/Home";
 import { AboutPage, CareersPage, ContactPage, NotFoundPage } from "./pages/InfoPages";
 import { CateringPage, MenuPage, OrderPage, SurPlacePage } from "./pages/MenuPages";
+import { PrivacyPage } from "./pages/PrivacyPage";
 
 // The admin panel is only for staff: load its code on demand so visitors don't download it.
 const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.AdminPage })));
@@ -31,6 +31,7 @@ const PAGES: Record<Exclude<Route, "/admin">, () => React.JSX.Element> = {
   "/a-propos": AboutPage,
   "/carrieres": CareersPage,
   "/nous-joindre": ContactPage,
+  "/confidentialite": PrivacyPage,
   "/404": NotFoundPage,
 };
 
@@ -48,7 +49,6 @@ function Site({ route }: { route: Exclude<Route, "/admin"> }) {
       <CartDrawer />
       <PromoPopup />
       <ReservationModal />
-      <PolicyModal />
     </>
   );
 }
