@@ -9,6 +9,8 @@ import { I18nProvider, useI18n } from "./lib/i18n";
 import { scrollToTop, useScrollEffects, useSmoothScroll } from "./lib/motion";
 import { useRoute, type Route } from "./lib/router";
 import { usePageMeta } from "./lib/seo";
+import { useMetaPixel } from "./lib/metaPixel";
+import { ConsentBanner } from "./components/ConsentBanner";
 import { Home } from "./pages/Home";
 import { AboutPage, CareersPage, ContactPage, NotFoundPage } from "./pages/InfoPages";
 import { CateringPage, MenuPage, OrderPage, SurPlacePage } from "./pages/MenuPages";
@@ -19,6 +21,7 @@ const AdminPage = lazy(() => import("./pages/Admin").then((m) => ({ default: m.A
 
 function PageMeta({ route }: { route: Route }) {
   usePageMeta(route, useI18n().lang);
+  useMetaPixel(route);
   return null;
 }
 
@@ -48,6 +51,7 @@ function Site({ route }: { route: Exclude<Route, "/admin"> }) {
       <Footer />
       <CartDrawer />
       <PromoPopup />
+      <ConsentBanner />
       <ReservationModal />
     </>
   );

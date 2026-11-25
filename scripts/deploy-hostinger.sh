@@ -14,7 +14,8 @@ REMOTE="domains/$SITE/public_html"
 cd "$(dirname "$0")/.."
 ssh_() { ssh -i "$SSH_KEY" -p "$SSH_PORT" "$SSH_HOST" "$@"; }
 
-VITE_API=/api/ npm run build
+# The Meta Pixel only on the real site (the demo build has none).
+VITE_API=/api/ VITE_META_PIXEL=2355373964868543 npm run build
 mkdir -p dist/api
 cp server/api/index.php server/api/lib.php server/api/migrate.php server/api/.htaccess dist/api/
 cp src/data/menu.json dist/api/menu-default.json

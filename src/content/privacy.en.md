@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective date:** November 19, 2026
+**Effective date:** November 24, 2026
 
 This Privacy Policy explains how **La Patathèque** ("we," "us," or "our") collects, uses, discloses, and protects personal information when you visit **patatheque.ca**, contact us, sign up for our communications, make a reservation, place an order, or otherwise interact with our restaurant. If the French and English versions differ, the French version prevails.
 
@@ -76,11 +76,13 @@ We may need to verify your identity before handling your request. We will reply 
 
 ## 8. Cookies and analytics
 
-We do not use cookies or analytics tools, other than technologies the website needs to work, such as remembering your language, your cart, and staff logins to the admin area.
+Without your consent, we only use technologies the website needs to work, such as remembering your language, your cart, and staff logins to the admin area.
 
 The map on the "Contact" page and the site's fonts are provided by Google. Your browser sends your IP address to Google when they load, and Google may set its own cookies under its privacy policy.
 
-If we add analytics or advertising tools, they will stay off until you accept them, and we will update this policy.
+Only with your consent, we use the Meta pixel (Facebook and Instagram) to measure how well our ads work. When it is on, your browser sends Meta Platforms the pages you visit on our site, your IP address, and information about your device, and Meta may set its own cookies under its privacy policy. This information may be processed outside Quebec. The pixel stays off until you accept it in the banner shown on your first visit, and it is never loaded in the admin area.
+
+You can change your mind at any time with the "Cookies" link at the bottom of every page.
 
 ## 9. Children
 

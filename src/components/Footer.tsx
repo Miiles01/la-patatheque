@@ -1,6 +1,8 @@
 import { restaurant } from "../data/menu";
 import { businessInfo, telHref } from "../lib/business";
 import { useI18n } from "../lib/i18n";
+import { openConsent } from "../lib/consent";
+import { PIXEL_ID } from "../lib/metaPixel";
 import { navigate, type Route, routeHref } from "../lib/router";
 import { useHours } from "../pages/InfoPages";
 import { DrawLogo } from "./DrawLogo";
@@ -88,6 +90,7 @@ export function Footer() {
             <SweepLink href={routeHref("/confidentialite")} onClick={() => navigate("/confidentialite")}>
               {t("footer.privacy")}
             </SweepLink>
+            {PIXEL_ID && <SweepLink onClick={openConsent}>{t("footer.cookies")}</SweepLink>}
             <SweepLink href={routeHref("/admin")} onClick={() => navigate("/admin")}>
               {t("footer.admin")}
             </SweepLink>

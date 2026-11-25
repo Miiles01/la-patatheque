@@ -1,6 +1,6 @@
 # Politique de confidentialité
 
-**Date d'entrée en vigueur :** 19 novembre 2026
+**Date d'entrée en vigueur :** 24 novembre 2026
 
 La présente politique explique comment **La Patathèque** (« nous », « notre » ou « nos ») recueille, utilise, communique et protège les renseignements personnels lorsque vous visitez **patatheque.ca**, communiquez avec nous, vous inscrivez à nos communications, faites une réservation, passez une commande ou interagissez autrement avec notre restaurant.
 
@@ -76,11 +76,13 @@ Nous pouvons devoir vérifier votre identité avant de traiter votre demande. No
 
 ## 8. Témoins et outils d'analyse
 
-Nous n'utilisons pas de témoins ni d'outils d'analyse, sauf les technologies nécessaires au fonctionnement du site Web, comme la mémorisation de votre langue, de votre panier et de la connexion du personnel à l'espace d'administration.
+Sans votre accord, nous n'utilisons que les technologies nécessaires au fonctionnement du site Web, comme la mémorisation de votre langue, de votre panier et de la connexion du personnel à l'espace d'administration.
 
 La carte de la page « Nous joindre » et les polices de caractères du site sont fournies par Google. Votre navigateur transmet alors votre adresse IP à Google, qui peut déposer ses propres témoins selon sa politique de confidentialité.
 
-Si nous ajoutons des outils d'analyse ou de publicité, ils resteront désactivés tant que vous ne les aurez pas acceptés, et nous mettrons la présente politique à jour.
+Avec votre accord seulement, nous utilisons le pixel de Meta (Facebook et Instagram) pour mesurer l'efficacité de nos publicités. Lorsqu'il est activé, votre navigateur transmet à Meta Platforms les pages visitées sur notre site, votre adresse IP et des renseignements sur votre appareil, et Meta peut déposer ses propres témoins selon sa politique de confidentialité. Ces renseignements peuvent être traités à l'extérieur du Québec. Le pixel reste désactivé tant que vous ne l'avez pas accepté dans le bandeau qui s'affiche à votre première visite, et il n'est jamais chargé dans l'espace d'administration.
+
+Vous pouvez changer d'avis en tout temps avec le lien « Témoins » au bas de chaque page.
 
 ## 9. Enfants
 

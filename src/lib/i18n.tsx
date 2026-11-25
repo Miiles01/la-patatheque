@@ -310,6 +310,7 @@ const fr = {
   "footer.payment": "Paiement",
   "footer.social": "Social",
   "footer.privacy": "Politique de confidentialité",
+  "footer.cookies": "Témoins",
   "footer.delivery": "Commandez en ligne, cueillette au comptoir",
   "footer.admin": "Espace admin (démo)",
 
@@ -614,6 +615,7 @@ const en: Record<Key, string> = {
   "footer.payment": "Payment",
   "footer.social": "Social",
   "footer.privacy": "Privacy policy",
+  "footer.cookies": "Cookies",
   "footer.delivery": "Order online, pick up at the counter",
   "footer.admin": "Admin area (demo)",
 
