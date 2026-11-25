@@ -57,7 +57,8 @@ function Hero() {
 const HERO_VIDEO = window.matchMedia("(min-width: 1024px)").matches ? "/video/hero-1080.mp4" : "/video/hero-720.mp4";
 
 /** Drone shot of the restaurant on Sherbrooke East: silent, looping, with the same parallax as before. */
-function HeroImage() {
+// Hidden for now (not rendered in Home); exported so it stays ready to put back.
+export function HeroImage() {
   // iPhones in Low Power Mode (and slow connections) don't autoplay; Safari then
   // paints the video black. The cover photo sits underneath and the video only
   // shows once it is really playing.
@@ -404,7 +405,7 @@ export function Home() {
   return (
     <>
       <Hero />
-      <HeroImage />
+      {/* Hero video hidden for now; put <HeroImage /> back here to show it again. */}
       <BestSellers />
       <Modes />
       <Gallery />
