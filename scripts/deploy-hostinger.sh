@@ -8,7 +8,7 @@ set -euo pipefail
 SSH_HOST="u177100716@82.29.80.5"
 SSH_PORT=65002
 SSH_KEY="$HOME/.ssh/id_hostinger"
-SITE="${SITE:-mediumaquamarine-stinkbug-445677.hostingersite.com}"
+SITE="${SITE:-patatheque.ca}"
 REMOTE="domains/$SITE/public_html"
 
 cd "$(dirname "$0")/.."
