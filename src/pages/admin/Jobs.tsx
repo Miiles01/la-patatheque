@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { asset } from "../../lib/asset";
 import { downloadCsv, remove, type Application, type Stored } from "../../lib/demoStore";
 import { DESCRIPTION_TEMPLATE, JOB_AREAS, JOB_SCHEDULES, deleteJob, jobsStore, newJob, saveJob, uid, type Job, type JobQuestion, type JobStatus } from "../../lib/jobs";
-import { Card, ConfirmDialog, EditButton, Empty, SectionHead } from "./ui";
+import { BackButton, Card, ConfirmDialog, EditButton, Empty, SectionHead } from "./ui";
 
 const dateTime = new Intl.DateTimeFormat("fr-CA", { dateStyle: "medium", timeStyle: "short" });
 type Row = Stored<Application>;
@@ -61,9 +61,7 @@ export function JobsView({ applications }: { applications: Row[] }) {
     const rows = applications.filter((a) => (open === SPONTANEOUS ? isSpontaneous(a) : a.jobId === open));
     return (
       <>
-        <button onClick={() => setOpen(null)} className="mb-4 text-sm font-bold text-ink/60 hover:text-red-600">
-          ← Toutes les vacantes
-        </button>
+        <BackButton label="Toutes les vacantes" onClick={() => setOpen(null)} />
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-display font-extrabold text-3xl">{job ? job.title || "Sans titre" : "Candidatures spontanées"}</h1>
@@ -324,9 +322,7 @@ function JobEditor({ job: initial, onCancel, onSaved, onDelete }: { job: Job; on
 
   return (
     <div className="max-w-3xl">
-      <button onClick={onCancel} className="mb-4 text-sm font-bold text-ink/60 hover:text-red-600">
-        ← Annuler
-      </button>
+      <BackButton label="Annuler" onClick={onCancel} />
       <h1 className="font-display font-extrabold text-3xl mb-6">{isNew ? "Nouvelle vacante" : "Modifier la vacante"}</h1>
 
       <div className="flex flex-col gap-5">

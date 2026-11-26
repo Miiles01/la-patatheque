@@ -292,3 +292,18 @@ export function SegmentedTabs<T extends string>({
     </div>
   );
 }
+
+/** "Back" to the previous screen of a section: a grey pill with an arrow. */
+export function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group mb-5 inline-flex items-center gap-2 rounded-full bg-ink/[0.06] py-2.5 pl-3.5 pr-5 text-sm font-bold text-ink/75 hover:bg-ink/10 hover:text-ink transition-colors"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" aria-hidden="true">
+        <path d="M19 12H5M11 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {label}
+    </button>
+  );
+}

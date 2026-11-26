@@ -6,7 +6,7 @@ import { reservationSettings } from "../../lib/reservations";
 import type { AdminTab } from "../../lib/team";
 import { saveSettings, useSettings } from "../../lib/settings";
 import { DEFAULT_ORDER_SOUND, ORDER_SOUNDS, playOrderSound } from "../../lib/sounds";
-import { Card, EssentialBanner, inputCls, SectionHead, Toggle } from "./ui";
+import { BackButton, Card, EssentialBanner, inputCls, SectionHead, Toggle } from "./ui";
 
 type SettingsSection = "info" | "orders" | "sound" | "charges" | "reservations";
 
@@ -65,9 +65,7 @@ export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
     const card = cards.find((c) => c.id === section)!;
     return (
       <>
-        <button onClick={() => setSection(null)} className="mb-4 text-sm font-bold text-ink/60 hover:text-red-600">
-          ← Paramètres
-        </button>
+        <BackButton label="Paramètres" onClick={() => setSection(null)} />
         <h1 className="mb-6 font-display font-extrabold text-3xl">{card.title}</h1>
         {section === "info" && <InfoSection />}
         {section === "orders" && <OrdersSection />}
