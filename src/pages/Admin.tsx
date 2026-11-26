@@ -313,11 +313,11 @@ const TAB_ICONS: Record<Tab, ReactNode> = {
       <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
-  // Marketing: a megaphone.
+  // Marketing: a tag.
   subscribers: (
     <>
-      <path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z" strokeLinejoin="round" />
-      <path d="M17 9.5a3.5 3.5 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" strokeLinecap="round" />
+      <path d="M3 12V5a2 2 0 0 1 2-2h7l9 9-9 9-9-9z" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="1.5" />
     </>
   ),
   promos: (
