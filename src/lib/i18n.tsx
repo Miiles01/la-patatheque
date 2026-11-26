@@ -282,6 +282,9 @@ const fr = {
   "promo.howTo": "Entrez-le au moment de commander pour obtenir 10 % de rabais.",
   "promo.order": "Commander maintenant",
   "promo.close": "Fermer",
+  "promo.copy": "Copier le code",
+  "promo.copied": "Copié !",
+  "promo.useNow": "Utiliser maintenant",
 
   // Table booking
   "book.kicker": "Réserver",
@@ -592,6 +595,9 @@ const en: Record<Key, string> = {
   "promo.howTo": "Enter it when you order to get 10% off.",
   "promo.order": "Order now",
   "promo.close": "Close",
+  "promo.copy": "Copy the code",
+  "promo.copied": "Copied!",
+  "promo.useNow": "Use it now",
 
   "book.kicker": "Book",
   "book.title": "A table at La Patathèque",

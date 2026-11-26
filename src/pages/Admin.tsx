@@ -21,7 +21,6 @@ import { KitchenBoard } from "./admin/KitchenBoard";
 import { MarketingView } from "./admin/Marketing";
 import { NewOrderDialog } from "./admin/NewOrder";
 import { Tables } from "./admin/Reservations";
-import { PromosView } from "./admin/Promos";
 import { ESSENTIALS, essentialsStore, type EssentialId } from "../lib/essentials";
 import { addBooking, todayIso } from "../lib/reservations";
 import { JobsView } from "./admin/Jobs";
@@ -314,10 +313,11 @@ const TAB_ICONS: Record<Tab, ReactNode> = {
       <path d="M12 7.5V12l3 2" strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
+  // Marketing: a megaphone.
   subscribers: (
     <>
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="m3.5 6.5 8.5 6.5 8.5-6.5" strokeLinejoin="round" />
+      <path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z" strokeLinejoin="round" />
+      <path d="M17 9.5a3.5 3.5 0 0 1 0 5M19.5 7a7 7 0 0 1 0 10" strokeLinecap="round" />
     </>
   ),
   promos: (
@@ -534,7 +534,9 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   useLiveSync(user);
   const saveError = useSaveError();
   const permitted = memberTabs(user);
-  const allowed = TABS.filter((t) => permitted.includes(t.id));
+  // Codes promo live inside Marketing: no entry of their own in the sidebar, and someone allowed
+  // only the codes still gets Marketing (showing just that tab).
+  const allowed = TABS.filter((t) => t.id !== "promos" && (permitted.includes(t.id) || (t.id === "subscribers" && permitted.includes("promos"))));
   const [tab, setTab] = useState<Tab>(allowed[0]?.id ?? "dashboard");
   // Open by default on desktop, closed on phones where it slides over the content.
   const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
@@ -722,8 +724,13 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           )}
           {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} user={user} />}
-          {tab === "subscribers" && <MarketingView contacts={<Subscribers rows={data.subscribers} />} />}
-          {tab === "promos" && <PromosView orders={data.orders} />}
+          {tab === "subscribers" && (
+            <MarketingView
+              contacts={<Subscribers rows={data.subscribers} />}
+              orders={data.orders}
+              can={{ contacts: permitted.includes("subscribers"), promos: permitted.includes("promos") }}
+            />
+          )}
           {tab === "applications" && <JobsView applications={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
           {tab === "content" && <Content />}

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { PROMO_CODE, useCart, type OrderMode } from "../lib/cart";
 import { computeCharges, useCharges } from "../lib/charges";
-import { checkPromo, promoDiscount, type PromoReason, type PromoType } from "../lib/promos";
+import { checkPromo, onPendingPromo, promoDiscount, takePendingPromo, type PromoReason, type PromoType } from "../lib/promos";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useFormatPrice, useI18n } from "../lib/i18n";
 import { navigate } from "../lib/router";
@@ -62,11 +62,11 @@ export function CartDrawer() {
     if (step === "done") setStep("cart");
   }
 
-  async function applyPromo() {
-    if (!promo.trim()) return;
+  async function applyPromo(code = promo) {
+    if (!code.trim()) return;
     setPromoState("checking");
     try {
-      const r = await checkPromo(promo, cart.subtotal);
+      const r = await checkPromo(code, cart.subtotal);
       if (r.ok) {
         setApplied({ code: r.code, type: r.type, value: r.value });
         setPromoState("ok");
@@ -82,6 +82,19 @@ export function CartDrawer() {
       setPromoState("bad");
     }
   }
+
+  // A code from the pop-up's "Utiliser maintenant": applied once the cart has something in it.
+  useEffect(() => {
+    const pick = () => {
+      if (!cart.count) return;
+      const code = takePendingPromo();
+      if (!code) return;
+      setPromo(code);
+      applyPromo(code);
+    };
+    pick();
+    return onPendingPromo(pick);
+  }, [cart.open, cart.count]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -280,7 +293,7 @@ export function CartDrawer() {
                           aria-label={t("form.promo")}
                           className="flex-1 min-w-0 rounded-xl border-2 border-ink/15 bg-paper px-4 py-3 uppercase placeholder:normal-case placeholder:text-ink/30 focus:border-red-600 focus:outline-none"
                         />
-                        <button type="button" onClick={applyPromo} disabled={promoState === "checking"} className="rounded-xl bg-ink px-4 text-sm font-bold text-paper disabled:opacity-60">
+                        <button type="button" onClick={() => applyPromo()} disabled={promoState === "checking"} className="rounded-xl bg-ink px-4 text-sm font-bold text-paper disabled:opacity-60">
                           {t("form.apply")}
                         </button>
                       </div>

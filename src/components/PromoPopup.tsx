@@ -2,11 +2,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { asset } from "../lib/asset";
-import { PROMO_CODE, useOnlineOrdering } from "../lib/cart";
+import { useCart, useOnlineOrdering } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useI18n } from "../lib/i18n";
 import { usePopup, type PopupTexts } from "../lib/popup";
-import { useRoute } from "../lib/router";
+import { queuePromo } from "../lib/promos";
+import { navigate, useRoute } from "../lib/router";
 import { commander } from "./Navigation";
 import { useSend } from "../lib/useSend";
 
@@ -33,6 +34,8 @@ export function PromoPopup() {
   const route = useRoute();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
+  // With a promo code: the big card closes and a small one shows the code.
+  const [codeOpen, setCodeOpen] = useState(false);
   const send = useSend();
 
   useEffect(() => {
@@ -62,7 +65,7 @@ export function PromoPopup() {
       await submitRecord("subscribers", {
         email: String(f.get("email")),
         consent: f.get("consent") === "on",
-        code: config.showCode ? PROMO_CODE : "",
+        code: config.code,
         // The French title, so the contacts list shows which pop-up each email came from.
         campaign: config.fr.title.slice(0, 60),
         lang,
@@ -73,11 +76,33 @@ export function PromoPopup() {
       } catch {
         // ignore
       }
-      setDone(true);
+      if (config.code) {
+        setOpen(false);
+        setCodeOpen(true);
+      } else {
+        setDone(true);
+      }
     });
   }
 
+  const texts = config[lang === "en" ? "en" : "fr"];
+
   return (
+    <>
+    <AnimatePresence>
+      {codeOpen && (
+        <motion.div
+          key="code"
+          initial={{ y: 32, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 32, opacity: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed inset-x-3 bottom-3 z-[88] sm:inset-x-auto sm:left-1/2 sm:bottom-6 sm:w-[26rem] sm:-translate-x-1/2"
+        >
+          <CodeCard code={config.code} texts={texts} onClose={() => setCodeOpen(false)} />
+        </motion.div>
+      )}
+    </AnimatePresence>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -97,8 +122,7 @@ export function PromoPopup() {
             className="w-full md:w-auto"
           >
             <PopupCard
-              texts={config[lang === "en" ? "en" : "fr"]}
-              showCode={config.showCode}
+              texts={texts}
               done={done}
               busy={send.busy}
               error={send.error}
@@ -109,13 +133,71 @@ export function PromoPopup() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
+  );
+}
+
+/**
+ * The small card that replaces the pop-up once a visitor signed up for a code: the
+ * code, copy it, and (with online ordering on) use it now, which puts it in the cart.
+ */
+export function CodeCard({ code, texts, onClose, preview = false }: { code: string; texts: PopupTexts; onClose: () => void; preview?: boolean }) {
+  const { t } = useI18n();
+  const ordering = useOnlineOrdering();
+  const cart = useCart();
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    if (preview) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the code is on screen to read.
+    }
+  }
+
+  function useNow() {
+    if (preview) return;
+    queuePromo(code);
+    onClose();
+    // Something already in the cart: open it with the code applied. Otherwise pick dishes first.
+    if (cart.count > 0) cart.setOpen(true);
+    else navigate("/commander");
+  }
+
+  return (
+    <div role={preview ? undefined : "status"} className="relative rounded-3xl bg-[#6a030a] p-6 text-paper shadow-2xl">
+      <button
+        onClick={onClose}
+        aria-label={t("promo.close")}
+        className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full text-paper/70 hover:bg-paper/10 hover:text-paper transition-colors"
+      >
+        <span className="absolute h-[1.5px] w-4 bg-current rotate-45" />
+        <span className="absolute h-[1.5px] w-4 bg-current -rotate-45" />
+      </button>
+      {texts.kicker && <p className="script text-orange-soft text-3xl mb-1">{texts.kicker}</p>}
+      <p className="pr-8 text-paper/85">{texts.success}</p>
+      <p className="mt-4 inline-block rounded-xl border-2 border-dashed border-paper/70 px-6 py-3 font-display font-black text-2xl tracking-wider">{code}</p>
+      {texts.note && <p className="mt-3 text-xs text-paper/65 whitespace-pre-line">{texts.note}</p>}
+      <div className="mt-5 flex gap-2">
+        <button onClick={copy} className="flex-1 rounded-full border border-paper/35 px-4 py-3 text-sm font-bold hover:bg-paper/10 transition-colors">
+          {copied ? t("promo.copied") : t("promo.copy")}
+        </button>
+        {ordering && (
+          <button onClick={useNow} className="flex-1 rounded-full bg-paper px-4 py-3 text-sm font-bold text-red-700 hover:bg-cream transition-colors">
+            {t("promo.useNow")}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
 /** The pop-up card: photo, copy and form. Shared by the site and the panel's preview. */
 export function PopupCard({
   texts,
-  showCode,
   done,
   busy = false,
   error = "",
@@ -124,7 +206,6 @@ export function PopupCard({
   preview = false,
 }: {
   texts: PopupTexts;
-  showCode: boolean;
   done: boolean;
   busy?: boolean;
   error?: string;
@@ -134,7 +215,6 @@ export function PopupCard({
   preview?: boolean;
 }) {
   const { t } = useI18n();
-  const ordering = useOnlineOrdering();
 
   return (
     <div
@@ -173,15 +253,7 @@ export function PopupCard({
 
         {done ? (
         <div role="status" className="mt-6">
-          <p className="text-paper/80 mb-3">{showCode ? t("promo.success") : texts.success}</p>
-          {showCode && (
-            <>
-              <p className="inline-block rounded-xl border-2 border-dashed border-paper/70 px-6 py-3 font-display font-black text-2xl tracking-wider">
-                {PROMO_CODE}
-              </p>
-              <p className="mt-3 text-sm text-paper/75 max-w-xs">{t("promo.howTo")}</p>
-            </>
-          )}
+          <p className="text-paper/80 mb-3">{texts.success}</p>
           {texts.note && <p className="mt-3 text-xs text-paper/65 max-w-xs whitespace-pre-line">{texts.note}</p>}
           <button
             onClick={() => {
@@ -190,7 +262,7 @@ export function PopupCard({
             }}
             className="mt-6 w-full rounded-full bg-paper px-8 py-4 text-sm font-bold text-red-700 hover:bg-cream transition-colors"
           >
-            {showCode && ordering ? t("promo.order") : t("home.seeMenu")}
+            {t("home.seeMenu")}
           </button>
         </div>
       ) : (

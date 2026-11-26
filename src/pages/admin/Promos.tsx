@@ -52,7 +52,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 const empty = (): Promo => ({ id: "", code: "", type: "percent", value: 10, active: true });
 
 /** Discount codes: create them, give them an end date and a limit of uses, switch them off, see how often they were used. */
-export function PromosView({ orders }: { orders: Order[] }) {
+/** Inside Marketing ("embedded") the section title comes from Marketing; the intro stays. */
+export function PromosView({ orders, embedded = false }: { orders: Order[]; embedded?: boolean }) {
   const promos = promosStore.use();
   const [draft, setDraft] = useState<Promo>(empty);
   const [error, setError] = useState("");
@@ -98,10 +99,16 @@ export function PromosView({ orders }: { orders: Order[] }) {
 
   return (
     <>
-      <SectionHead
-        title="Codes promo"
-        desc="Créez des codes de rabais pour les commandes en ligne : avec une date de fin, une limite d'utilisations (par exemple les 1000 premiers) et, si vous voulez, une seule utilisation par client."
-      />
+      {embedded ? (
+        <p className="mb-5 max-w-2xl text-sm text-ink/55">
+          Créez des codes de rabais pour les commandes en ligne : avec une date de fin, une limite d'utilisations (par exemple les 1000 premiers) et, si vous voulez, une seule utilisation par client.
+        </p>
+      ) : (
+        <SectionHead
+          title="Codes promo"
+          desc="Créez des codes de rabais pour les commandes en ligne : avec une date de fin, une limite d'utilisations (par exemple les 1000 premiers) et, si vous voulez, une seule utilisation par client."
+        />
+      )}
 
       <Card className="mb-6">
         <h2 className="font-display font-bold text-lg mb-4">Nouveau code</h2>

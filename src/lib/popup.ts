@@ -21,8 +21,8 @@ export type PopupConfig = {
   enabled: boolean;
   /** Changes whenever the texts are published, so visitors who saw an older pop-up see the new one once. */
   campaign: string;
-  /** Show the BIENVENUE10 welcome code after sign-up (the original 10 % pop-up). */
-  showCode: boolean;
+  /** Promo code (from Codes promo) given after sign-up; empty = none. */
+  code: string;
   fr: PopupTexts;
   en: PopupTexts;
 };
@@ -30,7 +30,7 @@ export type PopupConfig = {
 export const DEFAULT_POPUP: PopupConfig = {
   enabled: true,
   campaign: "concours-pizza-2026",
-  showCode: false,
+  code: "",
   fr: {
     kicker: "Concours",
     title: "Gagnez une pizza large gratuite !",
@@ -53,6 +53,8 @@ export const popupStore = createStore<PopupConfig>("patatheque-demo-popup", () =
 
 /** Saved config with any missing field filled from the defaults (older saves). */
 export function usePopup(): PopupConfig {
-  const saved = popupStore.use();
-  return { ...DEFAULT_POPUP, ...saved, fr: { ...DEFAULT_POPUP.fr, ...saved.fr }, en: { ...DEFAULT_POPUP.en, ...saved.en } };
+  const saved = popupStore.use() as PopupConfig & { showCode?: boolean };
+  // Saves from before codes could be picked had a "show BIENVENUE10" switch.
+  const code = saved.code ?? (saved.showCode ? "BIENVENUE10" : "");
+  return { ...DEFAULT_POPUP, ...saved, code, fr: { ...DEFAULT_POPUP.fr, ...saved.fr }, en: { ...DEFAULT_POPUP.en, ...saved.en } };
 }

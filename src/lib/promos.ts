@@ -52,3 +52,32 @@ export async function checkPromo(code: string, subtotal: number, who: { phone?: 
   if (p.minSubtotal && subtotal < p.minSubtotal) return { ok: false, reason: "min", minSubtotal: p.minSubtotal };
   return { ok: true, code: p.code, type: p.type, value: p.value };
 }
+
+// A code waiting to be used: the pop-up's "Utiliser maintenant" puts it here and the
+// cart applies it as soon as it opens with something in it.
+const PENDING = "patatheque-pending-promo";
+const PENDING_EVENT = "patatheque-pending-promo";
+
+export function queuePromo(code: string) {
+  try {
+    sessionStorage.setItem(PENDING, code);
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(PENDING_EVENT));
+}
+
+export function takePendingPromo(): string | null {
+  try {
+    const code = sessionStorage.getItem(PENDING);
+    if (code) sessionStorage.removeItem(PENDING);
+    return code;
+  } catch {
+    return null;
+  }
+}
+
+export function onPendingPromo(fn: () => void) {
+  window.addEventListener(PENDING_EVENT, fn);
+  return () => window.removeEventListener(PENDING_EVENT, fn);
+}
