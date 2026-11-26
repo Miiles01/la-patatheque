@@ -18,6 +18,7 @@ import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
 import { KitchenBoard } from "./admin/KitchenBoard";
+import { MarketingView } from "./admin/Marketing";
 import { NewOrderDialog } from "./admin/NewOrder";
 import { Tables } from "./admin/Reservations";
 import { PromosView } from "./admin/Promos";
@@ -64,7 +65,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "reservations", label: "Réservations" },
   { id: "menu", label: "Menu" },
   { id: "hours", label: "Horaires" },
-  { id: "subscribers", label: "Courriels 10 %" },
+  { id: "subscribers", label: "Marketing" },
   { id: "promos", label: "Codes promo" },
   { id: "applications", label: "Candidatures" },
   { id: "catering", label: "Traiteur" },
@@ -721,7 +722,7 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
           )}
           {allowed.length > 0 && tab === "dashboard" && allowed.some((t) => t.id === "dashboard") && <Dashboard data={data} onOpen={open} />}
           {tab === "orders" && <Orders orders={data.orders} user={user} />}
-          {tab === "subscribers" && <Subscribers rows={data.subscribers} />}
+          {tab === "subscribers" && <MarketingView contacts={<Subscribers rows={data.subscribers} />} />}
           {tab === "promos" && <PromosView orders={data.orders} />}
           {tab === "applications" && <JobsView applications={data.applications} />}
           {tab === "catering" && <Catering rows={data.catering} />}
@@ -783,7 +784,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
       <div className="grid sm:grid-cols-3 gap-4 md:gap-5">
         <Stat label="Commandes" value={String(orders.length)} sub={`${orders.filter((o) => o.status === "nouvelle").length} à traiter`} />
         <Stat label="Ventes (avant taxes)" value={money.format(revenue)} sub={orders.length ? `Panier moyen ${money.format(revenue / orders.length)}` : "—"} />
-        <Stat label="Courriels 10 %" value={String(subscribers.length)} sub={`${subscribers.filter((s) => s.consent).length} avec consentement`} />
+        <Stat label="Contacts (pop-up)" value={String(subscribers.length)} sub={`${subscribers.filter((s) => s.consent).length} avec consentement`} />
       </div>
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
@@ -1332,17 +1333,23 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   );
 }
 
+/** Which pop-up a contact came from (its title), or the 10 % offer from before pop-ups were editable. */
+function campaignLabel(r: Data["subscribers"][number]) {
+  return r.campaign || (r.code ? "Code 10 %" : "—");
+}
+
 function Subscribers({ rows }: { rows: Data["subscribers"] }) {
   return (
     <>
       <SectionHead
-        title="Courriels 10 %"
-        desc={`Inscriptions au pop-up de bienvenue (code ${PROMO_CODE}). Exportez la liste vers votre outil d'infolettre ; seuls les contacts avec consentement peuvent recevoir des offres.`}
+        title="Contacts"
+        desc="Les courriels laissés dans le pop-up. Exportez la liste vers votre outil d'infolettre ; seuls les contacts avec consentement peuvent recevoir des offres."
         onExport={
           rows.length
             ? () =>
-                downloadCsv("courriels-10.csv", [
+                downloadCsv("contacts.csv", [
                   ["Courriel", (r: Data["subscribers"][number]) => r.email],
+                  ["Campagne", (r: Data["subscribers"][number]) => campaignLabel(r)],
                   ["Consentement", (r: Data["subscribers"][number]) => (r.consent ? "oui" : "non")],
                   ["Langue", (r: Data["subscribers"][number]) => r.lang],
                   ["Date", (r: Data["subscribers"][number]) => dateTime.format(new Date(r.createdAt))],
@@ -1354,12 +1361,13 @@ function Subscribers({ rows }: { rows: Data["subscribers"] }) {
         <Empty text="Aucune inscription. Le pop-up apparaît après quelques secondes sur le site, une fois par visite." />
       ) : (
         <Table
-          head={["Courriel", "Consentement", "Langue", "Date"]}
+          head={["Courriel", "Campagne", "Consentement", "Langue", "Date"]}
           rows={rows.map((r) => [
             <>
               {r.email}
               <SampleTag show={r.sample} />
             </>,
+            campaignLabel(r),
             r.consent ? "✓ Oui" : "Non",
             r.lang.toUpperCase(),
             dateTime.format(new Date(r.createdAt)),

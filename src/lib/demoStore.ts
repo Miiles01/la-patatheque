@@ -43,7 +43,7 @@ export type Order = {
   paid?: boolean;
 };
 
-export type Subscriber = { email: string; consent: boolean; code: string; lang: string };
+export type Subscriber = { email: string; consent: boolean; code: string; lang: string; /** Title of the pop-up it came from. */ campaign?: string };
 
 export type Application = {
   /** Opening applied to; missing for a spontaneous application. */

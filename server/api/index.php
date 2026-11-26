@@ -83,6 +83,8 @@ const CONFIG_KEYS = [
     'settings' => ['settings'],
     'promos' => ['promos'],
     'charges' => ['settings'],
+    // Marketing → Pop-up (the email capture shown to new visitors).
+    'popup' => ['subscribers'],
 ];
 
 function config_get(string $key): mixed
@@ -173,7 +175,7 @@ function record_create(string $c, mixed $data): array
 
     $data = match ($c) {
         'orders' => clean_order($data),
-        'subscribers' => clean_fields($data, ['email' => 200, 'code' => 40, 'lang' => 5], ['email']) + ['consent' => (bool)($data['consent'] ?? false)],
+        'subscribers' => clean_fields($data, ['email' => 200, 'code' => 40, 'lang' => 5, 'campaign' => 60], ['email']) + ['consent' => (bool)($data['consent'] ?? false)],
         'catering' => clean_fields($data, ['name' => 120, 'email' => 200, 'phone' => 40, 'eventType' => 120, 'date' => 40, 'guests' => 20, 'message' => 3000], ['name', 'email', 'phone']),
         'applications' => clean_application($data),
         'events' => clean_event($data),

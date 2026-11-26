@@ -39,7 +39,7 @@ export const ROLES: Record<Role, { label: string; access: string; tabs: AdminTab
   },
   marketing: {
     label: "Marketing",
-    access: "Tableau de bord, courriels 10 % et codes promo",
+    access: "Tableau de bord, marketing (pop-up et contacts) et codes promo",
     tabs: ["dashboard", "subscribers", "promos", "content"],
   },
   comptoir: { label: "Comptoir", access: "Commandes et réservations", tabs: ["orders", "reservations"] },
