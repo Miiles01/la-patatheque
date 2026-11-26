@@ -1,3 +1,4 @@
+import { DEFAULT_ORDER_SOUND } from "./sounds";
 import { createStore } from "./store";
 
 // Restaurant settings edited from the admin panel (Paramètres).
@@ -12,9 +13,11 @@ export type Settings = {
   delivery: boolean;
   /** Minimum subtotal before tax for a delivery order. */
   deliveryMinimum: number;
+  /** Sound played in Commandes when an order comes in (see lib/sounds); "" = silent. */
+  orderSound: string;
 };
 
-const DEFAULTS: Settings = { pickup: false, delivery: false, deliveryMinimum: 10 };
+const DEFAULTS: Settings = { pickup: false, delivery: false, deliveryMinimum: 10, orderSound: DEFAULT_ORDER_SOUND };
 const store = createStore<Partial<Settings>>("patatheque-demo-settings", () => ({}));
 
 // No delivery for now, whatever was saved before.

@@ -7,6 +7,7 @@ import { useMenu } from "../../lib/menuStore";
 import { promoDiscount, promosStore } from "../../lib/promos";
 import { tablesStore } from "../../lib/reservations";
 import { listTeam, onTeamChange, type Member } from "../../lib/team";
+import { markOrderTakenHere } from "./live";
 import { inputCls } from "./ui";
 
 // Staff take an order in the panel: at a table (the default) or by phone for
@@ -101,7 +102,7 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
         onClose();
         return;
       }
-      await submit("orders", {
+      const row = await submit("orders", {
         mode,
         table: mode === "surplace" ? table : undefined,
         name: mode === "surplace" ? `Table ${table}` : name.trim(),
@@ -117,6 +118,8 @@ export function NewOrderDialog({ onClose, order, user }: { onClose: () => void; 
         status: "nouvelle",
         paid: false,
       });
+      // The kitchen hears it; this device doesn't (whoever took it knows).
+      markOrderTakenHere(row.id);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau. Réessayez.");

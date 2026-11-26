@@ -5,6 +5,7 @@ import { essentialsStore, markEssential } from "../../lib/essentials";
 import { reservationSettings } from "../../lib/reservations";
 import type { AdminTab } from "../../lib/team";
 import { saveSettings, useSettings } from "../../lib/settings";
+import { DEFAULT_ORDER_SOUND, ORDER_SOUNDS, playOrderSound } from "../../lib/sounds";
 import { Card, EssentialBanner, inputCls, SectionHead, Toggle } from "./ui";
 
 export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
@@ -79,6 +80,8 @@ export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
           />
         </div>
       </Card>
+
+      <OrderSoundCard />
 
       <ChargesCard />
 
@@ -270,6 +273,54 @@ function ChargesCard() {
         <button onClick={() => add("fee")} className="rounded-full bg-ink/5 px-5 py-2.5 text-sm font-bold hover:bg-ink/10">
           + Ajouter un frais
         </button>
+      </div>
+    </Card>
+  );
+}
+
+/** Paramètres: the sound Commandes plays when an order comes in, with a play button for each. */
+function OrderSoundCard() {
+  const shop = useSettings();
+  return (
+    <Card className="mb-5">
+      <h2 className="font-display font-bold text-lg mb-1">Son des nouvelles commandes</h2>
+      <p className="text-sm text-ink/60 mb-4">
+        Joué dans Commandes (vue Salle ou Cuisine) quand une commande arrive. Touchez ▶ pour écouter.
+      </p>
+      <div role="radiogroup" aria-label="Son des nouvelles commandes" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+        {[...ORDER_SOUNDS, { id: "", label: "Aucun son" }].map((snd) => {
+          const on = shop.orderSound === snd.id;
+          return (
+            <div
+              key={snd.id || "none"}
+              className={`flex items-center gap-1 rounded-xl border p-1 pl-3 transition-colors ${on ? "border-red-600 bg-red-600/[0.06]" : "border-ink/15 hover:border-ink/35"}`}
+            >
+              <button
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  saveSettings({ orderSound: snd.id });
+                  playOrderSound(snd.id);
+                }}
+                className={`flex-1 py-2 text-left text-sm font-semibold ${on ? "text-red-700" : "text-ink/75"}`}
+              >
+                {snd.label}
+                {snd.id === DEFAULT_ORDER_SOUND && <span className="block text-[11px] font-normal text-ink/45">par défaut</span>}
+              </button>
+              {snd.id && (
+                <button
+                  onClick={() => playOrderSound(snd.id)}
+                  aria-label={`Écouter ${snd.label}`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink/55 hover:bg-ink/5 hover:text-ink"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
+                    <path d="M7 4.5v15l12-7.5z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );

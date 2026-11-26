@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { live } from "../../lib/api";
 import { list, onStoreChange, refresh, type Collection } from "../../lib/demoStore";
 import { refreshBookings } from "../../lib/reservations";
+import { getSettings } from "../../lib/settings";
+import { playOrderSound } from "../../lib/sounds";
 import { loadConfig, SAVE_ERROR } from "../../lib/store";
 import { memberTabs, refreshTeam, type AdminTab, type Member } from "../../lib/team";
 
@@ -14,10 +16,10 @@ const READS: [Collection, AdminTab][] = [
 
 /**
  * Real site: keeps the panel up to date while it is open. New orders and
- * bookings are checked every 8 seconds, everything else every minute; a chime
- * plays when a new order comes in.
+ * bookings are checked every 8 seconds, everything else every minute. While
+ * Commandes is open, the sound chosen in Paramètres plays when an order comes in.
  */
-export function useLiveSync(user: Member) {
+export function useLiveSync(user: Member, onOrders: boolean) {
   // Keyed on what the member may see, not the object, which is rebuilt on every team refresh.
   const access = memberTabs(user).join(",");
   useEffect(() => {
@@ -44,44 +46,39 @@ export function useLiveSync(user: Member) {
     };
   }, [access]);
 
-  useNewOrderChime();
+  useNewOrderChime(onOrders);
 }
 
-function useNewOrderChime() {
+/** Orders taken on this device (Nouvelle commande): no sound for those. */
+const takenHere = new Set<string>();
+export function markOrderTakenHere(id: string) {
+  takenHere.add(id);
+}
+
+function useNewOrderChime(onOrders: boolean) {
   const seen = useRef<Set<string> | null>(null);
+  const active = useRef(onOrders);
   useEffect(() => {
-    if (!live) return;
-    return onStoreChange(() => {
+    active.current = onOrders;
+  }, [onOrders]);
+  useEffect(() => {
+    // Real site: the 8-second refresh brings new orders. Demo: an order placed on the
+    // site in another tab of this browser arrives through the storage event.
+    // Demo: the orders already in this browser are known from the start. Real site: the
+    // list is empty until the first refresh, which then only records what is there.
+    if (!live) seen.current = new Set(list("orders").filter((o) => o.status === "nouvelle").map((o) => o.id));
+    // Checked a moment later, so an order just taken on this device is marked first.
+    return onStoreChange(() => window.setTimeout(check, 0));
+    function check() {
       const ids = list("orders")
         .filter((o) => o.status === "nouvelle")
         .map((o) => o.id);
       // The first load only records what is already there.
-      if (seen.current && ids.some((id) => !seen.current!.has(id))) chime();
+      const fresh = seen.current ? ids.filter((id) => !seen.current!.has(id) && !takenHere.has(id)) : [];
+      if (fresh.length && active.current) playOrderSound(getSettings().orderSound);
       seen.current = new Set([...(seen.current ?? []), ...ids]);
-    });
+    }
   }, []);
-}
-
-/** Two short tones; browsers allow it once the page has been clicked (signing in counts). */
-function chime() {
-  try {
-    const ctx = new AudioContext();
-    [880, 1320].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      osc.connect(gain).connect(ctx.destination);
-      const t = ctx.currentTime + i * 0.22;
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-      osc.start(t);
-      osc.stop(t + 0.55);
-    });
-    window.setTimeout(() => ctx.close(), 1500);
-  } catch {
-    // No audio available.
-  }
 }
 
 /** Last save error (shown as a banner), cleared after a few seconds. */

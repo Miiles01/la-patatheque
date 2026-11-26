@@ -531,13 +531,14 @@ function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allo
 
 function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const data = useStore();
-  useLiveSync(user);
   const saveError = useSaveError();
   const permitted = memberTabs(user);
   // Codes promo live inside Marketing: no entry of their own in the sidebar, and someone allowed
   // only the codes still gets Marketing (showing just that tab).
   const allowed = TABS.filter((t) => t.id !== "promos" && (permitted.includes(t.id) || (t.id === "subscribers" && permitted.includes("promos"))));
   const [tab, setTab] = useState<Tab>(allowed[0]?.id ?? "dashboard");
+  // Sound for new orders only while Commandes is open.
+  useLiveSync(user, tab === "orders");
   // Open by default on desktop, closed on phones where it slides over the content.
   const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
   // Only new orders get a counter: they are the one thing staff must act on right away.
