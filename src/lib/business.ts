@@ -35,7 +35,7 @@ export const openingHours = createStore<Hours>("patatheque-demo-hours", () => ({
     day("11:00", "23:00"),
     day("11:00", "22:00"),
   ],
-  breakfast: { enabled: true, from: "08:00", to: "13:00" },
+  breakfast: { enabled: true, from: "08:00", to: "14:00" },
 }));
 
 export const DAY_NAMES: Record<Lang, string[]> = {

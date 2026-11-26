@@ -175,7 +175,7 @@ export const restaurant = {
   hours: [
     { day: "Dimanche – Mercredi", time: "11 h – 22 h" },
     { day: "Jeudi – Samedi", time: "11 h – 23 h" },
-    { day: "Déjeuner, 7 jours", time: "8 h – 13 h" },
+    { day: "Déjeuner, 7 jours", time: "8 h – 14 h" },
   ],
   delivery: "Livraison gratuite, minimum 10 $ avant taxes",
   payments: "Interac à domicile, Visa, Mastercard",
