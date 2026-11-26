@@ -13,6 +13,7 @@ import { submit as submitRecord } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
 import { scrollToTop, startScroll, stopScroll } from "../lib/motion";
+import { navigate, routeHref } from "../lib/router";
 
 /**
  * The menu page. A full-screen pop-up first asks how you eat (dine-in first); picking one closes it and shows the menu:
@@ -21,7 +22,9 @@ import { scrollToTop, startScroll, stopScroll } from "../lib/motion";
 export function MenuPage() {
   const { t } = useI18n();
   const cart = useCart();
-  const [how, setHow] = useState<"emporter" | "sur-place" | null>(null);
+  // Online ordering off: no takeout choice, the dine-in menu straight away.
+  const ordering = cart.modes.length > 0;
+  const [how, setHow] = useState<"emporter" | "sur-place" | null>(() => (ordering ? null : "sur-place"));
   const choices = [
     { id: "sur-place", title: t("menu.surPlaceTitle"), sub: t("menu.pickSurPlaceSub") },
     { id: "emporter", title: t("menu.orderTitle"), sub: t("menu.pickEmporterSub") },
@@ -67,7 +70,7 @@ export function MenuPage() {
           </h1>
         </div>
         {/* Under the sandwich, on the empty tabletop, so it never covers the photo. */}
-        {how && (
+        {how && ordering && (
           <div className="absolute inset-x-0 bottom-5 flex justify-center px-5 md:bottom-7">
             <div role="group" aria-label={t("menu.popupTitle")} className="flex w-fit max-w-full gap-0.5 rounded-full bg-ink/45 p-0.5 text-center backdrop-blur">
               {choices.map((c) => (
@@ -87,7 +90,7 @@ export function MenuPage() {
 
       <section className="bg-paper pb-24 pt-12 md:pb-36 md:pt-16">
         <div className="mx-auto max-w-7xl px-5 md:px-10">
-          {how && <MenuCarte key={how} orderable={how === "emporter"} />}
+          {how && <MenuCarte key={how} orderable={ordering && how === "emporter"} />}
         </div>
       </section>
 
@@ -125,9 +128,35 @@ export function MenuPage() {
   );
 }
 
+/** /commander while online ordering is off: say so, and point to the phone and the menu. */
+function OrderingClosed() {
+  const { t } = useI18n();
+  const info = businessInfo.use();
+  return (
+    <PageHero kicker={t("order.kicker")} title={t("order.closedTitle")} intro={t("order.closedText")}>
+      <div data-fade="0.3" data-intro className="mt-8 flex flex-wrap gap-3">
+        <a href={telHref(info.phoneDisplay)} className={btnPrimary}>
+          {info.phoneDisplay}
+        </a>
+        <a
+          href={routeHref("/menu")}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/menu");
+          }}
+          className={btnOutline}
+        >
+          {t("home.seeMenu")}
+        </a>
+      </div>
+    </PageHero>
+  );
+}
+
 export function OrderPage() {
   const { t } = useI18n();
   const cart = useCart();
+  if (!cart.modes.length) return <OrderingClosed />;
   return (
     <>
       <PageHero kicker={t("order.kicker")} title={t("order.title")} alt={t("order.titleAlt")} intro={t("order.intro")}>

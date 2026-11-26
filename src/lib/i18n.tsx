@@ -119,6 +119,8 @@ const fr = {
 
   // Ordering
   "order.kicker": "Commander",
+  "order.closedTitle": "Commandes en ligne fermées",
+  "order.closedText": "On ne prend pas de commandes en ligne pour le moment. Appelez-nous pour commander, ou venez nous voir sur place.",
   "order.title": "Pour emporter",
   "order.titleAlt": "en quelques clics",
   "order.intro": "Choisissez vos plats, passez les chercher au comptoir. Aucun paiement en ligne : vous payez sur place.",
@@ -434,6 +436,8 @@ const en: Record<Key, string> = {
   "menu.surPlaceCta": "See the dine-in menu",
 
   "order.kicker": "Order",
+  "order.closedTitle": "Online ordering closed",
+  "order.closedText": "We're not taking online orders right now. Call us to order, or come see us in person.",
   "order.title": "Takeout",
   "order.titleAlt": "in a few clicks",
   "order.intro": "Pick your dishes and pick them up at the counter. No online payment: you pay in store.",

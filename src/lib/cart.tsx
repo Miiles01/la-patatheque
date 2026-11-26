@@ -96,3 +96,8 @@ export function useCart() {
 /** Code given by the 10 % welcome pop-up. */
 export const PROMO_CODE = "BIENVENUE10";
 export const PROMO_RATE = 0.1;
+
+/** Whether customers can order on the site right now (Paramètres → Commandes en ligne). */
+export function useOnlineOrdering() {
+  return useCart().modes.length > 0;
+}

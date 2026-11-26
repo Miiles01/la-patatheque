@@ -8,6 +8,7 @@ import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../
 import { setNavHidden } from "../lib/navVisibility";
 import { Link, navigate, useRoute, type Route, routeHref } from "../lib/router";
 import { reservationSettings } from "../lib/reservations";
+import { onlineOrdering } from "../lib/settings";
 import { LogoMark } from "./LogoMark";
 import { openReservation } from "./ReservationModal";
 
@@ -29,9 +30,10 @@ export const SOCIALS = [
   { label: "YouTube", href: "https://youtube.com/@lapatatheque", icon: <YouTubeIcon /> },
 ];
 
+/** Order buttons: to the order page, or to the menu while online ordering is off. */
 export function commander(from: string) {
   track("commander_click", { from });
-  navigate("/commander");
+  navigate(onlineOrdering() ? "/commander" : "/menu");
 }
 
 const NAV_LINE = 36; // px from the top where the bar's content sits
@@ -136,6 +138,7 @@ function useHideOnScroll(enabled: boolean) {
 export function Navigation() {
   const { t, lang, setLang } = useI18n();
   const cart = useCart();
+  const ordering = cart.modes.length > 0;
   const route = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const dark = useDarkBackdrop(route);
@@ -164,6 +167,7 @@ export function Navigation() {
             >
               {lang === "fr" ? "EN" : "FR"}
             </button>
+            {ordering && (
             <button
               onClick={() => cart.setOpen(true)}
               aria-label={`${t("nav.cart")} (${cart.count})`}
@@ -176,11 +180,12 @@ export function Navigation() {
                 </span>
               )}
             </button>
+            )}
             <button
               onClick={() => commander("navbar")}
               className="rounded-full bg-red-600 px-4 md:px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
             >
-              {t("nav.commander")}
+              {ordering ? t("nav.commander") : t("nav.menu")}
             </button>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -211,6 +216,7 @@ export function Navigation() {
 
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ordering = useCart().modes.length > 0;
   const { t, lang, setLang } = useI18n();
   const reservations = reservationSettings.use();
   const route = useRoute();
@@ -291,7 +297,7 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="sm-panel absolute inset-y-0 right-0 w-full md:w-1/2 bg-cream overflow-y-auto">
         <div className="min-h-full flex flex-col px-6 md:px-14 pt-24 pb-10">
           <nav className="flex flex-col gap-0.5" aria-label="Navigation principale">
-            {LINKS.map((link) => (
+            {LINKS.filter((l) => ordering || l.to !== "/commander").map((link) => (
               <a
                 key={link.to}
                 href={routeHref(link.to)}
@@ -319,7 +325,7 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
               onClick={() => closeThen(() => commander("side-menu"))}
               className="w-fit rounded-full bg-red-600 px-7 py-4 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
             >
-              {t("nav.commander")}
+              {ordering ? t("nav.commander") : t("nav.menu")}
             </button>
             {reservations.enabled && (
               <button

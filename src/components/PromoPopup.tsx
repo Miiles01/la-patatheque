@@ -2,10 +2,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState, type FormEvent } from "react";
 import { track } from "../lib/analytics";
 import { asset } from "../lib/asset";
-import { PROMO_CODE } from "../lib/cart";
+import { PROMO_CODE, useOnlineOrdering } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useI18n } from "../lib/i18n";
-import { navigate, useRoute } from "../lib/router";
+import { useRoute } from "../lib/router";
+import { commander } from "./Navigation";
 import { useSend } from "../lib/useSend";
 
 const SEEN = "patatheque-promo-seen"; // localStorage: shown once per browser, on the first visit
@@ -26,6 +27,7 @@ function shouldShow() {
  * portrait one.
  */
 export function PromoPopup() {
+  const ordering = useOnlineOrdering();
   const { t, lang } = useI18n();
   const route = useRoute();
   const [open, setOpen] = useState(false);
@@ -127,12 +129,11 @@ export function PromoPopup() {
                   <button
                     onClick={() => {
                       setOpen(false);
-                      track("commander_click", { from: "promo" });
-                      navigate("/commander");
+                      commander("promo");
                     }}
                     className="mt-6 w-full rounded-full bg-paper px-8 py-4 text-sm font-bold text-red-700 hover:bg-cream transition-colors"
                   >
-                    {t("promo.order")}
+                    {ordering ? t("promo.order") : t("home.seeMenu")}
                   </button>
                 </div>
               ) : (

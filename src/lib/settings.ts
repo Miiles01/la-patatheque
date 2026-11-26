@@ -3,7 +3,10 @@ import { createStore } from "./store";
 // Restaurant settings edited from the admin panel (Paramètres).
 
 export type Settings = {
-  /** Customers can pick their order up at the counter. */
+  /**
+   * Online ordering for pickup at the counter. Off by default: while off, the site
+   * shows no cart, bag or order buttons, and the server refuses orders from it.
+   */
   pickup: boolean;
   /** The restaurant delivers. */
   delivery: boolean;
@@ -11,21 +14,23 @@ export type Settings = {
   deliveryMinimum: number;
 };
 
-const DEFAULTS: Settings = { pickup: true, delivery: false, deliveryMinimum: 10 };
+const DEFAULTS: Settings = { pickup: false, delivery: false, deliveryMinimum: 10 };
 const store = createStore<Partial<Settings>>("patatheque-demo-settings", () => ({}));
 
-// Pickup only for now: delivery stays off whatever was saved before.
-const resolve = (saved: Partial<Settings>): Settings => ({ ...DEFAULTS, ...saved, pickup: true, delivery: false });
+// No delivery for now, whatever was saved before.
+const resolve = (saved: Partial<Settings>): Settings => ({ ...DEFAULTS, ...saved, delivery: false });
+
+/** Whether customers can order on the site right now. */
+export function onlineOrdering() {
+  return getSettings().pickup;
+}
 
 export function getSettings(): Settings {
   return resolve(store.get());
 }
 
 export function saveSettings(patch: Partial<Settings>) {
-  const next = { ...getSettings(), ...patch };
-  // At least one way to get the food must stay on.
-  if (!next.pickup && !next.delivery) return;
-  store.set(next);
+  store.set({ ...getSettings(), ...patch });
 }
 
 export function useSettings() {

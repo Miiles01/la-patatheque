@@ -158,6 +158,10 @@ function record_create(string $c, mixed $data): array
     if (!isset(COLLECTIONS[$c]) || !is_array($data)) throw new HttpError('Introuvable.', 404);
     // Staff taking orders in the panel aren't limited.
     $publicOrder = $c === 'orders' && !member_can('orders');
+    // Online ordering is switched off in Paramètres (the default): only staff can add orders.
+    if ($publicOrder && empty((config_get('settings') ?? [])['pickup'])) {
+        throw new HttpError('Les commandes en ligne sont fermées pour le moment. Appelez-nous pour commander.', 403);
+    }
     if (!($c === 'orders' && !$publicOrder)) rate_limit("post:$c", $c === 'events' ? 120 : 20, 600);
     $src = '';
     $lang = ($data['lang'] ?? 'fr') === 'en' ? 'en' : 'fr';

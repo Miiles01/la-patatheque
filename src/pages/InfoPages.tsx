@@ -10,6 +10,7 @@ import { live } from "../lib/api";
 import { submit as submitRecord, type Application } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
+import { useOnlineOrdering } from "../lib/cart";
 import { useI18n } from "../lib/i18n";
 import { Link, routeHref } from "../lib/router";
 import { gsap, reducedMotion } from "../lib/motion";
@@ -21,6 +22,7 @@ export function useHours() {
 }
 
 export function AboutPage() {
+  const ordering = useOnlineOrdering();
   const { t } = useI18n();
   const numberRef = useRef<HTMLSpanElement>(null);
 
@@ -129,7 +131,7 @@ export function AboutPage() {
             <p data-fade className="mt-8 max-w-md text-lg leading-relaxed text-ink/70">{t("about.kitchenText")}</p>
             <div data-fade className="mt-10">
               <button onClick={() => commander("about")} className={btnPrimary}>
-                {t("home.cta")}
+                {ordering ? t("home.cta") : t("home.seeMenu")}
               </button>
             </div>
           </div>
@@ -404,6 +406,7 @@ export function CareersPage() {
 }
 
 export function ContactPage() {
+  const ordering = useOnlineOrdering();
   const { t } = useI18n();
   const hours = useHours();
   const info = businessInfo.use();
@@ -471,8 +474,8 @@ export function ContactPage() {
               </dd>
             </div>
             <div data-fade className="sm:col-span-2">
-              <LineButton href={routeHref("/commander")} onClick={() => commander("contact")} className="text-ink">
-                {t("home.cta")}
+              <LineButton href={routeHref(ordering ? "/commander" : "/menu")} onClick={() => commander("contact")} className="text-ink">
+                {ordering ? t("home.cta") : t("home.seeMenu")}
               </LineButton>
             </div>
           </dl>

@@ -4,9 +4,11 @@ import { chargesStore, type Charge } from "../../lib/charges";
 import { essentialsStore, markEssential } from "../../lib/essentials";
 import { reservationSettings } from "../../lib/reservations";
 import type { AdminTab } from "../../lib/team";
+import { saveSettings, useSettings } from "../../lib/settings";
 import { Card, EssentialBanner, inputCls, SectionHead, Toggle } from "./ui";
 
 export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
+  const shop = useSettings();
   const info = businessInfo.use();
   const essentials = essentialsStore.use();
   const reservations = reservationSettings.use();
@@ -64,21 +66,17 @@ export function SettingsView({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
         onConfirm={() => markEssential("pickup")}
       />
       <Card className="mb-5">
-        <h2 className="font-display font-bold text-lg mb-1">Commandes en ligne</h2>
-        <div className="mt-3 flex items-start gap-4 rounded-xl bg-ink/[0.03] p-4">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-600 text-paper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5" aria-hidden="true">
-              <path d="M5 8h14l-1 12H6z" strokeLinejoin="round" />
-              <path d="M9 8V6a3 3 0 0 1 6 0v2" />
-            </svg>
-          </span>
-          <div>
-            <p className="font-semibold">Cueillette au comptoir</p>
-            <p className="text-sm text-ink/60">
-              Le client commande sur le site et passe chercher sa commande. Il paie au comptoir : aucun paiement en ligne. La
-              livraison n'est pas offerte.
-            </p>
-          </div>
+        <div className="divide-y divide-ink/10 -my-5">
+          <Toggle
+            label="Commandes en ligne (cueillette au comptoir)"
+            desc={
+              shop.pickup
+                ? "Activées : les clients commandent sur le site et paient au comptoir en venant chercher leur commande."
+                : "Désactivées : le site n'affiche ni panier ni bouton Commander, et le menu se consulte sans commander. Les commandes prises dans le panneau restent possibles."
+            }
+            on={shop.pickup}
+            onChange={(v) => saveSettings({ pickup: v })}
+          />
         </div>
       </Card>
 
