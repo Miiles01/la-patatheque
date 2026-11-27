@@ -562,8 +562,9 @@ export function NewOrderDialog({
                                             onClick={() => pick(o)}
                                             className="flex flex-col items-start rounded-xl border border-ink/15 px-3 py-2.5 text-left hover:border-red-600 hover:bg-red-600 hover:text-paper transition-colors"
                                           >
-                                            <span className="text-xs opacity-70">{o.size}</span>
-                                            <span className="font-bold tabular-nums">{money.format(o.price)}</span>
+                                            {/* The size is what staff look for; the price comes second. */}
+                                            {o.size && <span className="text-base font-bold leading-tight">{o.size}</span>}
+                                            <span className={`tabular-nums ${o.size ? "text-xs opacity-60" : "font-bold"}`}>{money.format(o.price)}</span>
                                           </button>
                                         ))}
                                       </div>
