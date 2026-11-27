@@ -287,7 +287,7 @@ export function NewOrderDialog({
                     <>
                       <p className="mt-6 font-display text-2xl font-bold">Quelle table ?</p>
                       <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-stretch">
-                        <div className="flex h-56 w-64 flex-col items-center justify-center rounded-3xl border border-ink/10 bg-[#fbfafa]">
+                        <div className="flex h-56 w-64 flex-col sm:h-auto items-center justify-center rounded-3xl border border-ink/10 bg-[#fbfafa]">
                           <span className="text-[11px] font-bold uppercase tracking-wider text-ink/45">Table</span>
                           <span aria-live="polite" className={`font-display font-extrabold leading-none tabular-nums ${table ? "text-[8.5rem] text-red-600" : "text-7xl text-ink/15"}`}>
                             {table || "—"}
