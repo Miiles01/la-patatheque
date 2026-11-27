@@ -1653,7 +1653,7 @@ function TablesDialog({ onClose }: { onClose: () => void }) {
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Tables />
         </div>
       </div>

@@ -14,7 +14,7 @@ import {
   type DiningTable,
   type TableKind,
 } from "../../lib/reservations";
-import { ActivationButton, Card, Empty, SectionHead, SegmentedTabs, Toggle } from "./ui";
+import { ActivationButton, BackButton, Card, ConfirmDialog, Empty, SectionHead, SegmentedTabs, Toggle } from "./ui";
 
 // ---------------------------------------------------------------- icons
 
@@ -364,35 +364,49 @@ function PhoneBooking({ date: initialDate, onDone }: { date: string; onDone: () 
 
 // ---------------------------------------------------------------- tables
 
-/** The dining tables: shared by Réservations and the Tables pop-up in Commandes. */
+/**
+ * The dining tables: shared by Réservations and the Tables pop-up in Commandes.
+ * A grid (adding a table always comes first); adding or changing one opens its own
+ * screen, saved with OK, which goes back to the grid.
+ */
 export function Tables() {
   const tables = tablesStore.use();
-  const [editing, setEditing] = useState<string | null>(null);
-  const [bulk, setBulk] = useState({ count: 4, seats: 4, kind: "table" as TableKind });
+  // null: the grid; "new": adding; otherwise the id of the table being changed.
+  const [screen, setScreen] = useState<string | null>(null);
   const seats = tables.filter((t) => t.active).reduce((n, t) => n + t.seats, 0);
+  const editing = screen && screen !== "new" ? tables.find((t) => t.id === screen) : undefined;
 
-  const save = (id: string, patch: Partial<DiningTable>) => tablesStore.set(tables.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-
-  function addMany() {
-    const next = [...tables];
-    for (let i = 0; i < bulk.count; i++) next.push(newTable(next, { kind: bulk.kind, seats: bulk.seats, accessible: bulk.kind !== "bar" }));
-    tablesStore.set(next);
+  if (screen === "new" || editing) {
+    return (
+      <TableForm
+        key={screen}
+        tables={tables}
+        table={editing}
+        onDone={() => setScreen(null)}
+      />
+    );
   }
 
   return (
     <div className="flex flex-col gap-5">
       <p className="text-sm text-ink/60">
-        <strong className="text-ink">{tables.filter((t) => t.active).length} tables</strong> · {seats} places au total. Cliquez sur une table pour la modifier.
+        <strong className="text-ink">{tables.filter((t) => t.active).length} tables</strong> · {seats} places au total. Touchez une table pour la modifier.
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {/* Always the first card. */}
+        <button
+          onClick={() => setScreen("new")}
+          className="flex min-h-[148px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink/15 text-ink/50 transition-colors hover:border-red-600 hover:text-red-600"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-xl leading-none text-paper">+</span>
+          <span className="text-sm font-bold">Ajouter une table</span>
+        </button>
         {tables.map((t) => (
           <button
             key={t.id}
-            onClick={() => setEditing(editing === t.id ? null : t.id)}
-            className={`relative text-left rounded-2xl border p-4 transition-colors ${
-              editing === t.id ? "border-red-600 bg-red-600/5" : "border-ink/10 bg-white hover:border-ink/25"
-            } ${t.active ? "" : "opacity-45"}`}
+            onClick={() => setScreen(t.id)}
+            className={`relative text-left rounded-2xl border border-ink/10 bg-white p-4 transition-colors hover:border-ink/30 ${t.active ? "" : "opacity-45"}`}
           >
             <div className="flex items-start justify-between">
               <span className="text-red-600 [&_svg]:w-7 [&_svg]:h-7">{KIND_ICONS[t.kind]}</span>
@@ -413,48 +427,147 @@ export function Tables() {
                   <WheelchairIcon />
                 </span>
               )}
-              {!t.active && <span className="text-[10px] font-bold uppercase">Inactive</span>}
+              {!t.active && <span className="text-[10px] font-bold uppercase">Non réservable</span>}
             </div>
           </button>
         ))}
-        <button
-          onClick={() => {
-            const t = newTable(tables);
-            tablesStore.set([...tables, t]);
-            setEditing(t.id);
-          }}
-          className="flex min-h-[148px] flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-ink/15 text-ink/50 hover:border-red-600 hover:text-red-600"
-        >
-          <span className="text-3xl leading-none">+</span>
-          <span className="text-sm font-bold">Ajouter une table</span>
-        </button>
       </div>
+    </div>
+  );
+}
 
-      {editing && tables.find((t) => t.id === editing) && (
-        <TableEditor table={tables.find((t) => t.id === editing)!} onChange={(patch) => save(editing, patch)} onDelete={() => {
-          tablesStore.set(tables.filter((t) => t.id !== editing));
-          setEditing(null);
-        }} />
+/** One table on its own screen: new (numbered after the last) or one to change or delete. */
+function TableForm({ tables, table, onDone }: { tables: DiningTable[]; table?: DiningTable; onDone: () => void }) {
+  const [draft, setDraft] = useState<DiningTable>(() => table ?? newTable(tables));
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [bulk, setBulk] = useState({ count: 4, seats: 4, kind: "table" as TableKind });
+  const set = (patch: Partial<DiningTable>) => setDraft((d) => ({ ...d, ...patch }));
+  const code = draft.code.trim();
+  const taken = tables.some((t) => t.id !== draft.id && t.code.trim().toLowerCase() === code.toLowerCase());
+
+  function ok() {
+    if (!code || taken) return;
+    const saved = { ...draft, code };
+    tablesStore.set(table ? tables.map((t) => (t.id === table.id ? saved : t)) : [...tables, saved]);
+    onDone();
+  }
+
+  function addMany() {
+    const next = [...tables];
+    for (let i = 0; i < bulk.count; i++) next.push(newTable(next, { kind: bulk.kind, seats: bulk.seats, accessible: bulk.kind !== "bar" }));
+    tablesStore.set(next);
+    onDone();
+  }
+
+  const check = (on: boolean, label: string, icon: ReactNode, key: "highChair" | "accessible" | "active") => (
+    <label className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 text-sm cursor-pointer ${on ? "border-red-600/40 bg-red-600/5 font-semibold" : "border-ink/10 text-ink/60"}`}>
+      <input type="checkbox" checked={on} onChange={(e) => set({ [key]: e.target.checked })} className="h-4 w-4 accent-red-600" />
+      {icon}
+      {label}
+    </label>
+  );
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="self-start">
+        <BackButton label="Tables" onClick={onDone} />
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          ok();
+        }}
+        className="flex flex-col gap-6"
+      >
+        <h3 className="font-display text-2xl font-extrabold">{table ? `Table ${table.code}` : "Nouvelle table"}</h3>
+
+        <div className="flex flex-wrap items-start gap-6">
+          <label className="flex flex-col gap-1.5 text-sm font-semibold">
+            Numéro
+            <input
+              value={draft.code}
+              onChange={(e) => set({ code: e.target.value })}
+              autoFocus={!table}
+              aria-invalid={taken}
+              className={`w-32 rounded-xl border-2 px-3 py-2 font-display text-3xl font-black ${taken ? "border-red-600" : "border-ink/15"}`}
+            />
+            <span className={`text-xs font-normal ${taken ? "font-semibold text-red-600" : "text-ink/45"}`}>
+              {taken ? "Ce numéro existe déjà." : table ? "Le numéro de la table." : "Le suivant ; vous pouvez le changer."}
+            </span>
+          </label>
+          <div className="flex flex-col gap-1.5 text-sm font-semibold">
+            Personnes
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => set({ seats: Math.max(1, draft.seats - 1) })} aria-label="Une personne de moins" className="h-12 w-12 rounded-xl border-2 border-ink/15 text-xl">
+                −
+              </button>
+              <span className="w-14 text-center font-display text-3xl font-black tabular-nums">{draft.seats}</span>
+              <button type="button" onClick={() => set({ seats: Math.min(20, draft.seats + 1) })} aria-label="Une personne de plus" className="h-12 w-12 rounded-xl border-2 border-ink/15 text-xl">
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2 text-sm font-semibold">
+          Type
+          <KindPicker value={draft.kind} onChange={(kind) => set({ kind })} />
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          {check(draft.highChair, "Chaise haute (enfants)", <BabyIcon />, "highChair")}
+          {check(draft.accessible, "Fauteuil roulant", <WheelchairIcon />, "accessible")}
+          {check(draft.active, "Réservable", <PersonIcon cls="w-4 h-4" />, "active")}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 border-t border-ink/10 pt-5">
+          <button type="submit" disabled={!code || taken} className="rounded-full bg-red-600 px-8 py-3.5 text-sm font-bold text-paper hover:bg-red-700 disabled:opacity-40">
+            OK
+          </button>
+          <button type="button" onClick={onDone} className="rounded-full px-5 py-3.5 text-sm font-bold text-ink/60 hover:bg-ink/5">
+            Annuler
+          </button>
+          {table && (
+            <button type="button" onClick={() => setConfirmDelete(true)} className="ml-auto rounded-full px-5 py-3.5 text-sm font-bold text-red-600 hover:bg-red-600/10">
+              Supprimer la table
+            </button>
+          )}
+        </div>
+      </form>
+
+      {!table && (
+        <details className="rounded-2xl border border-ink/10 p-4 text-sm">
+          <summary className="cursor-pointer font-semibold">Ajouter plusieurs tables d'un coup</summary>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2">
+              <input type="number" min={1} max={30} value={bulk.count} onChange={(e) => setBulk({ ...bulk, count: Number(e.target.value) })} className="w-16 rounded-lg border border-ink/15 px-2 py-1.5 text-center" />
+              tables de
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="number" min={1} max={20} value={bulk.seats} onChange={(e) => setBulk({ ...bulk, seats: Number(e.target.value) })} className="w-16 rounded-lg border border-ink/15 px-2 py-1.5 text-center" />
+              personnes,
+            </label>
+            <KindPicker value={bulk.kind} onChange={(kind) => setBulk({ ...bulk, kind })} />
+            <button type="button" onClick={addMany} className="rounded-full bg-ink px-5 py-2.5 text-xs font-bold text-paper">
+              Ajouter {bulk.count} tables
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-ink/45">Numérotées à la suite des autres.</p>
+        </details>
       )}
 
-      <Card>
-        <p className="font-semibold mb-3">Ajouter plusieurs tables d'un coup</p>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <label className="flex items-center gap-2">
-            <input type="number" min={1} max={30} value={bulk.count} onChange={(e) => setBulk({ ...bulk, count: Number(e.target.value) })} className="w-16 rounded-lg border border-ink/15 px-2 py-1.5 text-center" />
-            tables de
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="number" min={1} max={20} value={bulk.seats} onChange={(e) => setBulk({ ...bulk, seats: Number(e.target.value) })} className="w-16 rounded-lg border border-ink/15 px-2 py-1.5 text-center" />
-            personnes,
-          </label>
-          <KindPicker value={bulk.kind} onChange={(kind) => setBulk({ ...bulk, kind })} />
-          <button onClick={addMany} className="rounded-full bg-ink px-5 py-2.5 text-xs font-bold text-paper">
-            Ajouter {bulk.count} tables
-          </button>
-        </div>
-        <p className="mt-2 text-xs text-ink/45">Elles sont numérotées à la suite ; vous pouvez changer chaque numéro ensuite.</p>
-      </Card>
+      {confirmDelete && table && (
+        <ConfirmDialog
+          title={`Supprimer la table ${table.code} ?`}
+          text="Elle disparaît des tables et des réservations futures. Les commandes déjà prises ne changent pas."
+          confirmLabel="Supprimer"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            tablesStore.set(tables.filter((t) => t.id !== table.id));
+            onDone();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -475,51 +588,6 @@ function KindPicker({ value, onChange }: { value: TableKind; onChange: (k: Table
         </button>
       ))}
     </div>
-  );
-}
-
-function TableEditor({ table, onChange, onDelete }: { table: DiningTable; onChange: (patch: Partial<DiningTable>) => void; onDelete: () => void }) {
-  const check = (on: boolean, label: string, icon: ReactNode, key: "highChair" | "accessible" | "active") => (
-    <label className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm cursor-pointer ${on ? "border-red-600/40 bg-red-600/5" : "border-ink/10 text-ink/60"}`}>
-      <input type="checkbox" checked={on} onChange={(e) => onChange({ [key]: e.target.checked })} className="h-4 w-4 accent-red-600" />
-      {icon}
-      {label}
-    </label>
-  );
-
-  return (
-    <Card className="border-red-600/40">
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-          Numéro ou code
-          <input value={table.code} onChange={(e) => onChange({ code: e.target.value })} className="w-32 rounded-xl border border-ink/15 px-3 py-2 text-lg font-display font-black" />
-        </label>
-        <div className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-          Personnes
-          <div className="flex items-center gap-1">
-            <button onClick={() => onChange({ seats: Math.max(1, table.seats - 1) })} className="h-10 w-10 rounded-xl border border-ink/15 text-lg">
-              −
-            </button>
-            <span className="w-12 text-center font-display font-black text-xl text-ink">{table.seats}</span>
-            <button onClick={() => onChange({ seats: Math.min(20, table.seats + 1) })} className="h-10 w-10 rounded-xl border border-ink/15 text-lg">
-              +
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-col gap-1 text-xs font-semibold text-ink/60">
-          Type
-          <KindPicker value={table.kind} onChange={(kind) => onChange({ kind })} />
-        </div>
-      </div>
-      <div className="mt-4 grid sm:grid-cols-3 gap-2">
-        {check(table.highChair, "Chaise haute possible", <BabyIcon />, "highChair")}
-        {check(table.accessible, "Fauteuil roulant", <WheelchairIcon />, "accessible")}
-        {check(table.active, "Réservable", <PersonIcon cls="w-4 h-4" />, "active")}
-      </div>
-      <button onClick={() => window.confirm(`Supprimer la table ${table.code} ?`) && onDelete()} className="mt-4 text-xs font-bold text-red-600 hover:underline">
-        Supprimer cette table
-      </button>
-    </Card>
   );
 }
 
