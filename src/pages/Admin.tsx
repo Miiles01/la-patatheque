@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { LogoMark } from "../components/LogoMark";
 import { menuCategories, specials, testimonials } from "../data/menu";
 import { asset } from "../lib/asset";
@@ -8,6 +9,7 @@ import {
   downloadCsv,
   list,
   onStoreChange,
+  isDone,
   orderRounds,
   record,
   update,
@@ -1084,7 +1086,8 @@ function PaidCoin({ o }: { o: Stored<Order> }) {
     <button
       onClick={(e) => {
         e.stopPropagation();
-        update("orders", o.id, { paid: !o.paid });
+        // The time it was paid: a finished, paid order leaves the kitchen board a minute later.
+        update("orders", o.id, { paid: !o.paid, paidAt: o.paid ? undefined : new Date().toISOString() });
       }}
       onPointerDown={(e) => e.stopPropagation()}
       aria-pressed={!!o.paid}
@@ -1156,8 +1159,248 @@ function RoundLines({ lines, max = 6 }: { lines: OrderLine[]; max?: number }) {
   );
 }
 
+/** Re-renders every \`every\` ms with the current time (timers on the kitchen cards). */
+function useNow(every: number) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), every);
+    return () => window.clearInterval(t);
+  }, [every]);
+  return now;
+}
+
+const minutes = (ms: number) => Math.max(0, Math.floor(ms / 60_000));
+const duration = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`);
+
+/**
+ * How long a round has been waiting: grey at first, orange after 15 minutes, red after 25.
+ * Once finished, how long it took.
+ */
+function RoundTimer({ round, now }: { round: Round; now: number }) {
+  if (isDone(round.status)) {
+    if (!round.doneAt) return null;
+    return <p className="-mt-1 text-xs font-semibold text-green-800">✓ Prête en {duration(minutes(Date.parse(round.doneAt) - Date.parse(round.at)))}</p>;
+  }
+  const min = minutes(now - Date.parse(round.at));
+  const tone = min >= 25 ? "bg-red-600 text-paper" : min >= 15 ? "bg-orange/25 text-ink" : "bg-ink/5 text-ink/70";
+  return (
+    <p className={`-mt-1 inline-flex items-center gap-1.5 self-start rounded-full px-2.5 py-1 text-xs font-bold tabular-nums ${tone}`} title="Temps d'attente">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
+        <circle cx="12" cy="13" r="8" />
+        <path d="M12 9v4l2.5 2M10 2h4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {duration(min)}
+    </p>
+  );
+}
+
+/**
+ * Today's orders as a plain list: when, for whom, what was ordered, the total and
+ * whether it was paid. Nothing extra is stored; it reads the orders already saved.
+ */
+function DayHistory({ orders, onClose }: { orders: Stored<Order>[]; onClose: () => void }) {
+  const today = new Date().toDateString();
+  const rows = orders.filter((o) => new Date(o.createdAt).toDateString() === today).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const total = rows.reduce((n, o) => n + o.total, 0);
+  const paid = rows.filter((o) => o.paid).reduce((n, o) => n + o.total, 0);
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [onClose]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18 }}
+      className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/50 p-4 md:p-6"
+      onClick={onClose}
+      data-lenis-prevent
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-title"
+        initial={{ y: 12, scale: 0.98 }}
+        animate={{ y: 0, scale: 1 }}
+        exit={{ y: 12, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white"
+      >
+        <header className="flex items-start justify-between gap-4 border-b border-ink/10 px-6 py-5">
+          <div>
+            <h2 id="history-title" className="font-display text-2xl font-extrabold">
+              Historique du jour
+            </h2>
+            <p className="mt-0.5 text-sm text-ink/55">
+              {new Intl.DateTimeFormat("fr-CA", { weekday: "long", day: "numeric", month: "long" }).format(new Date())} · {rows.length} commande{rows.length > 1 ? "s" : ""} ·{" "}
+              {money.format(total)} dont {money.format(paid)} payés
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 shrink-0 rounded-full text-ink/60 hover:bg-ink/5">
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
+            <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
+          </button>
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto">
+          {rows.length ? (
+            <table className="w-full text-left text-sm">
+              <thead className="sticky top-0 bg-white text-xs uppercase tracking-wider text-ink/45 shadow-[0_1px_0_rgb(43_28_20/0.08)]">
+                <tr>
+                  <th className="px-6 py-3 font-bold">Heure</th>
+                  <th className="px-3 py-3 font-bold">Commande</th>
+                  <th className="px-3 py-3 font-bold">Articles</th>
+                  <th className="px-3 py-3 text-right font-bold">Total</th>
+                  <th className="px-6 py-3 text-right font-bold">Payée</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink/5">
+                {rows.map((o) => (
+                  <tr key={o.id} className="align-top">
+                    <td className="whitespace-nowrap px-6 py-3 tabular-nums text-ink/60">{timeOnly.format(new Date(o.createdAt))}</td>
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <span className="font-bold">{o.mode === "surplace" ? `Table ${o.table}` : o.name}</span>
+                      <span className="block text-xs text-ink/45">
+                        #{o.id}
+                        {o.mode === "surplace" ? (o.server ? ` · ${o.server}` : "") : " · Pour emporter"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-ink/75">
+                      {o.lines.map((l) => `${l.qty}× ${l.name.replace(/^Pizza /, "")}${l.size ? ` ${l.size}` : ""}`).join(", ")}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums">{money.format(o.total)}</td>
+                    <td className="px-6 py-3 text-right">
+                      {o.paid ? (
+                        <span className="rounded-full bg-green-700/10 px-2.5 py-1 text-xs font-bold text-green-800">Payée</span>
+                      ) : (
+                        <span className="rounded-full bg-ink/5 px-2.5 py-1 text-xs font-bold text-ink/50">Non payée</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="px-6 py-16 text-center text-sm text-ink/45">Aucune commande aujourd'hui pour l'instant.</p>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/** The kitchen board's filter button: how cards are grouped, when finished ones leave, which orders show. */
+function KitchenFilterMenu({
+  group,
+  onGroup,
+  filters,
+  onChange,
+  active,
+}: {
+  group: KitchenGroup;
+  onGroup: (g: KitchenGroup) => void;
+  filters: KitchenFilters;
+  onChange: (f: Partial<KitchenFilters>) => void;
+  active: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const pill = (on: boolean) => `rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${on ? "bg-ink text-paper" : "bg-ink/5 text-ink/60 hover:bg-ink/10 hover:text-ink"}`;
+
+  return (
+    <div ref={box} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
+          open ? "border-ink bg-ink text-paper" : "border-ink/15 bg-white hover:border-ink/40"
+        }`}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-[18px] w-[18px]" aria-hidden="true">
+          <path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" strokeLinejoin="round" />
+        </svg>
+        Filtres
+        {active && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" aria-label="(modifiés)" />}
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="dialog"
+            aria-label="Filtres de la cuisine"
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute right-0 top-full z-40 mt-2 w-72 origin-top-right rounded-2xl border border-ink/10 bg-white p-4 shadow-xl"
+          >
+            <p className="text-xs font-bold uppercase tracking-wider text-ink/45">Afficher</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {GROUPS.map((g) => (
+                <button key={g.id} onClick={() => onGroup(g.id)} aria-pressed={group === g.id} className={pill(group === g.id)}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-ink/45">
+              {group === "envois" ? "Une carte par envoi : une table qui recommande a une nouvelle carte." : "Une carte par table, avec chaque envoi et où il en est."}
+            </p>
+
+            <p className="mt-4 text-xs font-bold uppercase tracking-wider text-ink/45">Commandes</p>
+            <div className="mt-2 flex flex-col gap-2">
+              {(
+                [
+                  ["tables", "Sur place (tables)"],
+                  ["pickup", "Pour emporter"],
+                  ["keepDone", "Garder les terminées payées"],
+                ] as const
+              ).map(([k, label]) => (
+                <label key={k} className="flex items-center justify-between gap-3 text-sm font-semibold">
+                  {label}
+                  <input
+                    type="checkbox"
+                    checked={filters[k]}
+                    onChange={(e) => onChange({ [k]: e.target.checked })}
+                    className="h-5 w-5 accent-red-600"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-ink/45">Une commande terminée et payée quitte le tableau après 1 minute. Elle reste dans l'historique du jour.</p>
+            {active && (
+              <button
+                onClick={() => {
+                  onGroup("envois");
+                  onChange(DEFAULT_FILTERS);
+                }}
+                className="mt-4 text-xs font-bold text-ink/50 hover:text-ink"
+              >
+                Réinitialiser
+              </button>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /** Kitchen card for one round of an order: who it is for, when, and the dishes. */
-function RoundCard({ o, round, rounds }: { o: Stored<Order>; round: Round; rounds: number }) {
+function RoundCard({ o, round, rounds, now }: { o: Stored<Order>; round: Round; rounds: number; now: number }) {
   return (
     <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
@@ -1173,6 +1416,7 @@ function RoundCard({ o, round, rounds }: { o: Stored<Order>; round: Round; round
         </span>
       </div>
       {o.mode !== "surplace" && <p className="-mt-1 font-semibold leading-tight">{o.name}</p>}
+      <RoundTimer round={round} now={now} />
       <RoundLines lines={round.lines} />
       {round.n === 0 && o.notes && <p className="rounded-lg bg-orange/12 px-2.5 py-1.5 text-xs text-ink/75">{o.notes}</p>}
       <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
@@ -1184,7 +1428,9 @@ function RoundCard({ o, round, rounds }: { o: Stored<Order>; round: Round; round
 }
 
 /** Kitchen card for a whole table: every round with where it stands. */
-function TableRoundsCard({ o, rounds }: { o: Stored<Order>; rounds: Round[] }) {
+function TableRoundsCard({ o, rounds, now }: { o: Stored<Order>; rounds: Round[]; now: number }) {
+  // The table's clock runs from its oldest round still waiting.
+  const waiting = rounds.find((r) => !isDone(r.status));
   return (
     <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
@@ -1195,6 +1441,7 @@ function TableRoundsCard({ o, rounds }: { o: Stored<Order>; rounds: Round[] }) {
         </span>
       </div>
       {o.mode !== "surplace" && <p className="-mt-1 font-semibold leading-tight">{o.name}</p>}
+      <RoundTimer round={waiting ?? rounds[rounds.length - 1]} now={now} />
       <ol className="flex flex-col gap-3">
         {rounds.map((r) => {
           const done = r.status === "terminee" || r.status === "prete";
@@ -1324,6 +1571,18 @@ const VIEW_KEY = "patatheque-orders-view"; // remembered per device: the kitchen
  */
 type KitchenGroup = "envois" | "tables";
 const GROUP_KEY = "patatheque-kitchen-group";
+const FILTER_KEY = "patatheque-kitchen-filters";
+
+/** What the kitchen board shows, chosen in its filter menu and remembered per device. */
+type KitchenFilters = {
+  tables: boolean;
+  pickup: boolean;
+  /** Keep finished, paid orders on the board instead of moving them to the day's history. */
+  keepDone: boolean;
+};
+const DEFAULT_FILTERS: KitchenFilters = { tables: true, pickup: true, keepDone: false };
+/** A finished and paid round stays this long on the board (in case of a wrong tap), then goes to the history. */
+const LEAVE_AFTER = 60_000;
 const GROUPS: { id: KitchenGroup; label: string; icon: ReactNode }[] = [
   {
     id: "envois",
@@ -1403,24 +1662,61 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       // ignore
     }
   };
+  const [filters, setFilters] = useState<KitchenFilters>(() => {
+    try {
+      return { ...DEFAULT_FILTERS, ...JSON.parse(localStorage.getItem(FILTER_KEY) ?? "{}") };
+    } catch {
+      return DEFAULT_FILTERS;
+    }
+  });
+  const changeFilters = (f: Partial<KitchenFilters>) => {
+    const next = { ...filters, ...f };
+    setFilters(next);
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+  // Timers on the cards and finished rounds leaving the board follow the clock.
+  const now = useNow(30_000);
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   // From the kitchen board, an order opens on the wide ticket (with every round), the one tapped highlighted.
   const [openWide, setOpenWide] = useState(false);
   const [openRound, setOpenRound] = useState<number | undefined>();
 
+  // Finished and paid: a minute later it leaves the board (it stays in the day's history).
+  // Finished but not paid yet stays, so nobody forgets to collect.
+  const gone = (o: Stored<Order>, r: Round) =>
+    !filters.keepDone && !!o.paid && isDone(r.status) && Date.now() - Math.max(Date.parse(r.doneAt ?? r.at), Date.parse(o.paidAt ?? o.createdAt)) > LEAVE_AFTER;
+  let hidden = 0;
   const kitchenItems: KitchenItem[] = orders.flatMap((o) => {
-    const rounds = orderRounds(o);
+    if (o.mode === "surplace" ? !filters.tables : !filters.pickup) return [];
+    const all = orderRounds(o);
+    const rounds = group === "envois" ? all.filter((r) => !gone(o, r)) : all.every((r) => gone(o, r)) ? [] : all;
+    hidden += all.length - rounds.length;
+    if (!rounds.length) return [];
     if (group === "envois") return rounds.map((r) => ({ key: r.key, status: r.status, rank: r.rank, at: r.at, o, rounds, round: r }));
     // A table sits in the column of its least advanced round: new dishes keep it in Nouvelles.
     const status = STATUS_ORDER[Math.min(...rounds.map((r) => STATUS_ORDER.indexOf(r.status === "prete" ? "terminee" : r.status)))];
     return [{ key: o.id, status, rank: o.rank, at: o.createdAt, o, rounds }];
   });
+  const filtered = filters.keepDone || !filters.tables || !filters.pickup || group !== "envois";
+  const [history, setHistory] = useState(false);
+  // The board ticks every 30 s; a paid order that just finished is checked again right after its minute.
+  useEffect(() => {
+    const soon = orders.some((o) => o.paid && o.paidAt && Date.now() - Date.parse(o.paidAt) < LEAVE_AFTER);
+    if (!soon) return;
+    const t = window.setTimeout(() => setTick((n) => n + 1), 5_000);
+    return () => window.clearTimeout(t);
+  });
+  const [, setTick] = useState(0);
   function moveItem(it: KitchenItem, patch: { rank: number; status?: OrderStatus }) {
     if (it.round) return updateRound(it.o, it.round.n, patch);
     // A whole table moved to another column: every round goes there.
     if (patch.status) for (const r of it.rounds) if (r.status !== patch.status && r.n > 0) updateRound(it.o, r.n, { status: patch.status });
-    update("orders", it.o.id, patch.status ? { rank: patch.rank, status: patch.status } : { rank: patch.rank });
+    updateRound(it.o, 0, patch.status && patch.status !== it.rounds[0].status ? { rank: patch.rank, status: patch.status } : { rank: patch.rank });
   }
   const opened = orders.find((o) => o.id === openId);
   const [editingTables, setEditingTables] = useState(false);
@@ -1457,11 +1753,27 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
         />
       )}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
+      <AnimatePresence>{history && <DayHistory orders={orders} onClose={() => setHistory(false)} />}</AnimatePresence>
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <SegmentedTabs id="orders-view" label="Vue" items={VIEWS} value={view} onChange={pickView} />
         <div className="flex flex-wrap items-center gap-2">
-        {view === "cuisine" && <SegmentedTabs id="kitchen-group" label="Afficher" items={GROUPS} value={group} onChange={pickGroup} compact />}
+        {view === "cuisine" && (
+          <>
+            <button
+              onClick={() => setHistory(true)}
+              aria-label="Historique du jour"
+              title="Historique du jour"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/5 text-ink/55 transition-colors hover:bg-ink/10 hover:text-ink"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
+                <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 8v4l3 2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <KitchenFilterMenu group={group} onGroup={pickGroup} filters={filters} onChange={changeFilters} active={filtered} />
+          </>
+        )}
         <EditButton
           label="Tables"
           title="Modifier les tables"
@@ -1496,7 +1808,16 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       ) : (
         <KitchenBoard
           items={kitchenItems}
-          renderCard={(it) => (it.round ? <RoundCard o={it.o} round={it.round} rounds={it.rounds.length} /> : <TableRoundsCard o={it.o} rounds={it.rounds} />)}
+          renderCard={(it) =>
+            it.round ? <RoundCard o={it.o} round={it.round} rounds={it.rounds.length} now={now} /> : <TableRoundsCard o={it.o} rounds={it.rounds} now={now} />
+          }
+          doneNote={
+            hidden > 0 ? (
+              <button onClick={() => setHistory(true)} className="px-1 py-2 text-center text-xs font-semibold text-ink/45 hover:text-ink">
+                {hidden} terminée{hidden > 1 ? "s" : ""} et payée{hidden > 1 ? "s" : ""} · Voir l'historique
+              </button>
+            ) : null
+          }
           onOpen={(it) => {
             setOpenWide(true);
             setOpenRound(it.round?.n);

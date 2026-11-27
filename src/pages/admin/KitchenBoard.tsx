@@ -27,6 +27,7 @@ export function KitchenBoard<T extends BoardItem>({
   onOpen,
   onMove,
   onAdd,
+  doneNote,
 }: {
   items: T[];
   renderCard: (o: T) => ReactNode;
@@ -34,6 +35,8 @@ export function KitchenBoard<T extends BoardItem>({
   /** Dropped somewhere: its new place, and its new status when it changed column. */
   onMove: (o: T, patch: { rank: number; status?: OrderStatus }) => void;
   onAdd: () => void;
+  /** Shown at the bottom of the last column (finished orders hidden by the filters). */
+  doneNote?: ReactNode;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -168,6 +171,7 @@ export function KitchenBoard<T extends BoardItem>({
               ))}
               {drag?.col === ci && drag.index >= visible.length && line}
               {!c.rows.length && drag?.col !== ci && <p className="px-1 py-6 text-center text-xs text-ink/40">Glissez une commande ici</p>}
+              {ci === columns.length - 1 && doneNote}
             </section>
           );
         })}

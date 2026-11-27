@@ -222,7 +222,13 @@ function record_update(string $c, string $id, mixed $patch): array
     if (isset($allowed['rank'])) $allowed['rank'] = (float)$allowed['rank'];
     if (isset($allowed['closed'])) $allowed['closed'] = (bool)$allowed['closed'];
     if (isset($allowed['status']) && !in_array($allowed['status'], ['nouvelle', 'preparation', 'prete', 'terminee'], true)) throw new HttpError('Statut invalide.', 422);
-    if (isset($allowed['paid'])) $allowed['paid'] = (bool)$allowed['paid'];
+    if (isset($allowed['paid'])) {
+        $allowed['paid'] = (bool)$allowed['paid'];
+        // When it was paid: a finished, paid order leaves the kitchen board a minute later.
+        $allowed['paidAt'] = $allowed['paid'] ? gmdate('Y-m-d\TH:i:s\Z') : null;
+    }
+    // When the kitchen finished it: the board hides finished orders a while later.
+    if (isset($allowed['status'])) $allowed['doneAt'] = in_array($allowed['status'], ['prete', 'terminee'], true) ? gmdate('Y-m-d\TH:i:s\Z') : null;
     $row = db_one('SELECT data FROM records WHERE collection = ? AND id = ?', [$c, $id]) ?? throw new HttpError('Introuvable.', 404);
     $old = json_decode($row['data'], true);
     $data = array_merge($old, $allowed);
@@ -231,7 +237,7 @@ function record_update(string $c, string $id, mixed $patch): array
     if (isset($patch['lines'])) {
         $edited = array_intersect_key($patch, array_flip(['lines', 'notes', 'table', 'name', 'phone', 'when', 'mode', 'server']));
         $clean = clean_order(array_merge($old, $edited));
-        foreach (['status', 'paid', 'closed', 'rank', 'email', 'additions'] as $k) {
+        foreach (['status', 'paid', 'closed', 'rank', 'email', 'additions', 'doneAt', 'paidAt'] as $k) {
             if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
         }
         // Dishes added since the kitchen got the order: kept as a new round with its own
@@ -262,6 +268,7 @@ function round_update(string $id, int $n, array $patch): array
     if (isset($patch['status'])) {
         if (!in_array($patch['status'], ['nouvelle', 'preparation', 'prete', 'terminee'], true)) throw new HttpError('Statut invalide.', 422);
         $data['additions'][$n - 1]['status'] = $patch['status'];
+        $data['additions'][$n - 1]['doneAt'] = in_array($patch['status'], ['prete', 'terminee'], true) ? gmdate('Y-m-d\TH:i:s\Z') : null;
     }
     if (isset($patch['rank'])) $data['additions'][$n - 1]['rank'] = (float)$patch['rank'];
     db_run("UPDATE records SET data = ? WHERE collection = 'orders' AND id = ?", [json_encode($data, JSON_UNESCAPED_UNICODE), $id]);

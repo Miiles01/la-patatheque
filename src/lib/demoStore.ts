@@ -14,7 +14,7 @@ export type OrderStatus = "nouvelle" | "preparation" | "prete" | "terminee";
  * Dishes added to an order after it was sent to the kitchen (a table ordering more).
  * Each round goes through the kitchen on its own: its own status and place in a column.
  */
-export type OrderAddition = { at: string; lines: OrderLine[]; status?: OrderStatus; rank?: number };
+export type OrderAddition = { at: string; lines: OrderLine[]; status?: OrderStatus; rank?: number; doneAt?: string };
 
 /** What `next` has on top of `prev`: new dishes, and extra quantity of ones already there. */
 export function addedLines(prev: OrderLine[], next: OrderLine[]): OrderLine[] {
@@ -39,6 +39,10 @@ export type Order = {
   closed?: boolean;
   /** Waiter looking after the table (name). */
   server?: string;
+  /** When it was marked paid (a finished, paid order leaves the kitchen board a minute later). */
+  paidAt?: string;
+  /** When the kitchen marked the first round done. */
+  doneAt?: string;
   /** Rounds of dishes added after the order was first sent, oldest first. */
   additions?: OrderAddition[];
   /** Position in its kitchen column, set when a card is dragged. */
@@ -180,7 +184,9 @@ export function update<C extends Collection>(c: C, id: string, patch: Partial<Co
  * An order as the kitchen sees it: the first round (what was ordered at first) and each
  * round added after it. Round 0 keeps its status on the order itself.
  */
-export type Round = { n: number; key: string; at: string; lines: OrderLine[]; status: OrderStatus; rank?: number };
+export type Round = { n: number; key: string; at: string; lines: OrderLine[]; status: OrderStatus; rank?: number; doneAt?: string };
+
+export const isDone = (s: OrderStatus) => s === "terminee" || s === "prete";
 
 export function orderRounds(o: Stored<Order>): Round[] {
   const adds = o.additions ?? [];
@@ -195,13 +201,15 @@ export function orderRounds(o: Stored<Order>): Round[] {
     if (l.qty - take > 0) first.push({ ...l, qty: l.qty - take });
   }
   return [
-    { n: 0, key: o.id, at: o.createdAt, lines: first, status: o.status, rank: o.rank },
-    ...adds.map((a, i) => ({ n: i + 1, key: `${o.id}+${i + 1}`, at: a.at, lines: a.lines, status: a.status ?? "nouvelle", rank: a.rank })),
+    { n: 0, key: o.id, at: o.createdAt, lines: first, status: o.status, rank: o.rank, doneAt: o.doneAt },
+    ...adds.map((a, i) => ({ n: i + 1, key: `${o.id}+${i + 1}`, at: a.at, lines: a.lines, status: a.status ?? "nouvelle", rank: a.rank, doneAt: a.doneAt })),
   ];
 }
 
 /** Moves one round of an order through the kitchen (status, place in its column). */
-export function updateRound(o: Stored<Order>, n: number, patch: { status?: OrderStatus; rank?: number }) {
+export function updateRound(o: Stored<Order>, n: number, change: { status?: OrderStatus; rank?: number }) {
+  // The time it was finished is kept (the server sets its own); moving it back clears it.
+  const patch = change.status ? { ...change, doneAt: isDone(change.status) ? new Date().toISOString() : undefined } : change;
   if (n === 0) return update("orders", o.id, patch);
   write(
     "orders",
