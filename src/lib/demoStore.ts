@@ -10,6 +10,23 @@ export type OrderLine = { name: string; size?: string; price: number; qty: numbe
 
 export type OrderStatus = "nouvelle" | "preparation" | "prete" | "terminee";
 
+/** Dishes added to an order after it was sent to the kitchen (a table ordering more). */
+export type OrderAddition = { at: string; lines: OrderLine[] };
+
+/** What `next` has on top of `prev`: new dishes, and extra quantity of ones already there. */
+export function addedLines(prev: OrderLine[], next: OrderLine[]): OrderLine[] {
+  const key = (l: OrderLine) => `${l.category ?? ""}|${l.name}|${l.size ?? ""}`;
+  const had = new Map<string, number>();
+  for (const l of prev) had.set(key(l), (had.get(key(l)) ?? 0) + l.qty);
+  const out: OrderLine[] = [];
+  for (const l of next) {
+    const extra = l.qty - (had.get(key(l)) ?? 0);
+    had.set(key(l), Math.max(0, (had.get(key(l)) ?? 0) - l.qty));
+    if (extra > 0) out.push({ ...l, qty: extra });
+  }
+  return out;
+}
+
 export type Order = {
   /** "surplace": taken by staff at a table. */
   mode: "emporter" | "livraison" | "surplace";
@@ -19,6 +36,8 @@ export type Order = {
   closed?: boolean;
   /** Waiter looking after the table (name). */
   server?: string;
+  /** Rounds of dishes added after the order was first sent, oldest first. */
+  additions?: OrderAddition[];
   /** Position in its kitchen column, set when a card is dragged. */
   rank?: number;
   name: string;

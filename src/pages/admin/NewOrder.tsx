@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
-import { list, submit, update, type Order, type Stored } from "../../lib/demoStore";
+import { addedLines, list, submit, update, type Order, type Stored } from "../../lib/demoStore";
 import { computeCharges, useCharges } from "../../lib/charges";
 import { useMenu } from "../../lib/menuStore";
 import { promoDiscount, promosStore } from "../../lib/promos";
@@ -26,12 +26,15 @@ export function NewOrderDialog({
   order,
   user,
   onOpenOrder,
+  wide,
 }: {
   onClose: () => void;
   order?: Stored<Order>;
   user: Member;
   /** Opens another order instead (the one already at the table typed in). */
   onOpenOrder?: (id: string) => void;
+  /** Opens on the ticket at full width (the kitchen's view). */
+  wide?: boolean;
 }) {
   const { categories, specials } = useMenu();
   const tables = tablesStore.use().filter((t) => t.active);
@@ -96,7 +99,14 @@ export function NewOrderDialog({
     try {
       const sub = Math.round(subtotal * 100) / 100;
       if (order) {
+        const next = lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category }));
+        // Dishes added since the kitchen got the order go back to it as a new round, with
+        // the sound (except on this device). The server works this out again on its side.
+        const added = addedLines(order.lines, next);
+        const additions = added.length ? [...(order.additions ?? []), { at: new Date().toISOString(), lines: added }] : order.additions;
+        if (added.length) markOrderTakenHere(`${order.id}+${additions!.length}`);
         update("orders", order.id, {
+          ...(added.length ? { additions, status: "nouvelle" as const } : {}),
           mode,
           table: mode === "surplace" ? table : undefined,
           name: mode === "surplace" ? `Table ${table}` : name.trim(),
@@ -104,7 +114,7 @@ export function NewOrderDialog({
           when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
           notes: notes.trim(),
           server: mode === "surplace" && server ? server : undefined,
-          lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
+          lines: next,
           subtotal: sub,
           discount,
           charges: chargeLines.length ? chargeLines : undefined,
@@ -148,7 +158,10 @@ export function NewOrderDialog({
   const [step, setStep] = useState<Step>(order ? "items" : "table");
   const [dir, setDir] = useState(1);
   // Computer: the ticket can take the whole width, centred, with the menu out of the way.
-  const [full, setFull] = useState(false);
+  const [full, setFull] = useState(!!wide);
+  // Rounds of dishes added after the order reached the kitchen, shown beside the wide ticket.
+  const rounds = order?.additions ?? [];
+  const showRounds = full && rounds.length > 0;
   // Measured once the dishes step (and its category tabs) is on screen.
   const chipFade = useEdgeFade(chips, !search.trim() && step === "items");
   const go = (to: Step) => {
@@ -585,7 +598,11 @@ export function NewOrderDialog({
 
                   {/* Ticket */}
                   <section className={`relative min-h-0 flex-col bg-[#f3f1ee] lg:flex lg:shrink-0 ${full ? "lg:w-full" : "lg:w-1/2"} ${view === "order" ? "flex flex-1" : "hidden"}`}>
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:pb-28">
+                    <div
+                      className={`min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:pb-28 ${
+                        showRounds ? "lg:grid lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start lg:gap-8" : ""
+                      }`}
+                    >
                       <Ticket
                         mode={mode}
                         table={table}
@@ -669,6 +686,7 @@ export function NewOrderDialog({
                           className="mt-4 w-full resize-none rounded-xl bg-ink/[0.04] px-3.5 py-2.5 text-sm outline-none placeholder:text-ink/35 focus:bg-ink/[0.06]"
                         />
                       </Ticket>
+                      {showRounds && <NewRounds rounds={rounds} who={mode === "surplace" ? `La table ${table}` : name} fresh={order?.status === "nouvelle"} />}
                     </div>
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
@@ -722,6 +740,69 @@ const STEP_ICONS: Record<Step, React.ReactNode> = {
     </>
   ),
 };
+
+const clock = new Intl.DateTimeFormat("fr-CA", { hour: "numeric", minute: "2-digit" });
+
+/** How long ago, in words: "à l'instant", "il y a 4 min", "il y a 1 h 05". */
+function ago(iso: string) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
+}
+
+/**
+ * Beside the wide ticket: each round of dishes added after the order reached the
+ * kitchen, newest first, so the cooks see exactly what is new and don't mix it up
+ * with what they already made.
+ */
+function NewRounds({ rounds, who, fresh }: { rounds: NonNullable<Order["additions"]>; who: string; fresh: boolean }) {
+  return (
+    <section aria-labelledby="new-rounds-title" className="mt-8 hidden lg:mt-0 lg:block">
+      <h3 id="new-rounds-title" className="flex items-center gap-2 font-display text-xl font-bold">
+        Nouvelles commandes
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-paper tabular-nums">{rounds.length}</span>
+      </h3>
+      <p className="mt-1 text-sm text-ink/50">Ajoutées après la première commande. La plus récente en haut.</p>
+      <ol className="mt-4 flex flex-col gap-3">
+        {rounds
+          .map((r, i) => ({ ...r, n: i + 1 }))
+          .reverse()
+          .map((r, i) => {
+            const latest = i === 0;
+            const count = r.lines.reduce((n, l) => n + l.qty, 0);
+            return (
+              <li key={r.at + r.n} className={`rounded-2xl bg-white p-5 ${latest && fresh ? "ring-2 ring-red-600" : "ring-1 ring-ink/5"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="flex items-center gap-2 text-sm font-bold">
+                    Ajout n° {r.n}
+                    {latest && fresh && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold text-paper">Nouveau</span>}
+                  </p>
+                  <p className="text-xs text-ink/45 tabular-nums">
+                    {clock.format(new Date(r.at))} · {ago(r.at)}
+                  </p>
+                </div>
+                <p className="mt-2 text-sm text-ink/60">
+                  {who} a commandé en plus {count > 1 ? `${count} articles` : "1 article"} :
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {r.lines.map((l, j) => (
+                    <li key={j} className="flex items-baseline gap-3">
+                      <span className="w-8 shrink-0 font-display text-lg font-bold tabular-nums text-red-600">{l.qty}×</span>
+                      <span className="font-semibold leading-tight">
+                        {l.name}
+                        {l.size && <span className="ml-2 font-bold text-ink">{l.size}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            );
+          })}
+      </ol>
+    </section>
+  );
+}
 
 /** The order as a ticket: the restaurant's logo, who it is for, a torn-off line, then the dishes. */
 function Ticket({

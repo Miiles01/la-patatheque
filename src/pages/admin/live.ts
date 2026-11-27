@@ -49,7 +49,18 @@ export function useLiveSync(user: Member, onOrders: boolean) {
   useNewOrderChime(onOrders);
 }
 
-/** Orders taken on this device (Nouvelle commande): no sound for those. */
+/**
+ * What the kitchen should hear about: each new order (its id) and each round of dishes
+ * added to an order afterwards ("id+2" for the second round).
+ */
+function alerts() {
+  return list("orders").flatMap((o) => [
+    ...(o.status === "nouvelle" ? [o.id] : []),
+    ...(o.additions?.length ? [`${o.id}+${o.additions.length}`] : []),
+  ]);
+}
+
+/** Orders, and rounds added to one ("id+n"), taken on this device: no sound for those. */
 const takenHere = new Set<string>();
 export function markOrderTakenHere(id: string) {
   takenHere.add(id);
@@ -66,13 +77,11 @@ function useNewOrderChime(onOrders: boolean) {
     // site in another tab of this browser arrives through the storage event.
     // Demo: the orders already in this browser are known from the start. Real site: the
     // list is empty until the first refresh, which then only records what is there.
-    if (!live) seen.current = new Set(list("orders").filter((o) => o.status === "nouvelle").map((o) => o.id));
+    if (!live) seen.current = new Set(alerts());
     // Checked a moment later, so an order just taken on this device is marked first.
     return onStoreChange(() => window.setTimeout(check, 0));
     function check() {
-      const ids = list("orders")
-        .filter((o) => o.status === "nouvelle")
-        .map((o) => o.id);
+      const ids = alerts();
       // The first load only records what is already there.
       const fresh = seen.current ? ids.filter((id) => !seen.current!.has(id) && !takenHere.has(id)) : [];
       if (fresh.length && active.current) playOrderSound(getSettings().orderSound);

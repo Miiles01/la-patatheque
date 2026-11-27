@@ -229,8 +229,16 @@ function record_update(string $c, string $id, mixed $patch): array
     if (isset($patch['lines'])) {
         $edited = array_intersect_key($patch, array_flip(['lines', 'notes', 'table', 'name', 'phone', 'when', 'mode', 'server']));
         $clean = clean_order(array_merge($old, $edited));
-        foreach (['status', 'paid', 'closed', 'rank', 'email'] as $k) {
+        foreach (['status', 'paid', 'closed', 'rank', 'email', 'additions'] as $k) {
             if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
+        }
+        // Dishes added since the kitchen got the order: kept as a new round (the kitchen
+        // panel lists them and rings), and the order goes back to « À préparer ».
+        $added = added_lines((array)($old['lines'] ?? []), $clean['lines']);
+        if ($added) {
+            $clean['additions'] = array_values(array_slice((array)($old['additions'] ?? []), -49));
+            $clean['additions'][] = ['at' => gmdate('Y-m-d\TH:i:s\Z'), 'lines' => $added];
+            $clean['status'] = 'nouvelle';
         }
         // The code was already honoured when the order came in: keep it, and work the discount out again on the new subtotal.
         if (!empty($old['promoCode']) && ($promo = promo_find((string)$old['promoCode']))) {
@@ -242,6 +250,22 @@ function record_update(string $c, string $id, mixed $patch): array
     }
     db_run('UPDATE records SET data = ? WHERE collection = ? AND id = ?', [json_encode($data, JSON_UNESCAPED_UNICODE), $c, $id]);
     return ['ok' => true];
+}
+
+/** What $next has on top of $prev: new dishes, and extra quantity of ones already there. */
+function added_lines(array $prev, array $next): array
+{
+    $key = fn($l) => ($l['category'] ?? '') . '|' . ($l['name'] ?? '') . '|' . ($l['size'] ?? '');
+    $had = [];
+    foreach ($prev as $l) $had[$key($l)] = ($had[$key($l)] ?? 0) + (int)($l['qty'] ?? 0);
+    $out = [];
+    foreach ($next as $l) {
+        $k = $key($l);
+        $extra = (int)$l['qty'] - ($had[$k] ?? 0);
+        $had[$k] = max(0, ($had[$k] ?? 0) - (int)$l['qty']);
+        if ($extra > 0) $out[] = ['qty' => $extra] + $l;
+    }
+    return $out;
 }
 
 /** Staff can delete an application (and its CV file). */

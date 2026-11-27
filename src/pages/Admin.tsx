@@ -1174,6 +1174,14 @@ function OrderCard({ o }: { o: Stored<Order> }) {
         {o.lines.length > 4 && <span className="text-xs font-bold text-ink/50 pl-1">+{o.lines.length - 4}</span>}
       </div>
 
+      {/* The table ordered more: the newest round, until the kitchen moves the card on. */}
+      {o.status === "nouvelle" && o.additions?.length ? (
+        <p className="-mt-1 inline-flex items-center gap-1.5 self-start rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-bold text-paper">
+          + Ajout n° {o.additions.length} · {o.additions[o.additions.length - 1].lines.reduce((n, l) => n + l.qty, 0)} article
+          {o.additions[o.additions.length - 1].lines.reduce((n, l) => n + l.qty, 0) > 1 ? "s" : ""}
+        </p>
+      ) : null}
+
       {dineIn && o.server && (
         <p className="flex items-center gap-1.5 text-sm font-semibold text-ink/80">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-paper">{o.server.charAt(0)}</span>
@@ -1328,6 +1336,8 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
   };
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  // From the kitchen board, an order opens on the wide ticket (with what was added since).
+  const [openWide, setOpenWide] = useState(false);
   const opened = orders.find((o) => o.id === openId);
   const [editingTables, setEditingTables] = useState(false);
   // Salle: tables still seated. Closing a table is the waiter's call, apart from the kitchen's status.
@@ -1351,7 +1361,7 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
           }}
         />
       )}
-      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} onClose={() => setOpenId(null)} onOpenOrder={setOpenId} />}
+      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} wide={openWide} onClose={() => setOpenId(null)} onOpenOrder={setOpenId} />}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -1375,11 +1385,23 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
             <span className="font-bold">Nouvelle commande</span>
           </button>
           {openTables.map((o) => (
-            <TableCard key={o.id} o={o} onOpen={() => setOpenId(o.id)} />
+            <TableCard
+              key={o.id}
+              o={o}
+              onOpen={() => {
+                setOpenWide(false);
+                setOpenId(o.id);
+              }}
+            />
           ))}
         </div>
       ) : (
-        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => setOpenId(o.id)} onAdd={() => setAdding(true)} />
+        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => {
+            setOpenWide(true);
+            setOpenId(o.id);
+          }}
+          onAdd={() => setAdding(true)}
+        />
       )}
     </>
   );
