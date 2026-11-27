@@ -1299,9 +1299,30 @@ function RoundTimer({ round, now }: { round: Round; now: number }) {
  */
 function DayHistory({ orders, onClose }: { orders: Stored<Order>[]; onClose: () => void }) {
   const today = new Date().toDateString();
-  const rows = orders.filter((o) => new Date(o.createdAt).toDateString() === today).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const total = rows.reduce((n, o) => n + o.total, 0);
-  const paid = rows.filter((o) => o.paid).reduce((n, o) => n + o.total, 0);
+  const day = orders.filter((o) => new Date(o.createdAt).toDateString() === today).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const total = day.reduce((n, o) => n + o.total, 0);
+  const paid = day.filter((o) => o.paid).reduce((n, o) => n + o.total, 0);
+  // Search by table or customer, order number, waiter, dish, or amount ("29,70", "29.7", "29").
+  const [q, setQ] = useState("");
+  const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const words = norm(q.trim()).split(/\s+/).filter(Boolean);
+  const rows = words.length
+    ? day.filter((o) => {
+        const hay = norm(
+          [
+            o.mode === "surplace" ? `table ${o.table}` : o.name,
+            o.id,
+            o.server ?? "",
+            o.lines.map((l) => `${l.name} ${l.size ?? ""}`).join(" "),
+            o.total.toFixed(2),
+            o.total.toFixed(2).replace(".", ","),
+            money.format(o.total),
+            o.paid ? "payee" : "non payee",
+          ].join(" "),
+        );
+        return words.every((w) => hay.includes(w.replace(/\$/g, "")));
+      })
+    : day;
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", esc);
@@ -1335,7 +1356,7 @@ function DayHistory({ orders, onClose }: { orders: Stored<Order>[]; onClose: () 
               Historique du jour
             </h2>
             <p className="mt-0.5 text-sm text-ink/55">
-              {new Intl.DateTimeFormat("fr-CA", { weekday: "long", day: "numeric", month: "long" }).format(new Date())} · {rows.length} commande{rows.length > 1 ? "s" : ""} ·{" "}
+              {new Intl.DateTimeFormat("fr-CA", { weekday: "long", day: "numeric", month: "long" }).format(new Date())} · {day.length} commande{day.length > 1 ? "s" : ""} ·{" "}
               {money.format(total)} dont {money.format(paid)} payés
             </p>
           </div>
@@ -1344,6 +1365,28 @@ function DayHistory({ orders, onClose }: { orders: Stored<Order>[]; onClose: () 
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
           </button>
         </header>
+        <div className="border-b border-ink/10 px-6 py-3">
+          <label className="relative block">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4 4" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              autoFocus
+              placeholder="Chercher : table, numéro, serveur·euse, plat, montant…"
+              aria-label="Chercher dans l'historique"
+              className={`${inputCls} pl-12`}
+            />
+          </label>
+          {words.length > 0 && (
+            <p className="mt-2 text-xs text-ink/50">
+              {rows.length} résultat{rows.length > 1 ? "s" : ""} sur {day.length}
+            </p>
+          )}
+        </div>
         <div className="min-h-0 flex-1 overflow-auto">
           {rows.length ? (
             <table className="w-full text-left text-sm">
@@ -1383,7 +1426,9 @@ function DayHistory({ orders, onClose }: { orders: Stored<Order>[]; onClose: () 
               </tbody>
             </table>
           ) : (
-            <p className="px-6 py-16 text-center text-sm text-ink/45">Aucune commande aujourd'hui pour l'instant.</p>
+            <p className="px-6 py-16 text-center text-sm text-ink/45">
+              {day.length ? "Aucune commande ne correspond." : "Aucune commande aujourd'hui pour l'instant."}
+            </p>
           )}
         </div>
       </motion.div>
