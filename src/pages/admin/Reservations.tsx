@@ -10,7 +10,6 @@ import {
   todayIso,
   updateBooking,
   type Booking,
-  type BookingStatus,
   type DiningTable,
   type TableKind,
 } from "../../lib/reservations";
@@ -34,14 +33,6 @@ const PersonIcon = ({ cls }: { cls?: string }) => svg(<><circle cx="12" cy="7" r
 const BabyIcon = () => svg(<><path d="M8 4h8v7H8zM6 11h12M8 11l-2 9M16 11l2 9M7 16h10" /></>, "w-4 h-4");
 const WheelchairIcon = () => svg(<><circle cx="10" cy="4.5" r="1.6" /><path d="M10 7v6h5l2 5" /><path d="M14.5 18a5 5 0 1 1-6-6.8" /></>, "w-4 h-4");
 const GiftIcon = () => svg(<><rect x="4" y="9" width="16" height="11" rx="1" /><path d="M3 9h18v3H3zM12 9v11M12 9c-2-4-6-4-6-1.5S12 9 12 9zM12 9c2-4 6-4 6-1.5S12 9 12 9z" /></>, "w-4 h-4");
-
-const STATUS: Record<BookingStatus, { label: string; cls: string }> = {
-  confirmee: { label: "Confirmée", cls: "bg-ink/5 text-ink" },
-  arrivee: { label: "Arrivée", cls: "bg-green-700/10 text-green-800" },
-  terminee: { label: "Terminée", cls: "bg-ink/5 text-ink/50" },
-  annulee: { label: "Annulée", cls: "bg-red-600/10 text-red-700" },
-  absent: { label: "Absente", cls: "bg-orange/15 text-ink" },
-};
 
 const dayFmt = new Intl.DateTimeFormat("fr-CA", { weekday: "long", day: "numeric", month: "long" });
 const shiftDay = (iso: string, by: number) => {
@@ -244,17 +235,15 @@ function BookingRow({ b, table, showDate = false }: { b: Booking; table?: Dining
           </span>
         )}
       </span>
+      {/* Two states only: booked (« Prévue ») and here (« Arrivée »). */}
       <select
-        value={b.status}
-        onChange={(e) => updateBooking(b.id, { status: e.target.value as BookingStatus })}
+        value={b.status === "arrivee" ? "arrivee" : "confirmee"}
+        onChange={(e) => updateBooking(b.id, { status: e.target.value as "confirmee" | "arrivee" })}
         aria-label={`Statut de la réservation de ${b.name}`}
-        className={`rounded-full border-0 px-3 py-2 text-xs font-bold ${STATUS[b.status].cls}`}
+        className={`rounded-full border-0 px-3 py-2 text-xs font-bold ${b.status === "arrivee" ? "bg-green-700/10 text-green-800" : "bg-ink/5 text-ink"}`}
       >
-        {Object.entries(STATUS).map(([k, v]) => (
-          <option key={k} value={k}>
-            {v.label}
-          </option>
-        ))}
+        <option value="confirmee">Prévue</option>
+        <option value="arrivee">Arrivée</option>
       </select>
     </li>
   );
