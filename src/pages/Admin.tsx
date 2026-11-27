@@ -27,6 +27,7 @@ import { JobsView } from "./admin/Jobs";
 import { MenuEditor } from "./admin/MenuEditor";
 import { ReservationsView } from "./admin/Reservations";
 import { HoursView, SettingsView } from "./admin/SettingsHours";
+import { beforeTax, useSalesHistory, type SalesPeriod, type SalesPoint } from "../lib/salesHistory";
 import { Card, EditButton, Empty, inputCls, SectionHead, SegmentedTabs } from "./admin/ui";
 import {
   addMember,
@@ -761,24 +762,8 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
   const { orders, subscribers, applications, catering } = data;
-  const revenue = orders.reduce((n, o) => n + o.total, 0);
-
-  const days = useMemo(() => {
-    const out: { date: Date; count: number; total: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(d.getDate() + 1);
-      const inDay = orders.filter((o) => {
-        const at = new Date(o.createdAt);
-        return at >= d && at < next;
-      });
-      out.push({ date: d, count: inDay.length, total: inDay.reduce((n, o) => n + o.total, 0) });
-    }
-    return out;
-  }, [orders]);
+  // Sales before taxes: what the dishes sold for, after promo discounts.
+  const revenue = orders.reduce((n, o) => n + beforeTax(o), 0);
 
   const topItems = useMemo(() => {
     const counts = new Map<string, number>();
@@ -796,13 +781,7 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
       </div>
 
       <div className="grid lg:grid-cols-[1.6fr_1fr] gap-4 md:gap-5">
-        <Card>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-6">
-            <h2 className="font-display font-bold text-lg">Commandes, 7 derniers jours</h2>
-            <span className="text-xs text-ink/50">Pour emporter</span>
-          </div>
-          <OrdersAreaChart days={days} />
-        </Card>
+        <SalesHistoryCard orders={orders} />
 
         <Card>
           <h2 className="font-display font-bold text-lg mb-4">Les plus commandés</h2>
@@ -854,8 +833,6 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
   );
 }
 
-type Day = { date: Date; count: number; total: number };
-
 /** Smooth path through evenly spaced points that never overshoots the data (monotone cubic). */
 function monotonePath(p: { x: number; y: number }[]) {
   const n = p.length;
@@ -887,22 +864,80 @@ function monotonePath(p: { x: number; y: number }[]) {
   return d;
 }
 
+const PERIOD_TABS: { id: SalesPeriod; label: string }[] = [
+  { id: "day", label: "Jour" },
+  { id: "week", label: "Semaine" },
+  { id: "month", label: "Mois" },
+  { id: "year", label: "Année" },
+];
+const RANGE: Record<SalesPeriod, string> = {
+  day: "les 30 derniers jours",
+  week: "les 12 dernières semaines",
+  month: "les 12 derniers mois",
+  year: "depuis le début",
+};
+const monthLabel = new Intl.DateTimeFormat("fr-CA", { month: "short", year: "numeric" });
+const shortDate = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short" });
+
+/** "2026-11-23" read as a local date (not UTC midnight). */
+const localDate = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+
+function pointLabel(start: string, period: SalesPeriod) {
+  const d = localDate(start);
+  if (period === "day") return dayLabel.format(d);
+  if (period === "week") return `sem. du ${shortDate.format(d)}`;
+  if (period === "month") return monthLabel.format(d);
+  return String(d.getFullYear());
+}
+
+/** Dashboard: sales before taxes over time, by day, week, month or year. */
+function SalesHistoryCard({ orders }: { orders: Stored<Order>[] }) {
+  const [period, setPeriod] = useState<SalesPeriod>("day");
+  const points = useSalesHistory(period, orders);
+  const total = points?.reduce((n, p) => n + p.sales, 0) ?? 0;
+  const count = points?.reduce((n, p) => n + p.count, 0) ?? 0;
+
+  return (
+    <Card>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display font-bold text-lg">Ventes (avant taxes)</h2>
+          <p className="mt-1 text-sm text-ink/55">
+            <strong className="font-display text-xl text-ink tabular-nums">{money.format(total)}</strong> · {count} commande{count > 1 ? "s" : ""} sur{" "}
+            {RANGE[period]}
+          </p>
+        </div>
+        <SegmentedTabs id="sales-period" label="Période" items={PERIOD_TABS} value={period} onChange={setPeriod} />
+      </div>
+      {points ? <SalesAreaChart points={points} period={period} /> : <div className="h-48 animate-pulse rounded-xl bg-ink/[0.04]" />}
+    </Card>
+  );
+}
+
 /** Single-series area chart: soft gradient fill, 2px line, crosshair and tooltip on hover. */
-function OrdersAreaChart({ days }: { days: Day[] }) {
+function SalesAreaChart({ points, period }: { points: SalesPoint[]; period: SalesPeriod }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 600;
   const H = 200;
   const TOP = 14;
-  const max = Math.max(1, ...days.map((d) => d.count));
-  const pts = days.map((d, i) => ({ x: (i / (days.length - 1)) * W, y: TOP + (1 - d.count / max) * (H - TOP) }));
-  const line = monotonePath(pts);
-  const active = hover === null ? null : days[hover];
-  const pct = (i: number) => (i / (days.length - 1)) * 100;
+  const n = points.length;
+  const max = Math.max(1, ...points.map((p) => p.sales));
+  // One point (a single year so far) sits in the middle.
+  const xAt = (i: number) => (n === 1 ? 0.5 : i / (n - 1));
+  const pts = points.map((p, i) => ({ x: xAt(i) * W, y: TOP + (1 - p.sales / max) * (H - TOP) }));
+  const line = n === 1 ? `M 0 ${pts[0].y} L ${W} ${pts[0].y}` : monotonePath(pts);
+  const active = hover === null ? null : points[hover];
+  const pct = (i: number) => xAt(i) * 100;
+  // Thin out the axis labels on long ranges (30 days).
+  const every = Math.max(1, Math.ceil(n / 8));
 
   function onMove(e: React.PointerEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const rel = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    setHover(Math.round(rel * (days.length - 1)));
+    setHover(n === 1 ? 0 : Math.round(rel * (n - 1)));
   }
 
   return (
@@ -910,7 +945,7 @@ function OrdersAreaChart({ days }: { days: Day[] }) {
       <div className="relative h-48 touch-none" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible text-red-600" aria-hidden="true">
           <defs>
-            <linearGradient id="orders-area" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="sales-area" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="currentColor" stopOpacity="0.22" />
               <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
             </linearGradient>
@@ -929,7 +964,7 @@ function OrdersAreaChart({ days }: { days: Day[] }) {
             />
           ))}
           <line x1="0" x2={W} y1={H} y2={H} stroke="#2b1c14" strokeOpacity="0.15" vectorEffect="non-scaling-stroke" />
-          <path d={`${line} L ${W} ${H} L 0 ${H} Z`} fill="url(#orders-area)" />
+          <path d={`${line} L ${W} ${H} L 0 ${H} Z`} fill="url(#sales-area)" />
           <path d={line} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         </svg>
 
@@ -942,13 +977,13 @@ function OrdersAreaChart({ days }: { days: Day[] }) {
             />
             <span
               className={`pointer-events-none absolute top-0 z-10 whitespace-nowrap rounded-lg bg-ink px-3 py-2 text-xs text-paper shadow-lg ${
-                hover > days.length / 2 ? "-translate-x-[calc(100%+10px)]" : "translate-x-[10px]"
+                hover > n / 2 ? "-translate-x-[calc(100%+10px)]" : "translate-x-[10px]"
               }`}
               style={{ left: `${pct(hover)}%` }}
             >
-              <span className="block capitalize text-paper/60">{dayLabel.format(active.date)}</span>
+              <span className="block text-paper/60">{pointLabel(active.start, period)}</span>
               <span className="block font-semibold">
-                {active.count} commande{active.count > 1 ? "s" : ""} · {money.format(active.total)}
+                {money.format(active.sales)} · {active.count} commande{active.count > 1 ? "s" : ""}
               </span>
             </span>
           </>
@@ -956,27 +991,30 @@ function OrdersAreaChart({ days }: { days: Day[] }) {
       </div>
 
       <div className="relative mt-2 h-4">
-        {days.map((d, i) => (
-          <span
-            key={d.date.toISOString()}
-            className={`absolute whitespace-nowrap text-[11px] capitalize ${hover === i ? "text-ink font-semibold" : "text-ink/45"} ${
-              i === 0 ? "" : i === days.length - 1 ? "-translate-x-full" : "-translate-x-1/2"
-            }`}
-            style={{ left: `${pct(i)}%` }}
-          >
-            {dayLabel.format(d.date)}
-          </span>
-        ))}
+        {points.map((p, i) =>
+          // Counted back from the latest point so it is always labelled, evenly spaced.
+          (n - 1 - i) % every === 0 ? (
+            <span
+              key={p.start}
+              className={`absolute whitespace-nowrap text-[11px] ${hover === i ? "text-ink font-semibold" : "text-ink/45"} ${
+                n === 1 ? "-translate-x-1/2" : i === 0 ? "" : i === n - 1 ? "-translate-x-full" : "-translate-x-1/2"
+              }`}
+              style={{ left: `${pct(i)}%` }}
+            >
+              {pointLabel(p.start, period)}
+            </span>
+          ) : null,
+        )}
       </div>
 
       <table className="sr-only">
-        <caption>Commandes par jour</caption>
+        <caption>Ventes avant taxes</caption>
         <tbody>
-          {days.map((d) => (
-            <tr key={d.date.toISOString()}>
-              <th>{dayLabel.format(d.date)}</th>
-              <td>{d.count} commandes</td>
-              <td>{money.format(d.total)}</td>
+          {points.map((p) => (
+            <tr key={p.start}>
+              <th>{pointLabel(p.start, period)}</th>
+              <td>{money.format(p.sales)}</td>
+              <td>{p.count} commandes</td>
             </tr>
           ))}
         </tbody>

@@ -42,6 +42,9 @@ function route(): void
             if ($method === 'PATCH' && isset($parts[2])) reply(record_update($c, $parts[2], body()));
             if ($method === 'DELETE' && isset($parts[2])) reply(record_delete($c, $parts[2]));
             break;
+        case 'stats':
+            if ($method === 'GET' && ($parts[1] ?? '') === 'sales') reply(sales_history((string)($_GET['period'] ?? 'day')));
+            break;
         case 'promos':
             if ($method === 'POST' && ($parts[1] ?? '') === 'check') reply(promo_check_public(body()));
             break;
@@ -849,6 +852,53 @@ function member_out(array $m): array
         'lastLogin' => $m['last_login'] ? iso($m['last_login']) : null,
         'passwordHash' => '',
     ];
+}
+
+// ---------------------------------------------------------------- sales history
+
+/**
+ * Sales before taxes (subtotal minus discount) and number of orders, grouped by
+ * day (last 30), week (last 12, Monday first), month (last 12) or year (every year
+ * since the first order), in Montreal time. Empty periods are included as zero.
+ */
+function sales_history(string $period): array
+{
+    require_tab('dashboard', 'orders');
+    if (!in_array($period, ['day', 'week', 'month', 'year'], true)) $period = 'day';
+    $tz = new DateTimeZone('America/Toronto');
+    $start = fn(DateTimeImmutable $d) => match ($period) {
+        'day' => $d->setTime(0, 0),
+        'week' => $d->setTime(0, 0)->modify('monday this week'),
+        'month' => $d->setTime(0, 0)->modify('first day of this month'),
+        'year' => $d->setDate((int)$d->format('Y'), 1, 1)->setTime(0, 0),
+    };
+    $step = ['day' => '+1 day', 'week' => '+1 week', 'month' => '+1 month', 'year' => '+1 year'][$period];
+
+    $rows = db_all("SELECT created_at, JSON_EXTRACT(data, '$.subtotal') AS subtotal, JSON_EXTRACT(data, '$.discount') AS discount FROM records WHERE collection = 'orders'");
+    $sums = [];
+    $first = null;
+    foreach ($rows as $r) {
+        $at = (new DateTimeImmutable($r['created_at'], new DateTimeZone('UTC')))->setTimezone($tz);
+        $key = $start($at)->format('Y-m-d');
+        $sums[$key] ??= ['count' => 0, 'sales' => 0.0];
+        $sums[$key]['count']++;
+        $sums[$key]['sales'] += (float)$r['subtotal'] - (float)($r['discount'] ?? 0);
+        if ($first === null || $at < $first) $first = $at;
+    }
+
+    $now = $start(new DateTimeImmutable('now', $tz));
+    $from = match ($period) {
+        'day' => $now->modify('-29 days'),
+        'week' => $now->modify('-11 weeks'),
+        'month' => $now->modify('-11 months'),
+        'year' => $first ? $start($first) : $now,
+    };
+    $out = [];
+    for ($d = $from; $d <= $now; $d = $d->modify($step)) {
+        $key = $d->format('Y-m-d');
+        $out[] = ['start' => $key, 'count' => $sums[$key]['count'] ?? 0, 'sales' => round($sums[$key]['sales'] ?? 0, 2)];
+    }
+    return $out;
 }
 
 // Last, so the constants above are defined before any request is handled.
