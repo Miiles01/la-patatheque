@@ -1051,15 +1051,18 @@ function SendBar({
       )}
       <div className="pointer-events-auto flex min-h-12 items-center justify-center gap-2 self-center">
         {onExpand && (
+          // Wide ticket: the way back is a red « + », to add dishes (the menu comes back).
           <button
             onClick={onExpand}
-            aria-label={expanded ? "Réduire le ticket" : "Agrandir le ticket"}
-            title={expanded ? "Réduire" : "Agrandir"}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink/70 ring-1 ring-ink/10 transition-colors hover:bg-ink hover:text-paper"
+            aria-label={expanded ? "Ajouter des plats" : "Agrandir le ticket"}
+            title={expanded ? "Ajouter des plats" : "Agrandir"}
+            className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+              expanded ? "bg-red-600 text-paper shadow-lg shadow-red-600/25 hover:bg-red-700" : "bg-white text-ink/70 ring-1 ring-ink/10 hover:bg-ink hover:text-paper"
+            }`}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={expanded ? 2.4 : 1.9} className="h-5 w-5" aria-hidden="true">
               {expanded ? (
-                <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               ) : (
                 <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
               )}
