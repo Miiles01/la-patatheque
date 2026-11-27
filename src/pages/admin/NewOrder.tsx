@@ -153,7 +153,6 @@ export function NewOrderDialog({
     setDir(steps.indexOf(to) >= steps.indexOf(step) ? 1 : -1);
     setStep(to);
   };
-  const back = () => go(steps[Math.max(0, steps.indexOf(step) - 1)]);
 
   // A table that still has an open order: asked before a second one is started by mistake.
   const [clash, setClash] = useState<Stored<Order> | null>(null);
@@ -206,40 +205,37 @@ export function NewOrderDialog({
   const size = servers.length <= 6 ? "lg" : servers.length <= 12 ? "md" : "sm";
   const shownServers = servers.length > 12 && who.trim() ? servers.filter((n) => n.toLowerCase().includes(who.trim().toLowerCase())) : servers;
 
+  const stepTabs = (id: string, compact = false) => (
+    <SegmentedTabs
+      id={id}
+      compact={compact}
+      label="Étapes"
+      value={step}
+      onChange={jump}
+      items={steps.map((s) => ({ id: s, label: labels[s], icon: STEP_ICONS[s], disabled: s !== "table" && !ready }))}
+    />
+  );
+
   const title = order ? (order.mode === "surplace" ? `Table ${order.table}` : order.name) : "Nouvelle commande";
   const labels: Record<Step, string> = { table: mode === "surplace" ? "Table" : "Client", server: "Serveur·euse", items: "Commande" };
 
   return (
     <div className="fixed inset-0 z-[95] flex items-stretch md:items-center justify-center bg-ink/50 md:p-6" data-lenis-prevent>
       <div role="dialog" aria-modal="true" aria-labelledby="new-order-title" className="flex h-full w-full flex-col bg-white text-ink md:h-[92vh] md:max-w-6xl md:rounded-3xl md:overflow-hidden">
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-ink/10 px-4 py-3.5 md:px-6">
+        <header className="flex justify-between sm:grid sm:grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-ink/10 px-4 py-3.5 md:px-6">
           <div className="flex min-w-0 items-center gap-2">
-            {step !== steps[0] && (
-              <button onClick={back} aria-label="Étape précédente" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink/70 hover:bg-ink/10">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden="true">
-                  <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-            )}
             <h2 id="new-order-title" className="truncate font-display font-extrabold text-lg md:text-xl">
               {title}
-              {order && <span className="ml-2 text-sm font-semibold text-ink/40">#{order.id}</span>}
             </h2>
           </div>
-          <div className="hidden sm:block">
-            <SegmentedTabs
-              id="order-steps"
-              label="Étapes"
-              value={step}
-              onChange={jump}
-              items={steps.map((s) => ({ id: s, label: labels[s], icon: STEP_ICONS[s], disabled: s !== "table" && !ready }))}
-            />
-          </div>
+          <div className="hidden sm:block">{stepTabs("order-steps")}</div>
           <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 justify-self-end rounded-full text-ink/60 hover:bg-ink/5">
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
           </button>
         </header>
+        {/* Phones: the steps get their own row under the title. */}
+        <div className="flex justify-center border-b border-ink/10 py-2 sm:hidden">{stepTabs("order-steps-phone", true)}</div>
 
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <AnimatePresence initial={false} custom={dir} mode="popLayout">

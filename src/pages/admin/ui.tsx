@@ -258,6 +258,7 @@ export function SegmentedTabs<T extends string>({
   onChange,
   id,
   label,
+  compact,
 }: {
   items: { id: T; label: string; icon?: ReactNode; disabled?: boolean }[];
   value: T;
@@ -265,6 +266,8 @@ export function SegmentedTabs<T extends string>({
   /** Unique per page, so each set of tabs has its own pill. */
   id: string;
   label: string;
+  /** Smaller, for narrow screens: tighter and with smaller icons. */
+  compact?: boolean;
 }) {
   return (
     <div role="tablist" aria-label={label} className="inline-flex rounded-full bg-ink/5 p-1">
@@ -275,7 +278,9 @@ export function SegmentedTabs<T extends string>({
           aria-selected={value === t.id}
           disabled={t.disabled}
           onClick={() => onChange(t.id)}
-          className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`relative inline-flex items-center rounded-full font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+            compact ? "gap-1.5 px-3 py-2 text-xs" : "gap-2 px-5 py-2.5 text-sm"
+          } ${
             value === t.id ? "text-paper" : "text-ink/60 hover:text-ink"
           }`}
         >
@@ -283,7 +288,7 @@ export function SegmentedTabs<T extends string>({
             <motion.span layoutId={`${id}-pill`} transition={{ type: "spring", stiffness: 500, damping: 38 }} className="absolute inset-0 rounded-full bg-ink" />
           )}
           {t.icon && (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="relative w-[18px] h-[18px]" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={`relative ${compact ? "h-4 w-4" : "w-[18px] h-[18px]"}`} aria-hidden="true">
               {t.icon}
             </svg>
           )}
