@@ -1723,7 +1723,8 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
   // Salle: tables still seated. Closing a table is the waiter's call, apart from the kitchen's status.
   const openTables = orders
     .filter((o) => o.mode === "surplace" && !o.closed)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // In table order (1, 2, 5, 7…), not in the order they came in.
+    .sort((a, b) => (a.table ?? "").localeCompare(b.table ?? "", "fr", { numeric: true }) || a.createdAt.localeCompare(b.createdAt));
 
   return (
     <>

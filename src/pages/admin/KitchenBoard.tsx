@@ -16,8 +16,8 @@ const COLUMNS: { status: OrderStatus; also?: OrderStatus[]; title: string }[] = 
   { status: "terminee", also: ["prete"], title: "Terminées" },
 ];
 
-/** Position in a column: set when a card is dropped, otherwise its arrival time (oldest on top). */
-const rankOf = (o: BoardItem) => o.rank ?? Date.parse(o.at);
+/** Position in a column: set when a card is dropped, otherwise by arrival, newest on top. */
+const rankOf = (o: BoardItem) => o.rank ?? -Date.parse(o.at);
 
 type Drag = { id: string; x: number; y: number; dx: number; dy: number; width: number; col: number | null; index: number };
 
@@ -65,7 +65,7 @@ export function KitchenBoard<T extends BoardItem>({
     const before = rest[d.index - 1];
     const after = rest[d.index];
     const rank =
-      before && after ? (rankOf(before) + rankOf(after)) / 2 : before ? rankOf(before) + 60_000 : after ? rankOf(after) - 60_000 : Date.now();
+      before && after ? (rankOf(before) + rankOf(after)) / 2 : before ? rankOf(before) + 60_000 : after ? rankOf(after) - 60_000 : -Date.now();
     const moved = items.find((o) => o.key === d.id);
     if (!moved) return;
     onMove(moved, { rank, ...(column.status !== moved.status && !column.also?.includes(moved.status) ? { status: column.status } : {}) });

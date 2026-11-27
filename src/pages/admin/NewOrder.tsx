@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
-import { addedLines, list, orderRounds, submit, update, updateRound, type Order, type Round, type Stored } from "../../lib/demoStore";
+import { addedLines, list, onStoreChange, orderRounds, refresh, submit, update, updateRound, type Order, type Round, type Stored } from "../../lib/demoStore";
 import { computeCharges, useCharges } from "../../lib/charges";
 import { useMenu } from "../../lib/menuStore";
 import { promoDiscount, promosStore } from "../../lib/promos";
@@ -23,7 +23,7 @@ const SPECIALS = "super-speciaux";
 
 export function NewOrderDialog({
   onClose,
-  order,
+  order: opened,
   user,
   onOpenOrder,
   wide,
@@ -39,6 +39,16 @@ export function NewOrderDialog({
   /** The round tapped on the kitchen board, highlighted beside the ticket. */
   focusRound?: number;
 }) {
+  // The order as saved: the one opened, or the one this pop-up created once its first
+  // dishes went to the kitchen. Read again whenever the orders change (the kitchen moves it on).
+  const [savedId, setSavedId] = useState(opened?.id);
+  const [created, setCreated] = useState<Stored<Order> | undefined>();
+  const [storeVersion, setStoreVersion] = useState(0);
+  useEffect(() => onStoreChange(() => setStoreVersion((v) => v + 1)), []);
+  const order = useMemo(
+    () => (savedId ? (list("orders").find((o) => o.id === savedId) ?? (opened?.id === savedId ? opened : created)) : undefined),
+    [savedId, opened, created, storeVersion],
+  );
   const { categories, specials } = useMenu();
   const tables = tablesStore.use().filter((t) => t.active);
   const [mode, setMode] = useState<"surplace" | "emporter">(order ? (order.mode === "surplace" ? "surplace" : "emporter") : "surplace");
@@ -113,27 +123,32 @@ export function NewOrderDialog({
     !!order &&
     sig(order) !==
       sig({ mode, table, name: mode === "surplace" ? `Table ${table}` : name, phone: mode === "emporter" ? phone : "", when: mode === "surplace" ? "Sur place" : when || order.when, notes, server: mode === "surplace" ? server : "", lines });
+  // No send button: what is on the ticket goes to the kitchen by itself a few seconds
+  // after the last dish (so a few dishes in a row arrive as one), or at once on closing.
+  const [sentAt, setSentAt] = useState(0);
+  const draft = JSON.stringify([lines.map((l) => [l.key, l.qty]), notes, table, server, name, phone, when, mode]);
   function close() {
-    if (order && changed && lines.length && !busy) return void send();
+    if (unsent && !busy) return void send(true);
     onClose();
   }
 
-  async function send() {
+  /** Sends what is on the ticket to the kitchen; true when it went through. */
+  async function send(closeAfter = false): Promise<boolean> {
     setError("");
-    if (!lines.length) return setError("Ajoutez au moins un plat.");
-    if (mode === "surplace" && !table) return setError("Choisissez la table.");
-    if (mode === "emporter" && !name.trim()) return setError("Indiquez le nom du client.");
+    if (!lines.length) return setError("Ajoutez au moins un plat."), false;
+    if (mode === "surplace" && !table) return setError("Choisissez la table."), false;
+    if (mode === "emporter" && !name.trim()) return setError("Indiquez le nom du client."), false;
     setBusy(true);
     try {
       const sub = Math.round(subtotal * 100) / 100;
+      const next = lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category }));
       if (order) {
-        const next = lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category }));
         // Dishes added since the kitchen got the order reach it as a new round of their own,
         // with the sound (except on this device). The server works this out again on its side.
         const added = addedLines(order.lines, next);
         const additions = added.length ? [...(order.additions ?? []), { at: new Date().toISOString(), lines: added, status: "nouvelle" as const }] : order.additions;
         if (added.length) markOrderTakenHere(`${order.id}+${additions!.length}`);
-        update("orders", order.id, {
+        const patch = {
           ...(added.length ? { additions } : {}),
           mode,
           table: mode === "surplace" ? table : undefined,
@@ -147,32 +162,41 @@ export function NewOrderDialog({
           discount,
           charges: chargeLines.length ? chargeLines : undefined,
           total,
+        };
+        update("orders", order.id, patch);
+        if (!list("orders").some((o) => o.id === order.id)) setCreated({ ...order, ...patch });
+      } else {
+        const row = await submit("orders", {
+          mode,
+          table: mode === "surplace" ? table : undefined,
+          name: mode === "surplace" ? `Table ${table}` : name.trim(),
+          phone: mode === "emporter" ? phone.trim() : "",
+          when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
+          notes: notes.trim() || undefined,
+          server: mode === "surplace" && server ? server : undefined,
+          lines: next,
+          subtotal: sub,
+          discount: 0,
+          charges: chargeLines.length ? chargeLines : undefined,
+          total,
+          status: "nouvelle",
+          paid: false,
         });
-        onClose();
-        return;
+        // The kitchen hears it; this device doesn't (whoever took it knows).
+        markOrderTakenHere(row.id);
+        // From now on this pop-up shows that order: more dishes go to the kitchen as additions.
+        setCreated(row);
+        setSavedId(row.id);
+        refresh("orders").catch(() => {});
       }
-      const row = await submit("orders", {
-        mode,
-        table: mode === "surplace" ? table : undefined,
-        name: mode === "surplace" ? `Table ${table}` : name.trim(),
-        phone: mode === "emporter" ? phone.trim() : "",
-        when: mode === "surplace" ? "Sur place" : when.trim() || "Dès que possible",
-        notes: notes.trim() || undefined,
-        server: mode === "surplace" && server ? server : undefined,
-        lines: lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category })),
-        subtotal: sub,
-        discount: 0,
-        charges: chargeLines.length ? chargeLines : undefined,
-        total,
-        status: "nouvelle",
-        paid: false,
-      });
-      // The kitchen hears it; this device doesn't (whoever took it knows).
-      markOrderTakenHere(row.id);
-      onClose();
+      setSentAt(Date.now());
+      setBusy(false);
+      if (closeAfter) onClose();
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur réseau. Réessayez.");
       setBusy(false);
+      return false;
     }
   }
 
@@ -184,6 +208,29 @@ export function NewOrderDialog({
   const hasWaiterStep = mode === "surplace" && servers.length > 0;
   const steps: Step[] = mode === "surplace" ? (hasWaiterStep ? ["table", "server", "items"] : ["table", "items"]) : ["table", "items"];
   const [step, setStep] = useState<Step>(order ? "items" : "table");
+  // Something on the ticket the kitchen doesn't have yet.
+  const unsent = lines.length > 0 && (order ? changed : true);
+  const [dueAt, setDueAt] = useState(0);
+  useEffect(() => {
+    if (!unsent || busy || step !== "items") return setDueAt(0);
+    setDueAt(Date.now() + SEND_DELAY);
+    const t = window.setTimeout(() => void send(), SEND_DELAY);
+    return () => window.clearTimeout(t);
+  }, [draft, unsent, busy, step]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The countdown on screen, and "Envoyé" for a moment after.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!dueAt && Date.now() - sentAt > 3000) return;
+    const t = window.setInterval(() => setTick((n) => n + 1), 250);
+    return () => window.clearInterval(t);
+  }, [dueAt, sentAt]);
+  const sendState: SendState = busy
+    ? { kind: "sending" }
+    : dueAt
+      ? { kind: "pending", secs: Math.max(1, Math.ceil((dueAt - Date.now()) / 1000)) }
+      : Date.now() - sentAt < 3000
+        ? { kind: "sent" }
+        : null;
   const [dir, setDir] = useState(1);
   // Computer: the ticket can take the whole width, centred, with the menu out of the way.
   const [full, setFull] = useState(!!wide);
@@ -732,7 +779,7 @@ export function NewOrderDialog({
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden lg:flex flex-col items-center bg-linear-to-b from-[#f3f1ee]/0 to-[#f3f1ee] to-55% px-6 pb-5 pt-12">
-                      <SendBar busy={busy} error={error} onSend={send} editing={!!order} pending={changed} expanded={full} onExpand={() => setFull((v) => !v)} />
+                      <SendBar error={error} state={sendState} expanded={full} onExpand={() => setFull((v) => !v)} />
                     </div>
                   </section>
                 </div>
@@ -751,7 +798,7 @@ export function NewOrderDialog({
               </button>
             ) : (
               <div className="flex flex-col gap-2">
-                <SendBar busy={busy} error={error} onSend={send} editing={!!order} pending={changed} />
+                <SendBar error={error} state={sendState} />
                 <button onClick={() => setView("menu")} className="py-1.5 text-sm font-bold text-ink/60">
                   ← Ajouter des plats
                 </button>
@@ -960,22 +1007,20 @@ function Ticket({
   );
 }
 
+/** After the last dish, this long before the ticket goes to the kitchen by itself. */
+const SEND_DELAY = 5000;
+
+type SendState = { kind: "pending"; secs: number } | { kind: "sending" } | { kind: "sent" } | null;
+
+/** Under the ticket: where the dishes stand (on their way to the kitchen, sent), and the expand button. */
 function SendBar({
-  busy,
   error,
-  onSend,
-  editing,
-  pending,
+  state,
   expanded,
   onExpand,
 }: {
-  busy: boolean;
   error: string;
-  onSend: () => void;
-  /** An order already sent: it saves itself when the ticket closes, so no button. */
-  editing: boolean;
-  /** Something changed that will be saved on closing. */
-  pending?: boolean;
+  state: SendState;
   /** Computer only: the ticket takes the whole width (the menu hides) or goes back to half. */
   expanded?: boolean;
   onExpand?: () => void;
@@ -987,7 +1032,7 @@ function SendBar({
           {error}
         </p>
       )}
-      <div className="pointer-events-auto flex items-center justify-center gap-2 self-center">
+      <div className="pointer-events-auto flex min-h-12 items-center justify-center gap-2 self-center">
         {onExpand && (
           <button
             onClick={onExpand}
@@ -1004,21 +1049,27 @@ function SendBar({
             </svg>
           </button>
         )}
-        {editing ? (
-          pending && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/65 ring-1 ring-ink/10">
-              <span className="h-2 w-2 rounded-full bg-red-600" aria-hidden="true" />
-              {busy ? "Envoi…" : "Envoyé en cuisine en fermant le ticket"}
-            </span>
-          )
-        ) : (
-          <button
-            onClick={onSend}
-            disabled={busy}
-            className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
+        {state && (
+          <span
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold ring-1 ${
+              state.kind === "sent" ? "bg-green-700/10 text-green-800 ring-green-700/15" : "bg-white text-ink/65 ring-ink/10"
+            }`}
           >
-            {busy ? "Envoi…" : "Envoyer en cuisine"}
-          </button>
+            {state.kind === "pending" && (
+              <>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-600" aria-hidden="true" />
+                Envoi en cuisine dans {state.secs} s…
+              </>
+            )}
+            {state.kind === "sending" && (
+              <>
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-ink/20 border-t-ink" aria-hidden="true" />
+                Envoi en cuisine…
+              </>
+            )}
+            {state.kind === "sent" && "✓ Envoyé en cuisine"}
+          </span>
         )}
       </div>
     </>
