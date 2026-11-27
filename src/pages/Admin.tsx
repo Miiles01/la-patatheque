@@ -1323,19 +1323,21 @@ function KitchenFilterMenu({
 
   return (
     <div ref={box} className="relative">
+      {/* Icon only, like the history button beside it. */}
       <button
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className={`relative inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-bold transition-colors ${
-          open ? "border-ink bg-ink text-paper" : "border-ink/15 bg-white hover:border-ink/40"
+        aria-label="Filtres"
+        title="Filtres"
+        className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+          open ? "bg-ink text-paper" : "bg-ink/5 text-ink/55 hover:bg-ink/10 hover:text-ink"
         }`}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-[18px] w-[18px]" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
           <path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" strokeLinejoin="round" />
         </svg>
-        Filtres
-        {active && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" aria-label="(modifiés)" />}
+        {active && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" aria-label="(modifiés)" />}
       </button>
       <AnimatePresence>
         {open && (
