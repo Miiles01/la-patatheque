@@ -904,7 +904,7 @@ function member_out(array $m): array
 // ---------------------------------------------------------------- sales history
 
 /**
- * Sales before taxes (subtotal minus discount) and number of orders, grouped by
+ * Sales before taxes (subtotal minus discount) of paid orders and their number, grouped by
  * day (last 30), week (last 12, Monday first), month (last 12) or year (every year
  * since the first order), in Montreal time. Empty periods are included as zero.
  */
@@ -921,10 +921,12 @@ function sales_history(string $period): array
     };
     $step = ['day' => '+1 day', 'week' => '+1 week', 'month' => '+1 month', 'year' => '+1 year'][$period];
 
-    $rows = db_all("SELECT created_at, JSON_EXTRACT(data, '$.subtotal') AS subtotal, JSON_EXTRACT(data, '$.discount') AS discount FROM records WHERE collection = 'orders'");
+    $rows = db_all("SELECT created_at, JSON_EXTRACT(data, '$.subtotal') AS subtotal, JSON_EXTRACT(data, '$.discount') AS discount, JSON_EXTRACT(data, '$.paid') AS paid FROM records WHERE collection = 'orders'");
     $sums = [];
     $first = null;
     foreach ($rows as $r) {
+        // Only paid orders count as sales.
+        if ($r['paid'] !== 'true') continue;
         $at = (new DateTimeImmutable($r['created_at'], new DateTimeZone('UTC')))->setTimezone($tz);
         $key = $start($at)->format('Y-m-d');
         $sums[$key] ??= ['count' => 0, 'sales' => 0.0];

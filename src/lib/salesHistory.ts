@@ -3,7 +3,7 @@ import { api, live } from "./api";
 import type { Order, Stored } from "./demoStore";
 
 // Sales history for the dashboard: sales before taxes (subtotal minus discount) and
-// order counts per day, week, month or year. The real site asks the server, which
+// order counts per day, week, month or year. Only paid orders count as sales. The real site asks the server, which
 // has every order; the demo works it out from the orders in this browser.
 
 export type SalesPeriod = "day" | "week" | "month" | "year";
@@ -36,6 +36,7 @@ export function groupSales(orders: Stored<Order>[], period: SalesPeriod): SalesP
   const sums = new Map<string, { count: number; sales: number }>();
   let first: Date | null = null;
   for (const o of orders) {
+    if (!o.paid) continue;
     const at = new Date(o.createdAt);
     const key = iso(startOf(at, period));
     const cur = sums.get(key) ?? { count: 0, sales: 0 };

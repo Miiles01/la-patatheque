@@ -793,8 +793,10 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
   const { orders, subscribers, applications, catering } = data;
-  // Sales before taxes: what the dishes sold for, after promo discounts.
-  const revenue = orders.reduce((n, o) => n + beforeTax(o), 0);
+  // Sales before taxes: what the dishes sold for, after promo discounts. Only paid orders count.
+  const paidOrders = orders.filter((o) => o.paid);
+  const revenue = paidOrders.reduce((n, o) => n + beforeTax(o), 0);
+  const unpaid = orders.filter((o) => !o.paid).reduce((n, o) => n + o.total, 0);
 
   const topItems = useMemo(() => {
     const counts = new Map<string, number>();
@@ -807,7 +809,17 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
       <SectionHead title="Tableau de bord" desc="Vos commandes, ventes et demandes en un coup d'œil." />
       <div className="grid sm:grid-cols-3 gap-4 md:gap-5">
         <Stat label="Commandes" value={String(orders.length)} sub={`${orders.filter((o) => o.status === "nouvelle").length} à traiter`} />
-        <Stat label="Ventes (avant taxes)" value={money.format(revenue)} sub={orders.length ? `Panier moyen ${money.format(revenue / orders.length)}` : "—"} />
+        <Stat
+          label="Ventes payées (avant taxes)"
+          value={money.format(revenue)}
+          sub={
+            unpaid > 0
+              ? `${money.format(unpaid)} en attente de paiement`
+              : paidOrders.length
+                ? `Panier moyen ${money.format(revenue / paidOrders.length)}`
+                : "—"
+          }
+        />
         <Stat label="Contacts (pop-up)" value={String(subscribers.length)} sub={`${subscribers.filter((s) => s.consent).length} avec consentement`} />
       </div>
 
@@ -831,6 +843,8 @@ function Dashboard({ data, onOpen }: { data: Data; onOpen: (t: Tab) => void }) {
           )}
         </Card>
       </div>
+
+      <DailySummary orders={orders} />
 
       <div className="grid md:grid-cols-3 gap-4 md:gap-5">
         <Shortcut title="Dernières commandes" count={orders.length} onOpen={() => onOpen("orders")}>
@@ -937,7 +951,7 @@ function SalesHistoryCard({ orders }: { orders: Stored<Order>[] }) {
         <div>
           <h2 className="font-display font-bold text-lg">Ventes (avant taxes)</h2>
           <p className="mt-1 text-sm text-ink/55">
-            <strong className="font-display text-xl text-ink tabular-nums">{money.format(total)}</strong> · {count} commande{count > 1 ? "s" : ""} sur{" "}
+            <strong className="font-display text-xl text-ink tabular-nums">{money.format(total)}</strong> · {count} commande{count > 1 ? "s" : ""} payée{count > 1 ? "s" : ""} sur{" "}
             {RANGE[period]}
           </p>
         </div>
@@ -1054,6 +1068,91 @@ function SalesAreaChart({ points, period }: { points: SalesPoint[]; period: Sale
         </table>
       </div>
     </div>
+  );
+}
+
+/**
+ * Each day's close: how many orders, what was paid (before taxes, then with taxes as
+ * collected) and what is still unpaid. Worked out from the saved orders, so a day
+ * stays as it was once it is over (unless an old order is paid later).
+ */
+function DailySummary({ orders }: { orders: Stored<Order>[] }) {
+  const [all, setAll] = useState(false);
+  const days = useMemo(() => {
+    const map = new Map<string, { date: Date; count: number; sales: number; collected: number; pending: number; pendingCount: number }>();
+    for (const o of orders) {
+      const d = new Date(o.createdAt);
+      const key = d.toDateString();
+      const day = map.get(key) ?? { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), count: 0, sales: 0, collected: 0, pending: 0, pendingCount: 0 };
+      day.count++;
+      if (o.paid) {
+        day.sales += beforeTax(o);
+        day.collected += o.total;
+      } else {
+        day.pending += o.total;
+        day.pendingCount++;
+      }
+      map.set(key, day);
+    }
+    return [...map.values()].sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [orders]);
+  const shown = all ? days : days.slice(0, 7);
+  const today = new Date().toDateString();
+  const dayName = new Intl.DateTimeFormat("fr-CA", { weekday: "short", day: "numeric", month: "short" });
+
+  return (
+    <Card className="p-0! md:p-0! overflow-hidden">
+      <div className="flex items-end justify-between gap-3 px-5 pt-5 md:px-6 md:pt-6">
+        <div>
+          <h2 className="font-display font-bold text-lg">Résumé par jour</h2>
+          <p className="text-sm text-ink/50">Le total de chaque journée : ventes payées et ce qui reste à encaisser.</p>
+        </div>
+      </div>
+      {days.length ? (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase tracking-wider text-ink/45">
+              <tr className="border-b border-ink/10">
+                <th className="px-5 py-2.5 font-bold md:px-6">Jour</th>
+                <th className="px-3 py-2.5 text-right font-bold">Commandes</th>
+                <th className="px-3 py-2.5 text-right font-bold">Ventes (avant taxes)</th>
+                <th className="px-3 py-2.5 text-right font-bold">Encaissé (taxes incl.)</th>
+                <th className="px-5 py-2.5 text-right font-bold md:px-6">Non payé</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink/5">
+              {shown.map((d) => (
+                <tr key={d.date.toISOString()}>
+                  <td className="whitespace-nowrap px-5 py-3 font-semibold md:px-6">
+                    {d.date.toDateString() === today ? (
+                      <>
+                        Aujourd'hui <span className="ml-1.5 rounded-full bg-red-600/10 px-2 py-0.5 text-[11px] font-bold text-red-700">En cours</span>
+                      </>
+                    ) : (
+                      dayName.format(d.date)
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-ink/70">{d.count}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right font-bold tabular-nums">{money.format(d.sales)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-ink/70">{money.format(d.collected)}</td>
+                  <td className={`whitespace-nowrap px-5 py-3 text-right tabular-nums md:px-6 ${d.pending > 0 ? "font-semibold text-orange" : "text-ink/35"}`}>
+                    {d.pending > 0 ? `${money.format(d.pending)} (${d.pendingCount})` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="px-5 pb-6 pt-3 text-sm text-ink/50 md:px-6">Aucune commande pour l'instant.</p>
+      )}
+      {days.length > 7 && (
+        <button onClick={() => setAll((v) => !v)} className="w-full border-t border-ink/10 py-3 text-sm font-bold text-red-600 hover:bg-ink/[0.02]">
+          {all ? "Voir moins" : `Voir les ${days.length} jours`}
+        </button>
+      )}
+      {days.length <= 7 && <div className="h-2" />}
+    </Card>
   );
 }
 

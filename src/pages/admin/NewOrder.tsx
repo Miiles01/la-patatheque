@@ -239,7 +239,8 @@ export function NewOrderDialog({
   const [full, setFull] = useState(!!wide);
   // Rounds of dishes added after the order reached the kitchen, shown beside the wide ticket.
   const rounds = order ? orderRounds(order) : [];
-  const showRounds = full && rounds.length > 1;
+  // Shown from the first round on: the ticket on one side, what the kitchen has and where it stands on the other.
+  const showRounds = full && rounds.length > 0;
   // Measured once the dishes step (and its category tabs) is on screen.
   const chipFade = useEdgeFade(chips, !search.trim() && step === "items");
   const go = (to: Step) => {
