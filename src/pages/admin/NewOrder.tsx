@@ -812,13 +812,6 @@ function SendBar({
         </p>
       )}
       <div className="pointer-events-auto flex items-center justify-center gap-2 self-center">
-        <button
-          onClick={onSend}
-          disabled={busy}
-          className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
-        >
-          {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
-        </button>
         {onExpand && (
           <button
             onClick={onExpand}
@@ -835,6 +828,13 @@ function SendBar({
             </svg>
           </button>
         )}
+        <button
+          onClick={onSend}
+          disabled={busy}
+          className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
+        >
+          {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
+        </button>
       </div>
     </>
   );
