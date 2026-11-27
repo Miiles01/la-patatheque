@@ -8,7 +8,7 @@ import { promoDiscount, promosStore } from "../../lib/promos";
 import { tablesStore } from "../../lib/reservations";
 import { listTeam, onTeamChange, type Member } from "../../lib/team";
 import { markOrderTakenHere } from "./live";
-import { inputCls } from "./ui";
+import { inputCls, SegmentedTabs } from "./ui";
 import { LogoMark } from "../../components/LogoMark";
 
 // Staff take an order in the panel, in three short steps: the table (or the
@@ -226,30 +226,15 @@ export function NewOrderDialog({
               {order && <span className="ml-2 text-sm font-semibold text-ink/40">#{order.id}</span>}
             </h2>
           </div>
-          <ol className="hidden sm:flex items-center gap-1.5" aria-label="Étapes">
-            {steps.map((s, i) => {
-              const at = steps.indexOf(step);
-              return (
-                <li key={s} className="flex items-center gap-1.5">
-                  {i > 0 && <span className={`h-px w-6 ${i <= at ? "bg-ink/40" : "bg-ink/10"}`} />}
-                  <button
-                    type="button"
-                    onClick={() => jump(s)}
-                    disabled={s !== "table" && !ready}
-                    aria-current={s === step ? "step" : undefined}
-                    className={`flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition-colors disabled:cursor-not-allowed ${
-                      s === step ? "bg-ink text-paper" : i < at ? "text-ink/70 hover:bg-ink/5 hover:text-ink" : "text-ink/35 enabled:hover:bg-ink/5 enabled:hover:text-ink/70"
-                    }`}
-                  >
-                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${s === step ? "bg-paper text-ink" : i < at ? "bg-ink/10" : "bg-ink/5"}`}>
-                      {i < at ? "✓" : i + 1}
-                    </span>
-                    {labels[s]}
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="hidden sm:block">
+            <SegmentedTabs
+              id="order-steps"
+              label="Étapes"
+              value={step}
+              onChange={jump}
+              items={steps.map((s) => ({ id: s, label: labels[s], icon: STEP_ICONS[s], disabled: s !== "table" && !ready }))}
+            />
+          </div>
           <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 justify-self-end rounded-full text-ink/60 hover:bg-ink/5">
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
@@ -722,6 +707,22 @@ export function NewOrderDialog({
 }
 
 type Step = "table" | "server" | "items";
+
+const STEP_ICONS: Record<Step, React.ReactNode> = {
+  table: <path d="M4 9h16M6 9v10M18 9v10M8 5h8" strokeLinecap="round" strokeLinejoin="round" />,
+  server: (
+    <>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" strokeLinecap="round" />
+    </>
+  ),
+  items: (
+    <>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" strokeLinejoin="round" />
+      <path d="M9 8h6M9 12h6" strokeLinecap="round" />
+    </>
+  ),
+};
 
 /** The order as a ticket: the restaurant's logo, who it is for, a torn-off line, then the dishes. */
 function Ticket({

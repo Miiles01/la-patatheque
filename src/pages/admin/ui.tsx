@@ -259,7 +259,7 @@ export function SegmentedTabs<T extends string>({
   id,
   label,
 }: {
-  items: { id: T; label: string; icon?: ReactNode }[];
+  items: { id: T; label: string; icon?: ReactNode; disabled?: boolean }[];
   value: T;
   onChange: (v: T) => void;
   /** Unique per page, so each set of tabs has its own pill. */
@@ -273,8 +273,9 @@ export function SegmentedTabs<T extends string>({
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
+          disabled={t.disabled}
           onClick={() => onChange(t.id)}
-          className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 ${
+          className={`relative inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
             value === t.id ? "text-paper" : "text-ink/60 hover:text-ink"
           }`}
         >
