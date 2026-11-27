@@ -75,6 +75,18 @@ export function NewOrderDialog({
   const chargeList = useCharges();
   const { lines: chargeLines, total } = computeCharges(Math.round((subtotal - discount) * 100) / 100, chargeList);
   const count = lines.reduce((n, l) => n + l.qty, 0);
+  // In an order already sent, what was added since the ticket was opened goes on top, in red,
+  // newest first: the waiter sees at a glance what the kitchen will get as new.
+  const sentQty = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of order?.lines ?? []) {
+      const k = `${l.category ?? ""}|${l.name}|${l.size ?? ""}`;
+      m.set(k, (m.get(k) ?? 0) + l.qty);
+    }
+    return m;
+  }, [order]);
+  const freshQty = (l: Line) => (order ? Math.max(0, l.qty - (sentQty.get(l.key) ?? 0)) : 0);
+  const shownLines = order ? [...lines.filter((l) => freshQty(l) > 0).reverse(), ...lines.filter((l) => freshQty(l) === 0)] : lines;
 
   const add = (item: Omit<Line, "key" | "qty">) => {
     const key = `${item.category}|${item.name}|${item.size ?? ""}`;
@@ -92,6 +104,19 @@ export function NewOrderDialog({
     if (!q) return all.filter((s) => s.id === category);
     return all.map((s) => ({ ...s, items: s.items.filter((i) => i.name.toLowerCase().includes(q)) })).filter((s) => s.items.length);
   }, [categories, specials, category, q]);
+
+  // An open order saves itself when the ticket is closed: no button to remember. That is
+  // also when what was added reaches the kitchen, as one round.
+  const sig = (o: { mode: string; table?: string; name: string; phone?: string; when?: string; notes?: string; server?: string; lines: { name: string; size?: string; qty: number }[] }) =>
+    JSON.stringify([o.mode === "surplace" ? "surplace" : "emporter", o.mode === "surplace" ? o.table : o.name, o.phone ?? "", o.when ?? "", (o.notes ?? "").trim(), o.server ?? "", o.lines.map((l) => [l.name, l.size ?? "", l.qty])]);
+  const changed =
+    !!order &&
+    sig(order) !==
+      sig({ mode, table, name: mode === "surplace" ? `Table ${table}` : name, phone: mode === "emporter" ? phone : "", when: mode === "surplace" ? "Sur place" : when || order.when, notes, server: mode === "surplace" ? server : "", lines });
+  function close() {
+    if (order && changed && lines.length && !busy) return void send();
+    onClose();
+  }
 
   async function send() {
     setError("");
@@ -248,7 +273,7 @@ export function NewOrderDialog({
             </h2>
           </div>
           <div className="hidden sm:block">{stepTabs("order-steps")}</div>
-          <button onClick={onClose} aria-label="Fermer" className="relative h-10 w-10 justify-self-end rounded-full text-ink/60 hover:bg-ink/5">
+          <button onClick={close} aria-label={changed ? "Enregistrer et fermer" : "Fermer"} className="relative h-10 w-10 justify-self-end rounded-full text-ink/60 hover:bg-ink/5">
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current rotate-45" />
             <span className="absolute left-1/2 top-1/2 h-[1.5px] w-5 -translate-x-1/2 bg-current -rotate-45" />
           </button>
@@ -616,11 +641,21 @@ export function NewOrderDialog({
                       >
                         {lines.length ? (
                           <ul className="flex flex-col">
-                            {lines.map((l) => (
-                              <li key={l.key} className="group flex items-center gap-2 py-2">
+                            {shownLines.map((l) => {
+                              const extra = freshQty(l);
+                              return (
+                              <li
+                                key={l.key}
+                                className={`group flex items-center gap-2 py-2 ${extra ? "-mx-3 my-0.5 rounded-xl bg-red-600/[0.07] px-3 text-red-700" : ""}`}
+                              >
                                 <span className="min-w-0 flex-1 text-sm leading-tight">
+                                  {extra > 0 && (
+                                    <span className="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-red-600">
+                                      {extra === l.qty ? "Nouveau" : `+${extra} nouveau${extra > 1 ? "x" : ""}`}
+                                    </span>
+                                  )}
                                   {l.name}
-                                  {l.size && <span className="block text-xs text-ink/45">{l.size}</span>}
+                                  {l.size && <span className={`block text-xs ${extra ? "text-red-700/70" : "text-ink/45"}`}>{l.size}</span>}
                                 </span>
                                 <span className="flex items-center">
                                   <button onClick={() => setQty(l.key, l.qty - 1)} aria-label={`Retirer un ${l.name}`} className="h-7 w-7 rounded-full font-bold text-ink/60 hover:bg-ink/5">
@@ -643,7 +678,8 @@ export function NewOrderDialog({
                                   </svg>
                                 </button>
                               </li>
-                            ))}
+                              );
+                            })}
                           </ul>
                         ) : (
                           <p className="py-6 text-center text-sm text-ink/40">Touchez un plat dans le menu pour l’ajouter.</p>
@@ -694,7 +730,7 @@ export function NewOrderDialog({
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden lg:flex flex-col items-center bg-linear-to-b from-[#f3f1ee]/0 to-[#f3f1ee] to-55% px-6 pb-5 pt-12">
-                      <SendBar busy={busy} error={error} onSend={send} editing={!!order} expanded={full} onExpand={() => setFull((v) => !v)} />
+                      <SendBar busy={busy} error={error} onSend={send} editing={!!order} pending={changed} expanded={full} onExpand={() => setFull((v) => !v)} />
                     </div>
                   </section>
                 </div>
@@ -713,7 +749,7 @@ export function NewOrderDialog({
               </button>
             ) : (
               <div className="flex flex-col gap-2">
-                <SendBar busy={busy} error={error} onSend={send} editing={!!order} />
+                <SendBar busy={busy} error={error} onSend={send} editing={!!order} pending={changed} />
                 <button onClick={() => setView("menu")} className="py-1.5 text-sm font-bold text-ink/60">
                   ← Ajouter des plats
                 </button>
@@ -902,13 +938,17 @@ function SendBar({
   error,
   onSend,
   editing,
+  pending,
   expanded,
   onExpand,
 }: {
   busy: boolean;
   error: string;
   onSend: () => void;
+  /** An order already sent: it saves itself when the ticket closes, so no button. */
   editing: boolean;
+  /** Something changed that will be saved on closing. */
+  pending?: boolean;
   /** Computer only: the ticket takes the whole width (the menu hides) or goes back to half. */
   expanded?: boolean;
   onExpand?: () => void;
@@ -937,13 +977,22 @@ function SendBar({
             </svg>
           </button>
         )}
-        <button
-          onClick={onSend}
-          disabled={busy}
-          className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
-        >
-          {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
-        </button>
+        {editing ? (
+          pending && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-xs font-semibold text-ink/65 ring-1 ring-ink/10">
+              <span className="h-2 w-2 rounded-full bg-red-600" aria-hidden="true" />
+              {busy ? "Envoi…" : "Envoyé en cuisine en fermant le ticket"}
+            </span>
+          )
+        ) : (
+          <button
+            onClick={onSend}
+            disabled={busy}
+            className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
+          >
+            {busy ? "Envoi…" : "Envoyer en cuisine"}
+          </button>
+        )}
       </div>
     </>
   );

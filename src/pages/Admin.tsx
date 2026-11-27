@@ -1330,14 +1330,12 @@ function KitchenFilterMenu({
         aria-haspopup="dialog"
         aria-label="Filtres"
         title="Filtres"
-        className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
-          open ? "bg-ink text-paper" : "bg-ink/5 text-ink/55 hover:bg-ink/10 hover:text-ink"
-        }`}
+        className={`relative flex h-10 w-9 items-center justify-center transition-colors ${open ? "text-ink" : "text-ink/45 hover:text-ink"}`}
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
           <path d="M4 5h16l-6 7.5V19l-4-2v-4.5z" strokeLinejoin="round" />
         </svg>
-        {active && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white" aria-label="(modifiés)" />}
+        {active && <span className="absolute right-0.5 top-1.5 h-2 w-2 rounded-full bg-red-600 ring-2 ring-white" aria-label="(modifiés)" />}
       </button>
       <AnimatePresence>
         {open && (
@@ -1761,12 +1759,12 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
         <SegmentedTabs id="orders-view" label="Vue" items={VIEWS} value={view} onChange={pickView} />
         <div className="flex flex-wrap items-center gap-2">
         {view === "cuisine" && (
-          <>
+          <div className="flex items-center">
             <button
               onClick={() => setHistory(true)}
               aria-label="Historique du jour"
               title="Historique du jour"
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/5 text-ink/55 transition-colors hover:bg-ink/10 hover:text-ink"
+              className="flex h-10 w-9 items-center justify-center text-ink/45 transition-colors hover:text-ink"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5" aria-hidden="true">
                 <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4" strokeLinecap="round" strokeLinejoin="round" />
@@ -1774,7 +1772,7 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
               </svg>
             </button>
             <KitchenFilterMenu group={group} onGroup={pickGroup} filters={filters} onChange={changeFilters} active={filtered} />
-          </>
+          </div>
         )}
         <EditButton
           label="Tables"
