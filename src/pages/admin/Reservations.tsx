@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   addBooking,
   bookingsStore,
@@ -375,6 +375,13 @@ export function Tables() {
   const [screen, setScreen] = useState<string | null>(null);
   const seats = tables.filter((t) => t.active).reduce((n, t) => n + t.seats, 0);
   const editing = screen && screen !== "new" ? tables.find((t) => t.id === screen) : undefined;
+  // The table just deleted from the grid, for a few seconds, to undo.
+  const [removed, setRemoved] = useState<{ table: DiningTable; index: number } | null>(null);
+  useEffect(() => {
+    if (!removed) return;
+    const t = window.setTimeout(() => setRemoved(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [removed]);
 
   if (screen === "new" || editing) {
     return (
@@ -402,11 +409,11 @@ export function Tables() {
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-xl leading-none text-paper">+</span>
           <span className="text-sm font-bold">Ajouter une table</span>
         </button>
-        {tables.map((t) => (
+        {tables.map((t, i) => (
+          <div key={t.id} className="group relative">
           <button
-            key={t.id}
             onClick={() => setScreen(t.id)}
-            className={`relative text-left rounded-2xl border border-ink/10 bg-white p-4 transition-colors hover:border-ink/30 ${t.active ? "" : "opacity-45"}`}
+            className={`relative h-full w-full text-left rounded-2xl border border-ink/10 bg-white p-4 transition-colors hover:border-ink/30 ${t.active ? "" : "opacity-45"}`}
           >
             <div className="flex items-start justify-between">
               <span className="text-red-600 [&_svg]:w-7 [&_svg]:h-7">{KIND_ICONS[t.kind]}</span>
@@ -430,8 +437,38 @@ export function Tables() {
               {!t.active && <span className="text-[10px] font-bold uppercase">Non réservable</span>}
             </div>
           </button>
+          {/* Quick delete on hover (always shown, faintly, on touch screens); « Annuler » brings it back. */}
+          <button
+            onClick={() => {
+              tablesStore.set(tables.filter((x) => x.id !== t.id));
+              setRemoved({ table: t, index: i });
+            }}
+            aria-label={`Supprimer la table ${t.code}`}
+            title="Supprimer"
+            className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink/40 opacity-0 ring-1 ring-ink/10 transition-all hover:bg-red-600 hover:text-paper hover:ring-red-600 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-60"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          </div>
         ))}
       </div>
+      {removed && (
+        <div role="status" className="fixed bottom-6 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-4 rounded-full bg-ink py-2.5 pl-5 pr-2.5 text-sm text-paper shadow-xl">
+          Table {removed.table.code} supprimée
+          <button
+            onClick={() => {
+              const now = tablesStore.get();
+              tablesStore.set([...now.slice(0, removed.index), removed.table, ...now.slice(removed.index)]);
+              setRemoved(null);
+            }}
+            className="rounded-full bg-paper/15 px-4 py-1.5 font-bold hover:bg-paper/25"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
     </div>
   );
 }
