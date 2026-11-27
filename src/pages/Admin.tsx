@@ -1030,18 +1030,21 @@ function SalesAreaChart({ points, period }: { points: SalesPoint[]; period: Sale
         )}
       </div>
 
-      <table className="sr-only">
-        <caption>Ventes avant taxes</caption>
-        <tbody>
-          {points.map((p) => (
-            <tr key={p.start}>
-              <th>{pointLabel(p.start, period)}</th>
-              <td>{money.format(p.sales)}</td>
-              <td>{p.count} commandes</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* For screen readers. Wrapped: a table ignores sr-only's 1px size and would stretch the page. */}
+      <div className="sr-only">
+        <table>
+          <caption>Ventes avant taxes</caption>
+          <tbody>
+            {points.map((p) => (
+              <tr key={p.start}>
+                <th>{pointLabel(p.start, period)}</th>
+                <td>{money.format(p.sales)}</td>
+                <td>{p.count} commandes</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
