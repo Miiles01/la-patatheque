@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
-import { addedLines, list, orderRounds, submit, update, updateRound, type Order, type OrderStatus, type Round, type Stored } from "../../lib/demoStore";
+import { addedLines, list, orderRounds, submit, update, updateRound, type Order, type Round, type Stored } from "../../lib/demoStore";
 import { computeCharges, useCharges } from "../../lib/charges";
 import { useMenu } from "../../lib/menuStore";
 import { promoDiscount, promosStore } from "../../lib/promos";
@@ -522,6 +522,8 @@ export function NewOrderDialog({
                   {/* Menu */}
                 <section className={`min-h-0 min-w-0 flex-1 flex-col lg:border-r lg:border-ink/10 ${full ? "lg:hidden" : "lg:flex"} ${view === "menu" ? "flex" : "hidden"}`}>
                   <div className="border-b border-ink/10 px-5 pt-4 pb-3 md:px-7">
+                    {/* Says what the search is for: what is picked here goes on the ticket. */}
+                    <p className="mb-2.5 font-display text-lg font-bold">Ajouter un plat</p>
                     <label className="relative block">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
                         <circle cx="11" cy="11" r="6.5" />
@@ -790,19 +792,26 @@ function ago(iso: string) {
   return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
 }
 
-const STATUSES: { id: OrderStatus; label: string; on: string }[] = [
-  { id: "nouvelle", label: "Nouvelle", on: "bg-red-600 text-paper" },
-  { id: "preparation", label: "En préparation", on: "bg-orange text-ink" },
-  { id: "terminee", label: "Terminée", on: "bg-green-700 text-paper" },
-];
+/** A round just started stays "En préparation" this long before the button offers to finish it. */
+const PREP_LOCK = 60_000;
 
 /**
- * Beside the wide ticket: every round the table sent to the kitchen, newest first,
- * each with where it stands. One may be done while another just came in, so the
- * cooks see exactly what is new and move each round on from here.
+ * Beside the wide ticket: every round the table sent to the kitchen, newest first.
+ * One button per round moves it along: Commencer à préparer → (a minute) → Terminer.
  */
 function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Round[]; focus?: number }) {
   const waiting = rounds.filter((r) => r.status === "nouvelle").length;
+  // When each round was started here, so its button waits a minute before offering « Terminer ».
+  const [started, setStarted] = useState<Record<string, number>>({});
+  const [, tick] = useState(0);
+  const locked = (key: string) => started[key] !== undefined && Date.now() - started[key] < PREP_LOCK;
+  useEffect(() => {
+    const soon = Object.values(started).filter((t) => Date.now() - t < PREP_LOCK);
+    if (!soon.length) return;
+    const t = window.setTimeout(() => tick((n) => n + 1), Math.max(250, PREP_LOCK - (Date.now() - Math.max(...soon)) + 50));
+    return () => window.clearTimeout(t);
+  });
+
   return (
     <section aria-labelledby="new-rounds-title" className="mt-8 hidden lg:mt-0 lg:block">
       <h3 id="new-rounds-title" className="flex items-center gap-2 font-display text-xl font-bold">
@@ -823,16 +832,51 @@ function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Rou
               key={r.key}
               className={`rounded-2xl bg-white p-5 transition-opacity ${r.n === focus ? "ring-2 ring-red-600" : "ring-1 ring-ink/5"} ${done && r.n !== focus ? "opacity-60" : ""}`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-bold">{r.n === 0 ? "1re commande" : `Ajout n° ${r.n}`}</p>
-                <p className="text-xs text-ink/45 tabular-nums">
-                  {clock.format(new Date(r.at))} · {ago(r.at)}
-                </p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {r.status === "nouvelle" && (
+                    <span className="mb-1.5 inline-block rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-paper">Nouvelle</span>
+                  )}
+                  <p className="font-bold">{r.n === 0 ? "1re commande" : `Ajout n° ${r.n}`}</p>
+                  <p className="mt-0.5 text-xs text-ink/45 tabular-nums">
+                    {clock.format(new Date(r.at))} · {ago(r.at)} · {count} article{count > 1 ? "s" : ""}
+                  </p>
+                </div>
+                {/* One button that moves the round along. */}
+                {r.status === "nouvelle" ? (
+                  <button
+                    onClick={() => {
+                      setStarted((m) => ({ ...m, [r.key]: Date.now() }));
+                      updateRound(order, r.n, { status: "preparation" });
+                    }}
+                    className="shrink-0 rounded-full bg-red-600 px-4 py-2.5 text-sm font-bold text-paper shadow-md shadow-red-600/20 transition-colors hover:bg-red-700"
+                  >
+                    Commencer à préparer
+                  </button>
+                ) : r.status === "preparation" ? (
+                  locked(r.key) ? (
+                    <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-orange/20 px-4 py-2.5 text-sm font-bold text-ink">
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink/25 border-t-ink" aria-hidden="true" />
+                      En préparation
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => updateRound(order, r.n, { status: "terminee" })}
+                      className="shrink-0 rounded-full bg-green-700 px-5 py-2.5 text-sm font-bold text-paper shadow-md shadow-green-700/20 transition-colors hover:bg-green-800"
+                    >
+                      Terminer
+                    </button>
+                  )
+                ) : (
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="rounded-full bg-green-700/10 px-3 py-1.5 text-sm font-bold text-green-800">✓ Terminée</span>
+                    <button onClick={() => updateRound(order, r.n, { status: "preparation" })} className="text-[11px] font-bold text-ink/40 hover:text-ink">
+                      Rouvrir
+                    </button>
+                  </span>
+                )}
               </div>
-              <p className="mt-1 text-xs text-ink/50">
-                {count} article{count > 1 ? "s" : ""}
-              </p>
-              <ul className="mt-2 flex flex-col gap-1.5">
+              <ul className="mt-3 flex flex-col gap-1.5">
                 {r.lines.map((l, j) => (
                   <li key={j} className="flex items-baseline gap-3">
                     <span className="w-8 shrink-0 font-display text-lg font-bold tabular-nums text-red-600">{l.qty}×</span>
@@ -843,23 +887,6 @@ function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Rou
                   </li>
                 ))}
               </ul>
-              {/* Where this round stands in the kitchen, changed right here. */}
-              <div role="radiogroup" aria-label="Statut en cuisine" className="mt-4 inline-flex rounded-full bg-ink/5 p-1">
-                {STATUSES.map((st) => {
-                  const on = st.id === (r.status === "prete" ? "terminee" : r.status);
-                  return (
-                    <button
-                      key={st.id}
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => !on && updateRound(order, r.n, { status: st.id })}
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${on ? st.on : "text-ink/55 hover:text-ink"}`}
-                    >
-                      {st.label}
-                    </button>
-                  );
-                })}
-              </div>
             </li>
           );
         })}
