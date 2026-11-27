@@ -54,7 +54,6 @@ export function NewOrderDialog({
   const [search, setSearch] = useState("");
   // Category tabs fade out on the side that has more of them.
   const chips = useRef<HTMLDivElement>(null);
-  const chipFade = useEdgeFade(chips, !search.trim());
   // The dish whose sizes are shown.
   const [expanded, setExpanded] = useState<string | null>(null);
   // An existing order opens on what was asked for (on phones the order view).
@@ -148,6 +147,8 @@ export function NewOrderDialog({
   const steps: Step[] = mode === "surplace" ? (hasWaiterStep ? ["table", "server", "items"] : ["table", "items"]) : ["table", "items"];
   const [step, setStep] = useState<Step>(order ? "items" : "table");
   const [dir, setDir] = useState(1);
+  // Measured once the dishes step (and its category tabs) is on screen.
+  const chipFade = useEdgeFade(chips, !search.trim() && step === "items");
   const go = (to: Step) => {
     setError("");
     setDir(steps.indexOf(to) >= steps.indexOf(step) ? 1 : -1);
