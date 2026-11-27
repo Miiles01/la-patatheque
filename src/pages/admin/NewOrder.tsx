@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { dishName } from "../../data/menu";
-import { addedLines, list, submit, update, type Order, type Stored } from "../../lib/demoStore";
+import { addedLines, list, orderRounds, submit, update, updateRound, type Order, type OrderStatus, type Round, type Stored } from "../../lib/demoStore";
 import { computeCharges, useCharges } from "../../lib/charges";
 import { useMenu } from "../../lib/menuStore";
 import { promoDiscount, promosStore } from "../../lib/promos";
@@ -27,6 +27,7 @@ export function NewOrderDialog({
   user,
   onOpenOrder,
   wide,
+  focusRound,
 }: {
   onClose: () => void;
   order?: Stored<Order>;
@@ -35,6 +36,8 @@ export function NewOrderDialog({
   onOpenOrder?: (id: string) => void;
   /** Opens on the ticket at full width (the kitchen's view). */
   wide?: boolean;
+  /** The round tapped on the kitchen board, highlighted beside the ticket. */
+  focusRound?: number;
 }) {
   const { categories, specials } = useMenu();
   const tables = tablesStore.use().filter((t) => t.active);
@@ -100,13 +103,13 @@ export function NewOrderDialog({
       const sub = Math.round(subtotal * 100) / 100;
       if (order) {
         const next = lines.map(({ name, size, price, qty, category }) => ({ name, size, price, qty, category }));
-        // Dishes added since the kitchen got the order go back to it as a new round, with
-        // the sound (except on this device). The server works this out again on its side.
+        // Dishes added since the kitchen got the order reach it as a new round of their own,
+        // with the sound (except on this device). The server works this out again on its side.
         const added = addedLines(order.lines, next);
-        const additions = added.length ? [...(order.additions ?? []), { at: new Date().toISOString(), lines: added }] : order.additions;
+        const additions = added.length ? [...(order.additions ?? []), { at: new Date().toISOString(), lines: added, status: "nouvelle" as const }] : order.additions;
         if (added.length) markOrderTakenHere(`${order.id}+${additions!.length}`);
         update("orders", order.id, {
-          ...(added.length ? { additions, status: "nouvelle" as const } : {}),
+          ...(added.length ? { additions } : {}),
           mode,
           table: mode === "surplace" ? table : undefined,
           name: mode === "surplace" ? `Table ${table}` : name.trim(),
@@ -160,8 +163,8 @@ export function NewOrderDialog({
   // Computer: the ticket can take the whole width, centred, with the menu out of the way.
   const [full, setFull] = useState(!!wide);
   // Rounds of dishes added after the order reached the kitchen, shown beside the wide ticket.
-  const rounds = order?.additions ?? [];
-  const showRounds = full && rounds.length > 0;
+  const rounds = order ? orderRounds(order) : [];
+  const showRounds = full && rounds.length > 1;
   // Measured once the dishes step (and its category tabs) is on screen.
   const chipFade = useEdgeFade(chips, !search.trim() && step === "items");
   const go = (to: Step) => {
@@ -228,7 +231,7 @@ export function NewOrderDialog({
       label="Étapes"
       value={step}
       onChange={jump}
-      items={steps.map((s) => ({ id: s, label: labels[s], icon: STEP_ICONS[s], disabled: s !== "table" && !ready }))}
+      items={steps.map((s) => ({ id: s, label: labels[s], icon: s === "table" && mode === "emporter" ? STEP_ICONS.server : STEP_ICONS[s], disabled: s !== "table" && !ready }))}
     />
   );
 
@@ -686,7 +689,7 @@ export function NewOrderDialog({
                           className="mt-4 w-full resize-none rounded-xl bg-ink/[0.04] px-3.5 py-2.5 text-sm outline-none placeholder:text-ink/35 focus:bg-ink/[0.06]"
                         />
                       </Ticket>
-                      {showRounds && <NewRounds rounds={rounds} who={mode === "surplace" ? `La table ${table}` : name} fresh={order?.status === "nouvelle"} />}
+                      {showRounds && order && <NewRounds order={order} rounds={rounds} focus={focusRound} />}
                     </div>
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
@@ -751,54 +754,79 @@ function ago(iso: string) {
   return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
 }
 
+const STATUSES: { id: OrderStatus; label: string; on: string }[] = [
+  { id: "nouvelle", label: "Nouvelle", on: "bg-red-600 text-paper" },
+  { id: "preparation", label: "En préparation", on: "bg-orange text-ink" },
+  { id: "terminee", label: "Terminée", on: "bg-green-700 text-paper" },
+];
+
 /**
- * Beside the wide ticket: each round of dishes added after the order reached the
- * kitchen, newest first, so the cooks see exactly what is new and don't mix it up
- * with what they already made.
+ * Beside the wide ticket: every round the table sent to the kitchen, newest first,
+ * each with where it stands. One may be done while another just came in, so the
+ * cooks see exactly what is new and move each round on from here.
  */
-function NewRounds({ rounds, who, fresh }: { rounds: NonNullable<Order["additions"]>; who: string; fresh: boolean }) {
+function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Round[]; focus?: number }) {
+  const waiting = rounds.filter((r) => r.status === "nouvelle").length;
   return (
     <section aria-labelledby="new-rounds-title" className="mt-8 hidden lg:mt-0 lg:block">
       <h3 id="new-rounds-title" className="flex items-center gap-2 font-display text-xl font-bold">
-        Nouvelles commandes
-        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-bold text-paper tabular-nums">{rounds.length}</span>
+        Commandes de la {order.mode === "surplace" ? `table ${order.table}` : "commande"}
+        {waiting > 0 && (
+          <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-paper">
+            {waiting} nouvelle{waiting > 1 ? "s" : ""}
+          </span>
+        )}
       </h3>
-      <p className="mt-1 text-sm text-ink/50">Ajoutées après la première commande. La plus récente en haut.</p>
+      <p className="mt-1 text-sm text-ink/50">Chaque envoi en cuisine, le plus récent en haut.</p>
       <ol className="mt-4 flex flex-col gap-3">
-        {rounds
-          .map((r, i) => ({ ...r, n: i + 1 }))
-          .reverse()
-          .map((r, i) => {
-            const latest = i === 0;
-            const count = r.lines.reduce((n, l) => n + l.qty, 0);
-            return (
-              <li key={r.at + r.n} className={`rounded-2xl bg-white p-5 ${latest && fresh ? "ring-2 ring-red-600" : "ring-1 ring-ink/5"}`}>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="flex items-center gap-2 text-sm font-bold">
-                    Ajout n° {r.n}
-                    {latest && fresh && <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold text-paper">Nouveau</span>}
-                  </p>
-                  <p className="text-xs text-ink/45 tabular-nums">
-                    {clock.format(new Date(r.at))} · {ago(r.at)}
-                  </p>
-                </div>
-                <p className="mt-2 text-sm text-ink/60">
-                  {who} a commandé en plus {count > 1 ? `${count} articles` : "1 article"} :
+        {[...rounds].reverse().map((r) => {
+          const done = r.status === "terminee" || r.status === "prete";
+          const count = r.lines.reduce((n, l) => n + l.qty, 0);
+          return (
+            <li
+              key={r.key}
+              className={`rounded-2xl bg-white p-5 transition-opacity ${r.n === focus ? "ring-2 ring-red-600" : "ring-1 ring-ink/5"} ${done && r.n !== focus ? "opacity-60" : ""}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold">{r.n === 0 ? "1re commande" : `Ajout n° ${r.n}`}</p>
+                <p className="text-xs text-ink/45 tabular-nums">
+                  {clock.format(new Date(r.at))} · {ago(r.at)}
                 </p>
-                <ul className="mt-2 flex flex-col gap-1.5">
-                  {r.lines.map((l, j) => (
-                    <li key={j} className="flex items-baseline gap-3">
-                      <span className="w-8 shrink-0 font-display text-lg font-bold tabular-nums text-red-600">{l.qty}×</span>
-                      <span className="font-semibold leading-tight">
-                        {l.name}
-                        {l.size && <span className="ml-2 font-bold text-ink">{l.size}</span>}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
+              </div>
+              <p className="mt-1 text-xs text-ink/50">
+                {count} article{count > 1 ? "s" : ""}
+              </p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {r.lines.map((l, j) => (
+                  <li key={j} className="flex items-baseline gap-3">
+                    <span className="w-8 shrink-0 font-display text-lg font-bold tabular-nums text-red-600">{l.qty}×</span>
+                    <span className="font-semibold leading-tight">
+                      {l.name}
+                      {l.size && <span className="ml-2 font-bold text-ink">{l.size}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {/* Where this round stands in the kitchen, changed right here. */}
+              <div role="radiogroup" aria-label="Statut en cuisine" className="mt-4 inline-flex rounded-full bg-ink/5 p-1">
+                {STATUSES.map((st) => {
+                  const on = st.id === (r.status === "prete" ? "terminee" : r.status);
+                  return (
+                    <button
+                      key={st.id}
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => !on && updateRound(order, r.n, { status: st.id })}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${on ? st.on : "text-ink/55 hover:text-ink"}`}
+                    >
+                      {st.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );

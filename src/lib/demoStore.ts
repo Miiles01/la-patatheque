@@ -10,8 +10,11 @@ export type OrderLine = { name: string; size?: string; price: number; qty: numbe
 
 export type OrderStatus = "nouvelle" | "preparation" | "prete" | "terminee";
 
-/** Dishes added to an order after it was sent to the kitchen (a table ordering more). */
-export type OrderAddition = { at: string; lines: OrderLine[] };
+/**
+ * Dishes added to an order after it was sent to the kitchen (a table ordering more).
+ * Each round goes through the kitchen on its own: its own status and place in a column.
+ */
+export type OrderAddition = { at: string; lines: OrderLine[]; status?: OrderStatus; rank?: number };
 
 /** What `next` has on top of `prev`: new dishes, and extra quantity of ones already there. */
 export function addedLines(prev: OrderLine[], next: OrderLine[]): OrderLine[] {
@@ -169,6 +172,45 @@ export function update<C extends Collection>(c: C, id: string, patch: Partial<Co
     api(`records/${c}/${id}`, { method: "PATCH", body: patch }).catch((e) => {
       window.dispatchEvent(new CustomEvent(SAVE_ERROR, { detail: e instanceof ApiError ? e.message : "Erreur réseau." }));
       refresh(c).catch(() => {});
+    });
+  }
+}
+
+/**
+ * An order as the kitchen sees it: the first round (what was ordered at first) and each
+ * round added after it. Round 0 keeps its status on the order itself.
+ */
+export type Round = { n: number; key: string; at: string; lines: OrderLine[]; status: OrderStatus; rank?: number };
+
+export function orderRounds(o: Stored<Order>): Round[] {
+  const adds = o.additions ?? [];
+  // The first round is what the order holds minus everything added since.
+  const key = (l: OrderLine) => `${l.category ?? ""}|${l.name}|${l.size ?? ""}`;
+  const later = new Map<string, number>();
+  for (const a of adds) for (const l of a.lines) later.set(key(l), (later.get(key(l)) ?? 0) + l.qty);
+  const first: OrderLine[] = [];
+  for (const l of o.lines) {
+    const take = Math.min(l.qty, later.get(key(l)) ?? 0);
+    later.set(key(l), (later.get(key(l)) ?? 0) - take);
+    if (l.qty - take > 0) first.push({ ...l, qty: l.qty - take });
+  }
+  return [
+    { n: 0, key: o.id, at: o.createdAt, lines: first, status: o.status, rank: o.rank },
+    ...adds.map((a, i) => ({ n: i + 1, key: `${o.id}+${i + 1}`, at: a.at, lines: a.lines, status: a.status ?? "nouvelle", rank: a.rank })),
+  ];
+}
+
+/** Moves one round of an order through the kitchen (status, place in its column). */
+export function updateRound(o: Stored<Order>, n: number, patch: { status?: OrderStatus; rank?: number }) {
+  if (n === 0) return update("orders", o.id, patch);
+  write(
+    "orders",
+    list("orders").map((r) => (r.id === o.id ? { ...r, additions: (r.additions ?? []).map((a, i) => (i === n - 1 ? { ...a, ...patch } : a)) } : r)),
+  );
+  if (live) {
+    api(`records/orders/${o.id}`, { method: "PATCH", body: { round: n, ...patch } }).catch((e) => {
+      window.dispatchEvent(new CustomEvent(SAVE_ERROR, { detail: e instanceof ApiError ? e.message : "Erreur réseau." }));
+      refresh("orders").catch(() => {});
     });
   }
 }

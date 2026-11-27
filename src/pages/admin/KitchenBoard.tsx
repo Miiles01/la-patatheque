@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { update, type Order, type OrderStatus, type Stored } from "../../lib/demoStore";
+import type { OrderStatus } from "../../lib/demoStore";
 
 // Kitchen board: three columns, cards moved by dragging. Mouse drags start after
 // a few pixels; on touch screens a short press picks the card up, so swiping still
 // scrolls. A red line shows where the card will land, in its column or another.
+// A card is one round of an order or a whole table, depending on the view.
 
-type Row = Stored<Order>;
+/** Anything the board can place: its status picks the column, rank (or arrival) the order within it. */
+export type BoardItem = { key: string; status: OrderStatus; rank?: number; at: string };
 
 const COLUMNS: { status: OrderStatus; also?: OrderStatus[]; title: string }[] = [
   { status: "nouvelle", title: "Nouvelles" },
@@ -15,19 +17,22 @@ const COLUMNS: { status: OrderStatus; also?: OrderStatus[]; title: string }[] = 
 ];
 
 /** Position in a column: set when a card is dropped, otherwise its arrival time (oldest on top). */
-const rankOf = (o: Row) => o.rank ?? Date.parse(o.createdAt);
+const rankOf = (o: BoardItem) => o.rank ?? Date.parse(o.at);
 
 type Drag = { id: string; x: number; y: number; dx: number; dy: number; width: number; col: number | null; index: number };
 
-export function KitchenBoard({
-  orders,
+export function KitchenBoard<T extends BoardItem>({
+  items,
   renderCard,
   onOpen,
+  onMove,
   onAdd,
 }: {
-  orders: Row[];
-  renderCard: (o: Row) => ReactNode;
-  onOpen: (o: Row) => void;
+  items: T[];
+  renderCard: (o: T) => ReactNode;
+  onOpen: (o: T) => void;
+  /** Dropped somewhere: its new place, and its new status when it changed column. */
+  onMove: (o: T, patch: { rank: number; status?: OrderStatus }) => void;
   onAdd: () => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -35,7 +40,7 @@ export function KitchenBoard({
 
   const columns = COLUMNS.map((c) => ({
     ...c,
-    rows: orders.filter((o) => o.status === c.status || c.also?.includes(o.status)).sort((a, b) => rankOf(a) - rankOf(b)),
+    rows: items.filter((o) => o.status === c.status || c.also?.includes(o.status)).sort((a, b) => rankOf(a) - rankOf(b)),
   }));
 
   // Where the pointer would drop the card: which column, and before which card.
@@ -53,17 +58,17 @@ export function KitchenBoard({
   function drop(d: Drag) {
     if (d.col === null) return;
     const column = columns[d.col];
-    const rest = column.rows.filter((o) => o.id !== d.id);
+    const rest = column.rows.filter((o) => o.key !== d.id);
     const before = rest[d.index - 1];
     const after = rest[d.index];
     const rank =
       before && after ? (rankOf(before) + rankOf(after)) / 2 : before ? rankOf(before) + 60_000 : after ? rankOf(after) - 60_000 : Date.now();
-    const moved = orders.find((o) => o.id === d.id);
+    const moved = items.find((o) => o.key === d.id);
     if (!moved) return;
-    update("orders", d.id, { rank, ...(column.status !== moved.status && !column.also?.includes(moved.status) ? { status: column.status } : {}) });
+    onMove(moved, { rank, ...(column.status !== moved.status && !column.also?.includes(moved.status) ? { status: column.status } : {}) });
   }
 
-  function onPointerDown(e: React.PointerEvent, o: Row) {
+  function onPointerDown(e: React.PointerEvent, o: T) {
     if (e.button !== 0 || (e.target as HTMLElement).closest("a,button[data-no-drag]")) return;
     const card = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const start = { x: e.clientX, y: e.clientY };
@@ -79,7 +84,7 @@ export function KitchenBoard({
 
     const begin = (x: number, y: number) => {
       started = true;
-      show({ id: o.id, x, y, dx: start.x - card.left, dy: start.y - card.top, width: card.width, ...target(x, y, o.id) });
+      show({ id: o.key, x, y, dx: start.x - card.left, dy: start.y - card.top, width: card.width, ...target(x, y, o.key) });
       if (touch && navigator.vibrate) navigator.vibrate(15);
     };
     if (touch) timer = window.setTimeout(() => begin(start.x, start.y), 220);
@@ -126,14 +131,14 @@ export function KitchenBoard({
     return () => document.removeEventListener("touchmove", stop);
   }, [drag !== null]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dragged = drag && orders.find((o) => o.id === drag.id);
+  const dragged = drag && items.find((o) => o.key === drag.id);
   const line = <div aria-hidden="true" className="h-1 rounded-full bg-red-600 shadow-[0_0_0_3px_rgb(220_38_38/0.15)]" />;
 
   return (
     <div ref={scroller} className="-mx-5 px-5 md:mx-0 md:px-0 overflow-x-auto pb-2">
       <div className={`grid grid-flow-col auto-cols-[minmax(270px,1fr)] lg:grid-flow-row lg:grid-cols-3 gap-4 ${drag ? "select-none" : ""}`}>
         {columns.map((c, ci) => {
-          const visible = c.rows.filter((o) => o.id !== drag?.id);
+          const visible = c.rows.filter((o) => o.key !== drag?.id);
           return (
             <section
               key={c.title}
@@ -154,9 +159,9 @@ export function KitchenBoard({
                 </button>
               )}
               {visible.map((o, i) => (
-                <div key={o.id} className="flex flex-col gap-3">
+                <div key={o.key} className="flex flex-col gap-3">
                   {drag?.col === ci && drag.index === i && line}
-                  <div data-card={o.id} onPointerDown={(e) => onPointerDown(e, o)} className="cursor-pointer active:cursor-grabbing touch-pan-y">
+                  <div data-card={o.key} onPointerDown={(e) => onPointerDown(e, o)} className="cursor-pointer active:cursor-grabbing touch-pan-y">
                     {renderCard(o)}
                   </div>
                 </div>

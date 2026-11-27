@@ -216,6 +216,8 @@ function record_update(string $c, string $id, mixed $patch): array
 {
     if ($c !== 'orders' || !is_array($patch)) throw new HttpError('Introuvable.', 404);
     require_tab('orders');
+    // One round added to the order later (a table ordering more) moves through the kitchen on its own.
+    if (isset($patch['round'])) return round_update($id, (int)$patch['round'], $patch);
     $allowed = array_intersect_key($patch, ['status' => 1, 'paid' => 1, 'closed' => 1, 'rank' => 1]);
     if (isset($allowed['rank'])) $allowed['rank'] = (float)$allowed['rank'];
     if (isset($allowed['closed'])) $allowed['closed'] = (bool)$allowed['closed'];
@@ -232,13 +234,12 @@ function record_update(string $c, string $id, mixed $patch): array
         foreach (['status', 'paid', 'closed', 'rank', 'email', 'additions'] as $k) {
             if (array_key_exists($k, $data)) $clean[$k] = $data[$k];
         }
-        // Dishes added since the kitchen got the order: kept as a new round (the kitchen
-        // panel lists them and rings), and the order goes back to « À préparer ».
+        // Dishes added since the kitchen got the order: kept as a new round with its own
+        // status (the kitchen panel shows it as a new card and rings).
         $added = added_lines((array)($old['lines'] ?? []), $clean['lines']);
         if ($added) {
             $clean['additions'] = array_values(array_slice((array)($old['additions'] ?? []), -49));
-            $clean['additions'][] = ['at' => gmdate('Y-m-d\TH:i:s\Z'), 'lines' => $added];
-            $clean['status'] = 'nouvelle';
+            $clean['additions'][] = ['at' => gmdate('Y-m-d\TH:i:s\Z'), 'lines' => $added, 'status' => 'nouvelle'];
         }
         // The code was already honoured when the order came in: keep it, and work the discount out again on the new subtotal.
         if (!empty($old['promoCode']) && ($promo = promo_find((string)$old['promoCode']))) {
@@ -249,6 +250,21 @@ function record_update(string $c, string $id, mixed $patch): array
         $data = $clean;
     }
     db_run('UPDATE records SET data = ? WHERE collection = ? AND id = ?', [json_encode($data, JSON_UNESCAPED_UNICODE), $c, $id]);
+    return ['ok' => true];
+}
+
+/** Status or place in its column of round $n (1 = first round added) of an order. */
+function round_update(string $id, int $n, array $patch): array
+{
+    $row = db_one("SELECT data FROM records WHERE collection = 'orders' AND id = ?", [$id]) ?? throw new HttpError('Introuvable.', 404);
+    $data = json_decode($row['data'], true);
+    if ($n < 1 || !isset($data['additions'][$n - 1])) throw new HttpError('Introuvable.', 404);
+    if (isset($patch['status'])) {
+        if (!in_array($patch['status'], ['nouvelle', 'preparation', 'prete', 'terminee'], true)) throw new HttpError('Statut invalide.', 422);
+        $data['additions'][$n - 1]['status'] = $patch['status'];
+    }
+    if (isset($patch['rank'])) $data['additions'][$n - 1]['rank'] = (float)$patch['rank'];
+    db_run("UPDATE records SET data = ? WHERE collection = 'orders' AND id = ?", [json_encode($data, JSON_UNESCAPED_UNICODE), $id]);
     return ['ok' => true];
 }
 

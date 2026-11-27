@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { LogoMark } from "../components/LogoMark";
-import { dishVisual, menuCategories, specials, testimonials } from "../data/menu";
+import { menuCategories, specials, testimonials } from "../data/menu";
 import { asset } from "../lib/asset";
 import { PROMO_CODE } from "../lib/cart";
 import {
@@ -8,16 +8,21 @@ import {
   downloadCsv,
   list,
   onStoreChange,
+  orderRounds,
   record,
   update,
+  updateRound,
   type Collection,
   type Order,
+  type OrderLine,
+  type OrderStatus,
+  type Round,
   type Stored,
 } from "../lib/demoStore";
 import { live } from "../lib/api";
 import { Link } from "../lib/router";
 import { useLiveSync, useSaveError } from "./admin/live";
-import { KitchenBoard } from "./admin/KitchenBoard";
+import { KitchenBoard, type BoardItem } from "./admin/KitchenBoard";
 import { MarketingView } from "./admin/Marketing";
 import { NewOrderDialog } from "./admin/NewOrder";
 import { Tables } from "./admin/Reservations";
@@ -567,7 +572,8 @@ function Panel({ user, onLogout }: { user: Member; onLogout: () => void }) {
   const [sidebar, setSidebar] = useState(() => window.matchMedia("(min-width: 1024px)").matches);
   // Only new orders get a counter: they are the one thing staff must act on right away.
   const counts: Partial<Record<Tab, number>> = {
-    orders: data.orders.filter((o) => o.status === "nouvelle").length,
+    // Each round still waiting in the kitchen counts, a table that ordered more included.
+    orders: data.orders.flatMap(orderRounds).filter((r) => r.status === "nouvelle").length,
   };
 
   const open = (t: Tab) => {
@@ -1070,17 +1076,6 @@ function SampleTag({ show }: { show?: boolean }) {
   return show ? <span className="ml-2 rounded bg-ink/5 px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink/45">Exemple</span> : null;
 }
 
-function DishThumb({ category, size = "h-11 w-11" }: { category?: string; size?: string }) {
-  const visual = dishVisual(category);
-  return visual.image ? (
-    <img src={asset(visual.image)} alt="" className={`${size} shrink-0 rounded-lg bg-red-700 object-contain p-0.5`} />
-  ) : (
-    <span className={`${size} shrink-0 rounded-lg bg-red-700 text-paper flex items-center justify-center script text-[11px] leading-none text-center px-0.5`}>
-      {visual.word}
-    </span>
-  );
-}
-
 const timeOnly = new Intl.DateTimeFormat("fr-CA", { hour: "2-digit", minute: "2-digit" });
 
 /** Paid status as a coin: grey until paid, green once paid. Tap to switch. */
@@ -1132,72 +1127,97 @@ function OrderKind({ o }: { o: Stored<Order> }) {
   );
 }
 
-function OrderCard({ o }: { o: Stored<Order> }) {
-  const dineIn = o.mode === "surplace";
-  const items = o.lines.reduce((n, l) => n + l.qty, 0);
+/** Kitchen status of a round, as a small coloured label. */
+const ROUND_STATUS: Record<OrderStatus, { label: string; cls: string }> = {
+  nouvelle: { label: "Nouvelle", cls: "bg-red-600 text-paper" },
+  preparation: { label: "En préparation", cls: "bg-orange/20 text-ink" },
+  prete: { label: "Terminée", cls: "bg-green-700/12 text-green-800" },
+  terminee: { label: "Terminée", cls: "bg-green-700/12 text-green-800" },
+};
 
+const roundName = (n: number) => (n === 0 ? "1re commande" : `Ajout n° ${n}`);
+
+/** What a round asks for: quantity, dish and size, size in bold (it's what the cooks look for). */
+function RoundLines({ lines, max = 6 }: { lines: OrderLine[]; max?: number }) {
+  const shown = lines.length > max ? lines.slice(0, max - 1) : lines;
+  return (
+    <ul className="flex flex-col gap-1">
+      {shown.map((l, i) => (
+        <li key={i} className="flex items-baseline gap-2 text-sm leading-tight">
+          <span className="w-6 shrink-0 font-bold tabular-nums text-red-600">{l.qty}×</span>
+          <span className="min-w-0">
+            {l.name.replace(/^Pizza /, "")}
+            {l.size && <span className="ml-1.5 font-bold">{l.size}</span>}
+          </span>
+        </li>
+      ))}
+      {shown.length < lines.length && <li className="pl-8 text-xs font-bold text-ink/45">+ {lines.length - shown.length} autres</li>}
+    </ul>
+  );
+}
+
+/** Kitchen card for one round of an order: who it is for, when, and the dishes. */
+function RoundCard({ o, round, rounds }: { o: Stored<Order>; round: Round; rounds: number }) {
   return (
     <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <OrderKind o={o} />
         <span className="shrink-0 text-right text-xs text-ink/45 tabular-nums">
-          <span className="block font-bold text-ink/70">#{o.id}</span>
+          {rounds > 1 && (
+            <span className={`mb-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${round.n ? "bg-red-600 text-paper" : "bg-ink/5 text-ink/60"}`}>
+              {roundName(round.n)}
+            </span>
+          )}
+          <span className="block font-bold text-ink/70">{timeOnly.format(new Date(round.at))}</span>
           <SampleTag show={o.sample} />
-          <span className="block">{timeOnly.format(new Date(o.createdAt))}</span>
         </span>
       </div>
-
-      <div>
-        {!dineIn && <p className="font-semibold leading-tight">{o.name}</p>}
-        {o.phone && (
-          <a href={`tel:${o.phone}`} className="text-sm text-red-600 font-semibold">
-            {o.phone}
-          </a>
-        )}
-        {o.address && (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-sm text-ink/65 underline decoration-ink/20 underline-offset-2 mt-0.5"
-          >
-            {o.address}
-          </a>
-        )}
-        {!dineIn && <p className="text-xs text-ink/45 mt-1">{o.when}</p>}
-      </div>
-
-      <div className="flex items-center gap-1.5">
-        {o.lines.slice(0, 4).map((l, i) => (
-          <DishThumb key={i} category={l.category} />
-        ))}
-        {o.lines.length > 4 && <span className="text-xs font-bold text-ink/50 pl-1">+{o.lines.length - 4}</span>}
-      </div>
-
-      {/* The table ordered more: the newest round, until the kitchen moves the card on. */}
-      {o.status === "nouvelle" && o.additions?.length ? (
-        <p className="-mt-1 inline-flex items-center gap-1.5 self-start rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-bold text-paper">
-          + Ajout n° {o.additions.length} · {o.additions[o.additions.length - 1].lines.reduce((n, l) => n + l.qty, 0)} article
-          {o.additions[o.additions.length - 1].lines.reduce((n, l) => n + l.qty, 0) > 1 ? "s" : ""}
-        </p>
-      ) : null}
-
-      {dineIn && o.server && (
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink/80">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-paper">{o.server.charAt(0)}</span>
-          {o.server}
-        </p>
-      )}
-      <p className="text-sm text-ink/60">
-        {items} article{items > 1 ? "s" : ""}
-        {o.notes && <span className="ml-1.5 rounded bg-orange/15 px-1.5 py-0.5 text-[11px] font-bold text-ink/70">Note</span>}
-      </p>
-
+      {o.mode !== "surplace" && <p className="-mt-1 font-semibold leading-tight">{o.name}</p>}
+      <RoundLines lines={round.lines} />
+      {round.n === 0 && o.notes && <p className="rounded-lg bg-orange/12 px-2.5 py-1.5 text-xs text-ink/75">{o.notes}</p>}
       <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
-        <span className="font-display font-bold tabular-nums">{money.format(o.total)}</span>
+        <span className="text-xs font-semibold text-ink/55">{o.mode === "surplace" && o.server ? o.server : ""}</span>
         <PaidCoin o={o} />
       </div>
+    </article>
+  );
+}
 
+/** Kitchen card for a whole table: every round with where it stands. */
+function TableRoundsCard({ o, rounds }: { o: Stored<Order>; rounds: Round[] }) {
+  return (
+    <article className="rounded-xl bg-white border border-ink/10 p-4 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <OrderKind o={o} />
+        <span className="shrink-0 text-right text-xs tabular-nums">
+          <span className="block font-bold text-ink/70">{timeOnly.format(new Date(o.createdAt))}</span>
+          <SampleTag show={o.sample} />
+        </span>
+      </div>
+      {o.mode !== "surplace" && <p className="-mt-1 font-semibold leading-tight">{o.name}</p>}
+      <ol className="flex flex-col gap-3">
+        {rounds.map((r) => {
+          const done = r.status === "terminee" || r.status === "prete";
+          return (
+            <li key={r.key} className={`flex flex-col gap-1.5 ${done && rounds.length > 1 ? "opacity-45" : ""}`}>
+              {/* One round only: the column already says where it stands. */}
+              {rounds.length > 1 && (
+                <p className="flex items-center justify-between gap-2 text-xs font-bold text-ink/60">
+                  <span className="min-w-0 truncate">
+                    {roundName(r.n)} · {timeOnly.format(new Date(r.at))}
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${ROUND_STATUS[r.status].cls}`}>{ROUND_STATUS[r.status].label}</span>
+                </p>
+              )}
+              <RoundLines lines={r.lines} max={4} />
+            </li>
+          );
+        })}
+      </ol>
+      <div className="flex items-center justify-between gap-2 border-t border-ink/10 pt-3">
+        <span className="text-xs font-semibold text-ink/55">{o.mode === "surplace" && o.server ? o.server : ""}</span>
+        <PaidCoin o={o} />
+      </div>
     </article>
   );
 }
@@ -1298,6 +1318,40 @@ function TablesDialog({ onClose }: { onClose: () => void }) {
 type OrdersView = "salle" | "cuisine";
 const VIEW_KEY = "patatheque-orders-view"; // remembered per device: the kitchen tablet stays on Cuisine
 
+/**
+ * How the kitchen board shows orders: one card per round sent to the kitchen (a table
+ * that orders again gets a second card), or one card per table with each round inside.
+ */
+type KitchenGroup = "envois" | "tables";
+const GROUP_KEY = "patatheque-kitchen-group";
+const GROUPS: { id: KitchenGroup; label: string; icon: ReactNode }[] = [
+  {
+    id: "envois",
+    label: "Par envoi",
+    icon: (
+      <>
+        <rect x="4" y="4" width="7" height="7" rx="1.5" />
+        <rect x="13" y="4" width="7" height="7" rx="1.5" />
+        <rect x="4" y="13" width="7" height="7" rx="1.5" />
+        <rect x="13" y="13" width="7" height="7" rx="1.5" />
+      </>
+    ),
+  },
+  {
+    id: "tables",
+    label: "Par table",
+    icon: (
+      <>
+        <rect x="4" y="4" width="16" height="16" rx="2" />
+        <path d="M8 9h8M8 13h8M8 17h5" strokeLinecap="round" />
+      </>
+    ),
+  },
+];
+const STATUS_ORDER: OrderStatus[] = ["nouvelle", "preparation", "prete", "terminee"];
+
+type KitchenItem = BoardItem & { o: Stored<Order>; rounds: Round[]; round?: Round };
+
 const VIEWS: { id: OrdersView; label: string; hint: string; icon: ReactNode }[] = [
   {
     id: "salle",
@@ -1334,10 +1388,40 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       // ignore
     }
   };
+  const [group, setGroup] = useState<KitchenGroup>(() => {
+    try {
+      return localStorage.getItem(GROUP_KEY) === "tables" ? "tables" : "envois";
+    } catch {
+      return "envois";
+    }
+  });
+  const pickGroup = (g: KitchenGroup) => {
+    setGroup(g);
+    try {
+      localStorage.setItem(GROUP_KEY, g);
+    } catch {
+      // ignore
+    }
+  };
   const [adding, setAdding] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
-  // From the kitchen board, an order opens on the wide ticket (with what was added since).
+  // From the kitchen board, an order opens on the wide ticket (with every round), the one tapped highlighted.
   const [openWide, setOpenWide] = useState(false);
+  const [openRound, setOpenRound] = useState<number | undefined>();
+
+  const kitchenItems: KitchenItem[] = orders.flatMap((o) => {
+    const rounds = orderRounds(o);
+    if (group === "envois") return rounds.map((r) => ({ key: r.key, status: r.status, rank: r.rank, at: r.at, o, rounds, round: r }));
+    // A table sits in the column of its least advanced round: new dishes keep it in Nouvelles.
+    const status = STATUS_ORDER[Math.min(...rounds.map((r) => STATUS_ORDER.indexOf(r.status === "prete" ? "terminee" : r.status)))];
+    return [{ key: o.id, status, rank: o.rank, at: o.createdAt, o, rounds }];
+  });
+  function moveItem(it: KitchenItem, patch: { rank: number; status?: OrderStatus }) {
+    if (it.round) return updateRound(it.o, it.round.n, patch);
+    // A whole table moved to another column: every round goes there.
+    if (patch.status) for (const r of it.rounds) if (r.status !== patch.status && r.n > 0) updateRound(it.o, r.n, { status: patch.status });
+    update("orders", it.o.id, patch.status ? { rank: patch.rank, status: patch.status } : { rank: patch.rank });
+  }
   const opened = orders.find((o) => o.id === openId);
   const [editingTables, setEditingTables] = useState(false);
   // Salle: tables still seated. Closing a table is the waiter's call, apart from the kitchen's status.
@@ -1361,17 +1445,30 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
           }}
         />
       )}
-      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} wide={openWide} onClose={() => setOpenId(null)} onOpenOrder={setOpenId} />}
+      {opened && (
+        <NewOrderDialog
+          key={opened.id}
+          user={user}
+          order={opened}
+          wide={openWide}
+          focusRound={openRound}
+          onClose={() => setOpenId(null)}
+          onOpenOrder={setOpenId}
+        />
+      )}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <SegmentedTabs id="orders-view" label="Vue" items={VIEWS} value={view} onChange={pickView} />
+        <div className="flex flex-wrap items-center gap-2">
+        {view === "cuisine" && <SegmentedTabs id="kitchen-group" label="Afficher" items={GROUPS} value={group} onChange={pickGroup} compact />}
         <EditButton
           label="Tables"
           title="Modifier les tables"
           onClick={() => setEditingTables(true)}
           icon={<path d="M3 9h18M5 9v10M19 9v10M8 9l1-4h6l1 4M9 14h6" strokeLinecap="round" strokeLinejoin="round" />}
         />
+        </div>
       </div>
 
       {view === "salle" ? (
@@ -1390,16 +1487,22 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
               o={o}
               onOpen={() => {
                 setOpenWide(false);
+                setOpenRound(undefined);
                 setOpenId(o.id);
               }}
             />
           ))}
         </div>
       ) : (
-        <KitchenBoard orders={orders} renderCard={(o) => <OrderCard o={o} />} onOpen={(o) => {
+        <KitchenBoard
+          items={kitchenItems}
+          renderCard={(it) => (it.round ? <RoundCard o={it.o} round={it.round} rounds={it.rounds.length} /> : <TableRoundsCard o={it.o} rounds={it.rounds} />)}
+          onOpen={(it) => {
             setOpenWide(true);
-            setOpenId(o.id);
+            setOpenRound(it.round?.n);
+            setOpenId(it.o.id);
           }}
+          onMove={moveItem}
           onAdd={() => setAdding(true)}
         />
       )}
