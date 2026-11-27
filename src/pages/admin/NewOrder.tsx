@@ -188,6 +188,11 @@ export function NewOrderDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [step, mode, clash]);
 
+  // Waiter cards: big for a few, smaller for a dozen, small pills (with a search) beyond.
+  const [who, setWho] = useState("");
+  const size = servers.length <= 6 ? "lg" : servers.length <= 12 ? "md" : "sm";
+  const shownServers = servers.length > 12 && who.trim() ? servers.filter((n) => n.toLowerCase().includes(who.trim().toLowerCase())) : servers;
+
   const title = order ? (order.mode === "surplace" ? `Table ${order.table}` : order.name) : "Nouvelle commande";
   const labels: Record<Step, string> = { table: mode === "surplace" ? "Table" : "Client", server: "Serveur·euse", items: "Commande" };
 
@@ -404,37 +409,69 @@ export function NewOrderDialog({
               )}
 
               {step === "server" && (
-                <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-5 py-8 md:justify-center">
-                  <p className="font-display text-2xl font-bold">Qui sert la table {table} ?</p>
-                  <div className="mt-8 grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
-                    {servers.map((n) => (
-                      <button
-                        key={n}
-                        onClick={() => {
-                          setServer(n);
-                          go("items");
-                        }}
-                        aria-pressed={server === n}
-                        className={`flex flex-col items-center gap-3 rounded-2xl border px-4 py-6 font-bold transition-colors active:scale-[0.98] ${
-                          server === n ? "border-red-600 bg-red-600 text-paper" : "border-ink/12 bg-white hover:border-ink/40"
-                        }`}
-                      >
-                        <span className={`flex h-14 w-14 items-center justify-center rounded-full font-display text-2xl ${server === n ? "bg-paper text-red-600" : "bg-ink/5 text-ink/70"}`}>
-                          {n.charAt(0)}
-                        </span>
-                        {n}
-                      </button>
-                    ))}
+                // Centred whatever the count. The cards shrink as the team grows, and past 12
+                // a search narrows the list, so even 50 waiters fit without spilling off screen.
+                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 py-8">
+                  <div className="m-auto flex w-full max-w-3xl flex-col items-center">
+                    <p className="text-center font-display text-2xl font-bold">Qui sert la table {table} ?</p>
+                    {servers.length > 12 && (
+                      <label className="relative mt-6 block w-full max-w-sm">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
+                          <circle cx="11" cy="11" r="6.5" />
+                          <path d="m16 16 4 4" strokeLinecap="round" />
+                        </svg>
+                        <input
+                          type="search"
+                          value={who}
+                          onChange={(e) => setWho(e.target.value)}
+                          placeholder="Chercher un nom…"
+                          aria-label="Chercher un serveur·euse"
+                          className={`${inputCls} pl-12`}
+                        />
+                      </label>
+                    )}
+                    <div className={`mt-8 flex w-full flex-wrap justify-center ${size === "lg" ? "gap-3" : "gap-2"}`}>
+                      {shownServers.map((n) => {
+                        const on = server === n;
+                        return (
+                          <button
+                            key={n}
+                            onClick={() => {
+                              setServer(n);
+                              go("items");
+                            }}
+                            aria-pressed={on}
+                            className={`border font-bold transition-colors active:scale-[0.98] ${on ? "border-red-600 bg-red-600 text-paper" : "border-ink/12 bg-white hover:border-ink/40"} ${
+                              size === "lg"
+                                ? "flex w-40 flex-col items-center gap-3 rounded-2xl px-4 py-6"
+                                : size === "md"
+                                  ? "flex w-32 flex-col items-center gap-2 rounded-2xl px-3 py-4 text-sm"
+                                  : "inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm"
+                            }`}
+                          >
+                            <span
+                              className={`flex shrink-0 items-center justify-center rounded-full font-display ${on ? "bg-paper text-red-600" : "bg-ink/5 text-ink/70"} ${
+                                size === "lg" ? "h-14 w-14 text-2xl" : size === "md" ? "h-10 w-10 text-lg" : "h-7 w-7 text-xs"
+                              }`}
+                            >
+                              {n.charAt(0)}
+                            </span>
+                            <span className={size === "sm" ? "" : "max-w-full truncate"}>{n}</span>
+                          </button>
+                        );
+                      })}
+                      {!shownServers.length && <p className="py-6 text-sm text-ink/45">Aucun nom ne correspond.</p>}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setServer("");
+                        go("items");
+                      }}
+                      className="mt-6 text-sm font-bold text-ink/50 hover:text-ink"
+                    >
+                      Continuer sans serveur·euse
+                    </button>
                   </div>
-                  <button
-                    onClick={() => {
-                      setServer("");
-                      go("items");
-                    }}
-                    className="mt-6 text-sm font-bold text-ink/50 hover:text-ink"
-                  >
-                    Continuer sans serveur·euse
-                  </button>
                 </div>
               )}
 
@@ -692,7 +729,7 @@ function Ticket({
     </svg>
   );
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl bg-white shadow-[0_10px_30px_-12px_rgba(43,28,20,0.18)]">
+    <div className="mx-auto w-full max-w-md rounded-2xl bg-white">
       <div className="flex flex-col items-center px-6 pt-6 pb-5 text-center">
         <LogoMark className="h-8 text-red-600" />
         <p className="mt-4 text-[11px] font-bold uppercase tracking-wider text-ink/40">{mode === "surplace" ? "Sur place" : "Pour emporter"}</p>
