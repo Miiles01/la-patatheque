@@ -28,6 +28,7 @@ export function NewOrderDialog({
   onOpenOrder,
   wide,
   focusRound,
+  kitchen,
 }: {
   onClose: () => void;
   order?: Stored<Order>;
@@ -38,6 +39,8 @@ export function NewOrderDialog({
   wide?: boolean;
   /** The round tapped on the kitchen board, highlighted beside the ticket. */
   focusRound?: number;
+  /** Opened by the kitchen (buttons to move each round on) rather than by a waiter (where each round stands). */
+  kitchen?: boolean;
 }) {
   // The order as saved: the one opened, or the one this pop-up created once its first
   // dishes went to the kitchen. Read again whenever the orders change (the kitchen moves it on).
@@ -774,7 +777,7 @@ export function NewOrderDialog({
                           className="mt-4 w-full resize-none rounded-xl bg-ink/[0.04] px-3.5 py-2.5 text-sm outline-none placeholder:text-ink/35 focus:bg-ink/[0.06]"
                         />
                       </Ticket>
-                      {showRounds && order && <NewRounds order={order} rounds={rounds} focus={focusRound} />}
+                      {showRounds && order && <NewRounds order={order} rounds={rounds} focus={focusRound} kitchen={!!kitchen} />}
                     </div>
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
@@ -846,7 +849,7 @@ const PREP_LOCK = 60_000;
  * Beside the wide ticket: every round the table sent to the kitchen, newest first.
  * One button per round moves it along: Commencer à préparer → (a minute) → Terminer.
  */
-function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Round[]; focus?: number }) {
+function NewRounds({ order, rounds, focus, kitchen }: { order: Stored<Order>; rounds: Round[]; focus?: number; kitchen: boolean }) {
   const waiting = rounds.filter((r) => r.status === "nouvelle").length;
   // When each round was started here, so its button waits a minute before offering « Terminer ».
   const [started, setStarted] = useState<Record<string, number>>({});
@@ -863,7 +866,7 @@ function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Rou
     <section aria-labelledby="new-rounds-title" className="mt-8 hidden lg:mt-0 lg:block">
       <h3 id="new-rounds-title" className="flex items-center gap-2 font-display text-xl font-bold">
         Commandes de la {order.mode === "surplace" ? `table ${order.table}` : "commande"}
-        {waiting > 0 && (
+        {kitchen && waiting > 0 && (
           <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-paper">
             {waiting} nouvelle{waiting > 1 ? "s" : ""}
           </span>
@@ -877,11 +880,13 @@ function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Rou
           return (
             <li
               key={r.key}
-              className={`rounded-2xl bg-white p-5 transition-opacity ${r.n === focus ? "ring-2 ring-red-600" : "ring-1 ring-ink/5"} ${done && r.n !== focus ? "opacity-60" : ""}`}
+              className={`rounded-2xl bg-white p-5 transition-opacity ${
+                r.n === focus ? "ring-2 ring-red-600" : !kitchen && done ? "ring-2 ring-green-700/40" : "ring-1 ring-ink/5"
+              } ${kitchen && done && r.n !== focus ? "opacity-60" : ""}`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  {r.status === "nouvelle" && (
+                  {kitchen && r.status === "nouvelle" && (
                     <span className="mb-1.5 inline-block rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-paper">Nouvelle</span>
                   )}
                   <p className="font-bold">{r.n === 0 ? "1re commande" : `Ajout n° ${r.n}`}</p>
@@ -889,8 +894,19 @@ function NewRounds({ order, rounds, focus }: { order: Stored<Order>; rounds: Rou
                     {clock.format(new Date(r.at))} · {ago(r.at)} · {count} article{count > 1 ? "s" : ""}
                   </p>
                 </div>
-                {/* One button that moves the round along. */}
-                {r.status === "nouvelle" ? (
+                {/* Waiters see where each round stands; the kitchen gets one button that moves it along. */}
+                {!kitchen ? (
+                  r.status === "nouvelle" ? (
+                    <span className="shrink-0 rounded-full bg-ink/5 px-3 py-1.5 text-sm font-bold text-ink/60">Envoyée en cuisine</span>
+                  ) : r.status === "preparation" ? (
+                    <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-orange/20 px-3 py-1.5 text-sm font-bold text-ink">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-ink/25 border-t-ink" aria-hidden="true" />
+                      En préparation
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-green-700 px-3.5 py-1.5 text-sm font-bold text-paper">✓ Prête à servir</span>
+                  )
+                ) : r.status === "nouvelle" ? (
                   <button
                     onClick={() => {
                       setStarted((m) => ({ ...m, [r.key]: Date.now() }));

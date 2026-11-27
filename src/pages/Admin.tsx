@@ -1748,6 +1748,7 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
           user={user}
           order={opened}
           wide={openWide}
+          kitchen={openWide}
           focusRound={openRound}
           onClose={() => setOpenId(null)}
           onOpenOrder={setOpenId}
