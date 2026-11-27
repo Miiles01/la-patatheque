@@ -1760,8 +1760,8 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <SegmentedTabs id="orders-view" label="Vue" items={VIEWS} value={view} onChange={pickView} />
         <div className="flex flex-wrap items-center gap-2">
-        {view === "cuisine" && (
-          <div className="flex items-center">
+        {/* History for everyone (waiters too); the filters only make sense on the kitchen board. */}
+        <div className="flex items-center">
             <button
               onClick={() => setHistory(true)}
               aria-label="Historique du jour"
@@ -1773,9 +1773,8 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
                 <path d="M12 8v4l3 2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <KitchenFilterMenu group={group} onGroup={pickGroup} filters={filters} onChange={changeFilters} active={filtered} />
+            {view === "cuisine" && <KitchenFilterMenu group={group} onGroup={pickGroup} filters={filters} onChange={changeFilters} active={filtered} />}
           </div>
-        )}
         <EditButton
           label="Tables"
           title="Modifier les tables"
