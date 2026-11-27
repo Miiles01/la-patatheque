@@ -395,6 +395,13 @@ const ESSENTIAL_ICONS: Record<EssentialId, ReactNode> = {
       <path d="M9 8V6a3 3 0 0 1 6 0v2" />
     </>
   ),
+  team: (
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" strokeLinecap="round" />
+      <path d="M18 8v6M15 11h6" strokeLinecap="round" />
+    </>
+  ),
 };
 
 /**
@@ -414,11 +421,18 @@ function EssentialSteps({
   const [line, setLine] = useState<{ top: number; height: number } | null>(null);
 
   useLayoutEffect(() => {
-    const circles = list.current?.querySelectorAll<HTMLElement>("[data-step]");
-    if (!circles || circles.length < 2) return setLine(null);
-    const center = (el: HTMLElement) => el.offsetTop + el.offsetHeight / 2;
-    const first = center(circles[0]);
-    setLine({ top: first, height: center(circles[circles.length - 1]) - first });
+    const measure = () => {
+      const circles = list.current?.querySelectorAll<HTMLElement>("[data-step]");
+      if (!circles || circles.length < 2) return setLine(null);
+      const center = (el: HTMLElement) => el.offsetTop + el.offsetHeight / 2;
+      const first = center(circles[0]);
+      setLine({ top: first, height: center(circles[circles.length - 1]) - first });
+    };
+    measure();
+    // A step opening on hover pushes the ones below it down.
+    const ro = new ResizeObserver(measure);
+    if (list.current) ro.observe(list.current);
+    return () => ro.disconnect();
   }, [items, done]);
 
   return (
@@ -432,7 +446,7 @@ function EssentialSteps({
       )}
       {items.map((e) => (
         <li key={e.id}>
-          <button onClick={() => onPick(e.tab)} className="w-full flex items-start gap-3 rounded-xl p-2 text-left hover:bg-ink/5">
+          <button onClick={() => onPick(e.tab)} className="group w-full flex items-start gap-3 rounded-xl p-2 text-left transition-colors hover:bg-ink/5 focus-visible:bg-ink/5">
             <span
               data-step
               className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
@@ -449,9 +463,16 @@ function EssentialSteps({
                 </svg>
               )}
             </span>
-            <span className="pt-1">
+            {/* Just the title; the explanation opens while the pointer is on the step. */}
+            <span className="min-w-0 pt-2">
               <span className={`block text-sm font-semibold ${done[e.id] ? "text-ink/45 line-through" : ""}`}>{e.title}</span>
-              {!done[e.id] && <span className="block text-xs text-ink/50">{e.why}</span>}
+              {!done[e.id] && (
+                <span className="grid grid-rows-[0fr] opacity-0 transition-[grid-template-rows,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:grid-rows-[1fr] group-hover:opacity-100 group-focus-visible:grid-rows-[1fr] group-focus-visible:opacity-100">
+                  <span className="overflow-hidden">
+                    <span className="block pt-0.5 text-xs text-ink/50">{e.why}</span>
+                  </span>
+                </span>
+              )}
             </span>
           </button>
         </li>
@@ -461,7 +482,9 @@ function EssentialSteps({
 }
 
 function EssentialsButton({ compact, allowed, onOpen }: { compact: boolean; allowed: Tab[]; onOpen: (t: Tab) => void }) {
-  const done = essentialsStore.use();
+  const saved = essentialsStore.use();
+  const team = useTeam();
+  const done = { ...saved, team: team.some((m) => !m.owner) };
   const [open, setOpen] = useState(false);
   const items = ESSENTIALS.filter((e) => allowed.includes(e.tab));
   if (!items.length) return null;
@@ -1315,8 +1338,17 @@ function Orders({ orders, user }: { orders: Stored<Order>[]; user: Member }) {
         title="Commandes"
         desc={VIEWS.find((v) => v.id === view)!.hint + "."}
       />
-      {adding && <NewOrderDialog user={user} onClose={() => setAdding(false)} />}
-      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} onClose={() => setOpenId(null)} />}
+      {adding && (
+        <NewOrderDialog
+          user={user}
+          onClose={() => setAdding(false)}
+          onOpenOrder={(id) => {
+            setAdding(false);
+            setOpenId(id);
+          }}
+        />
+      )}
+      {opened && <NewOrderDialog key={opened.id} user={user} order={opened} onClose={() => setOpenId(null)} onOpenOrder={setOpenId} />}
       {editingTables && <TablesDialog onClose={() => setEditingTables(false)} />}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
