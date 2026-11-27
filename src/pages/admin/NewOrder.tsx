@@ -158,7 +158,10 @@ export function NewOrderDialog({
   // A table that still has an open order: asked before a second one is started by mistake.
   const [clash, setClash] = useState<Stored<Order> | null>(null);
 
-  function confirmFirst(force = false) {
+  // Where to go once the table is confirmed: the next step, or the one picked at the top.
+  const afterTable = useRef<Step | null>(null);
+  function confirmFirst(force = false, to?: Step) {
+    if (to) afterTable.current = to;
     setError("");
     if (mode === "surplace" && !table) return setError("Entrez le numéro de la table.");
     if (mode === "surplace" && !force) {
@@ -167,7 +170,17 @@ export function NewOrderDialog({
     }
     setClash(null);
     if (mode === "emporter" && !name.trim()) return setError("Indiquez le nom du client.");
-    go(hasWaiterStep ? "server" : "items");
+    go(afterTable.current ?? (hasWaiterStep ? "server" : "items"));
+    afterTable.current = null;
+  }
+
+  // The steps at the top can be clicked to move between them. Leaving the first step
+  // still checks the table (or the customer's name) first.
+  const ready = mode === "surplace" ? !!table : !!name.trim();
+  function jump(to: Step) {
+    if (to === step) return;
+    if (step === "table") return confirmFirst(false, to);
+    go(to);
   }
 
   // The table can also be typed on a keyboard: digits, ⌫ and Entrée.
@@ -219,17 +232,20 @@ export function NewOrderDialog({
               return (
                 <li key={s} className="flex items-center gap-1.5">
                   {i > 0 && <span className={`h-px w-6 ${i <= at ? "bg-ink/40" : "bg-ink/10"}`} />}
-                  <span
+                  <button
+                    type="button"
+                    onClick={() => jump(s)}
+                    disabled={s !== "table" && !ready}
                     aria-current={s === step ? "step" : undefined}
-                    className={`flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition-colors ${
-                      s === step ? "bg-ink text-paper" : i < at ? "text-ink/70" : "text-ink/35"
+                    className={`flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-xs font-bold transition-colors disabled:cursor-not-allowed ${
+                      s === step ? "bg-ink text-paper" : i < at ? "text-ink/70 hover:bg-ink/5 hover:text-ink" : "text-ink/35 enabled:hover:bg-ink/5 enabled:hover:text-ink/70"
                     }`}
                   >
                     <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${s === step ? "bg-paper text-ink" : i < at ? "bg-ink/10" : "bg-ink/5"}`}>
                       {i < at ? "✓" : i + 1}
                     </span>
                     {labels[s]}
-                  </span>
+                  </button>
                 </li>
               );
             })}
@@ -392,6 +408,7 @@ export function NewOrderDialog({
                               onClick={() => {
                                 setClash(null);
                                 setTable("");
+                                afterTable.current = null;
                               }}
                               className="rounded-full bg-ink/5 py-3 text-sm font-bold hover:bg-ink/10"
                             >
