@@ -147,6 +147,8 @@ export function NewOrderDialog({
   const steps: Step[] = mode === "surplace" ? (hasWaiterStep ? ["table", "server", "items"] : ["table", "items"]) : ["table", "items"];
   const [step, setStep] = useState<Step>(order ? "items" : "table");
   const [dir, setDir] = useState(1);
+  // Computer: the ticket can take the whole width, centred, with the menu out of the way.
+  const [full, setFull] = useState(false);
   // Measured once the dishes step (and its category tabs) is on screen.
   const chipFade = useEdgeFade(chips, !search.trim() && step === "items");
   const go = (to: Step) => {
@@ -477,7 +479,7 @@ export function NewOrderDialog({
               {step === "items" && (
                 <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
                   {/* Menu */}
-                <section className={`min-h-0 min-w-0 flex-1 flex-col lg:flex lg:border-r lg:border-ink/10 ${view === "menu" ? "flex" : "hidden"}`}>
+                <section className={`min-h-0 min-w-0 flex-1 flex-col lg:border-r lg:border-ink/10 ${full ? "lg:hidden" : "lg:flex"} ${view === "menu" ? "flex" : "hidden"}`}>
                   <div className="border-b border-ink/10 px-5 pt-4 pb-3 md:px-7">
                     <label className="relative block">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink/40" aria-hidden="true">
@@ -582,7 +584,7 @@ export function NewOrderDialog({
 
 
                   {/* Ticket */}
-                  <section className={`relative min-h-0 flex-col bg-[#f3f1ee] lg:flex lg:w-1/2 lg:shrink-0 ${view === "order" ? "flex flex-1" : "hidden"}`}>
+                  <section className={`relative min-h-0 flex-col bg-[#f3f1ee] lg:flex lg:shrink-0 ${full ? "lg:w-full" : "lg:w-1/2"} ${view === "order" ? "flex flex-1" : "hidden"}`}>
                     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:pb-28">
                       <Ticket
                         mode={mode}
@@ -671,7 +673,7 @@ export function NewOrderDialog({
 
                     {/* The button floats over the ticket; what scrolls behind it fades into the background. */}
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 hidden lg:flex flex-col items-center bg-linear-to-b from-[#f3f1ee]/0 to-[#f3f1ee] to-55% px-6 pb-5 pt-12">
-                      <SendBar busy={busy} error={error} onSend={send} editing={!!order} />
+                      <SendBar busy={busy} error={error} onSend={send} editing={!!order} expanded={full} onExpand={() => setFull((v) => !v)} />
                     </div>
                   </section>
                 </div>
@@ -786,7 +788,22 @@ function Ticket({
   );
 }
 
-function SendBar({ busy, error, onSend, editing }: { busy: boolean; error: string; onSend: () => void; editing: boolean }) {
+function SendBar({
+  busy,
+  error,
+  onSend,
+  editing,
+  expanded,
+  onExpand,
+}: {
+  busy: boolean;
+  error: string;
+  onSend: () => void;
+  editing: boolean;
+  /** Computer only: the ticket takes the whole width (the menu hides) or goes back to half. */
+  expanded?: boolean;
+  onExpand?: () => void;
+}) {
   return (
     <>
       {error && (
@@ -794,13 +811,31 @@ function SendBar({ busy, error, onSend, editing }: { busy: boolean; error: strin
           {error}
         </p>
       )}
-      <button
-        onClick={onSend}
-        disabled={busy}
-        className="pointer-events-auto self-center rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
-      >
-        {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
-      </button>
+      <div className="pointer-events-auto flex items-center justify-center gap-2 self-center">
+        <button
+          onClick={onSend}
+          disabled={busy}
+          className="rounded-full bg-red-600 px-10 py-3.5 text-sm font-bold text-paper shadow-lg shadow-red-600/20 hover:bg-red-700 disabled:opacity-60 transition-colors"
+        >
+          {busy ? "Envoi…" : editing ? "Enregistrer" : "Envoyer en cuisine"}
+        </button>
+        {onExpand && (
+          <button
+            onClick={onExpand}
+            aria-label={expanded ? "Réduire le ticket" : "Agrandir le ticket"}
+            title={expanded ? "Réduire" : "Agrandir"}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink/70 ring-1 ring-ink/10 transition-colors hover:bg-ink hover:text-paper"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-5 w-5" aria-hidden="true">
+              {expanded ? (
+                <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" strokeLinecap="round" strokeLinejoin="round" />
+              ) : (
+                <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" strokeLinecap="round" strokeLinejoin="round" />
+              )}
+            </svg>
+          </button>
+        )}
+      </div>
     </>
   );
 }
