@@ -3,6 +3,7 @@ import { businessInfo, DAY_NAMES, groupedHours, openingHours, type Hours } from 
 import { chargesStore, type Charge } from "../../lib/charges";
 import { essentialsStore, markEssential } from "../../lib/essentials";
 import { reservationSettings } from "../../lib/reservations";
+import { BookingRules } from "./Reservations";
 import type { AdminTab } from "../../lib/team";
 import { saveSettings, useSettings } from "../../lib/settings";
 import { DEFAULT_ORDER_SOUND, ORDER_SOUNDS, playOrderSound } from "../../lib/sounds";
@@ -227,19 +228,23 @@ function SoundSection() {
 function ReservationsSection({ onOpen }: { onOpen: (tab: AdminTab) => void }) {
   const reservations = reservationSettings.use();
   return (
+    <div className="flex flex-col gap-5">
     <Card>
       <div className="divide-y divide-ink/10 -my-5">
         <Toggle
           label="Réservations de tables en ligne"
-          desc="Affiche « Réserver une table » sur le site. Configurez vos tables et vos heures dans Réservations."
+          desc="Affiche « Réserver une table » sur le site."
           on={reservations.enabled}
           onChange={(v) => reservationSettings.set({ ...reservations, enabled: v })}
         />
       </div>
       <button onClick={() => onOpen("reservations")} className="mt-1 text-sm font-bold text-red-600 hover:underline underline-offset-4">
-        Configurer les réservations →
+        Voir les réservations et les tables →
       </button>
     </Card>
+    {/* The same settings as Réservations → Réglages. */}
+    <BookingRules />
+    </div>
   );
 }
 

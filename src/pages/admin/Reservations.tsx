@@ -621,17 +621,30 @@ function KindPicker({ value, onChange }: { value: TableKind; onChange: (k: Table
 
 function BookingSettings() {
   const s = reservationSettings.use();
+  return (
+    <div className="flex flex-col gap-5">
+      <Card>
+        <div className="divide-y divide-ink/10 -my-5">
+          <Toggle label="Réservations en ligne" desc="Affiche « Réserver une table » sur le site." on={s.enabled} onChange={(v) => reservationSettings.set({ ...s, enabled: v })} />
+        </div>
+      </Card>
+      <BookingRules />
+    </div>
+  );
+}
+
+/**
+ * Hours, length and questions for table bookings. Shown in Réservations → Réglages and
+ * in Paramètres → Réservations: the same settings, changed from either place.
+ */
+export function BookingRules() {
+  const s = reservationSettings.use();
   const set = (patch: Partial<typeof s>) => reservationSettings.set({ ...s, ...patch });
   const row = "flex flex-wrap items-center justify-between gap-4 py-4";
   const num = "w-20 rounded-xl border-2 border-ink/15 bg-white px-3 py-2 text-right tabular-nums";
 
   return (
-    <div className="flex flex-col gap-5">
-      <Card>
-        <div className="divide-y divide-ink/10 -my-5">
-          <Toggle label="Réservations en ligne" desc="Affiche « Réserver une table » sur le site." on={s.enabled} onChange={(v) => set({ enabled: v })} />
-        </div>
-      </Card>
+    <>
       <Card>
         <h2 className="font-display font-bold text-lg mb-1">Heures et durée</h2>
         <div className="divide-y divide-ink/10">
@@ -694,7 +707,7 @@ function BookingSettings() {
           <Toggle label="Occasion spéciale" desc="Anniversaire, fête… pour préparer une attention." on={s.askOccasion} onChange={(v) => set({ askOccasion: v })} />
         </div>
       </Card>
-    </div>
+    </>
   );
 }
 
