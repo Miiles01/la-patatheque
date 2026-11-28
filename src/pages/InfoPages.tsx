@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { jobsStore, type Job, type JobQuestion } from "../lib/jobs";
 import { LineButton } from "../components/LineLink";
-import { commander, orderHref } from "../components/Navigation";
+import { commander, useOrderHref } from "../components/Navigation";
 import { Alt, btnOutline, btnPrimary, headingLg, PageHero, Success, TextArea, TextField } from "../components/ui";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
@@ -407,6 +407,7 @@ export function CareersPage() {
 
 export function ContactPage() {
   const ordering = useCanOrder();
+  const orderHref = useOrderHref();
   const { t } = useI18n();
   const hours = useHours();
   const info = businessInfo.use();

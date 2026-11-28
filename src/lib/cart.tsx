@@ -10,6 +10,13 @@ import { restaurant } from "../data/menu";
  */
 export const ORDER_REDIRECT: string | null = restaurant.orderUrl;
 
+/** The RestoMenu page in the visitor's language (the site's FR/EN switch). */
+export function orderRedirectUrl(lang?: "fr" | "en"): string | null {
+  if (!ORDER_REDIRECT) return null;
+  const en = lang ? lang === "en" : typeof document !== "undefined" && document.documentElement.lang.startsWith("en");
+  return en ? ORDER_REDIRECT.replace("/fr/", "/en/") : ORDER_REDIRECT;
+}
+
 export type CartLine = { key: string; name: string; size?: string; price: number; qty: number; category?: string };
 export type OrderMode = "emporter" | "livraison";
 

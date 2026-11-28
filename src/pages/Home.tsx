@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { LineButton } from "../components/LineLink";
-import { commander, orderHref } from "../components/Navigation";
+import { commander, useOrderHref } from "../components/Navigation";
 import { ReviewsCarousel } from "../components/ReviewsCarousel";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnLight, btnOutline, btnPrimary, headingLg } from "../components/ui";
@@ -142,6 +142,7 @@ function useRailEdges(rail: React.RefObject<HTMLDivElement | null>) {
 
 function BestSellers() {
   const canOrder = useCanOrder();
+  const orderHref = useOrderHref();
   const { t } = useI18n();
   const { categories: menuCategories } = useMenu();
   const formatPrice = useFormatPrice();

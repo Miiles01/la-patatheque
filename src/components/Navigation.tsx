@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
 import { businessInfo, telHref } from "../lib/business";
-import { ORDER_REDIRECT, useCanOrder, useCart } from "../lib/cart";
+import { orderRedirectUrl, useCanOrder, useCart } from "../lib/cart";
 import { useI18n, type Key } from "../lib/i18n";
 import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
 import { setNavHidden } from "../lib/navVisibility";
@@ -33,13 +33,15 @@ export const SOCIALS = [
 /** Order buttons: to RestoMenu for now (ORDER_REDIRECT), else the order page, or the menu while ordering is off. */
 export function commander(from: string) {
   track("commander_click", { from });
-  if (ORDER_REDIRECT) return void window.location.assign(ORDER_REDIRECT);
+  const external = orderRedirectUrl();
+  if (external) return void window.location.assign(external);
   navigate(onlineOrdering() ? "/commander" : "/menu");
 }
 
-/** Where an order link points (for its href): RestoMenu for now, else the order page or the menu. */
-export function orderHref(canOrder: boolean) {
-  return ORDER_REDIRECT ?? routeHref(canOrder ? "/commander" : "/menu");
+/** Where an order link points (for its href): RestoMenu in the site's language for now, else the order page or the menu. */
+export function useOrderHref() {
+  const { lang } = useI18n();
+  return (canOrder: boolean) => orderRedirectUrl(lang) ?? routeHref(canOrder ? "/commander" : "/menu");
 }
 
 const NAV_LINE = 36; // px from the top where the bar's content sits
@@ -224,6 +226,7 @@ export function Navigation() {
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ordering = useCanOrder();
+  const orderHref = useOrderHref();
   const { t, lang, setLang } = useI18n();
   const reservations = reservationSettings.use();
   const route = useRoute();

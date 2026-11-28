@@ -1,7 +1,7 @@
 import { restaurant } from "../data/menu";
 import { businessInfo, telHref } from "../lib/business";
 import { useCanOrder } from "../lib/cart";
-import { commander, orderHref } from "./Navigation";
+import { commander, useOrderHref } from "./Navigation";
 import { useI18n } from "../lib/i18n";
 import { openConsent } from "../lib/consent";
 import { PIXEL_ID } from "../lib/metaPixel";
@@ -13,6 +13,7 @@ import { SOCIALS } from "./Navigation";
 
 export function Footer() {
   const ordering = useCanOrder();
+  const orderHref = useOrderHref();
   const { t } = useI18n();
   const hours = useHours();
   const info = businessInfo.use();
