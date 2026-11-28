@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
 import { businessInfo, telHref } from "../lib/business";
-import { useCart } from "../lib/cart";
+import { ORDER_REDIRECT, useCanOrder, useCart } from "../lib/cart";
 import { useI18n, type Key } from "../lib/i18n";
 import { gsap, reducedMotion, ScrollTrigger, startScroll, stopScroll } from "../lib/motion";
 import { setNavHidden } from "../lib/navVisibility";
@@ -30,10 +30,16 @@ export const SOCIALS = [
   { label: "YouTube", href: "https://youtube.com/@lapatatheque", icon: <YouTubeIcon /> },
 ];
 
-/** Order buttons: to the order page, or to the menu while online ordering is off. */
+/** Order buttons: to RestoMenu for now (ORDER_REDIRECT), else the order page, or the menu while ordering is off. */
 export function commander(from: string) {
   track("commander_click", { from });
+  if (ORDER_REDIRECT) return void window.location.assign(ORDER_REDIRECT);
   navigate(onlineOrdering() ? "/commander" : "/menu");
+}
+
+/** Where an order link points (for its href): RestoMenu for now, else the order page or the menu. */
+export function orderHref(canOrder: boolean) {
+  return ORDER_REDIRECT ?? routeHref(canOrder ? "/commander" : "/menu");
 }
 
 const NAV_LINE = 36; // px from the top where the bar's content sits
@@ -139,6 +145,7 @@ export function Navigation() {
   const { t, lang, setLang } = useI18n();
   const cart = useCart();
   const ordering = cart.modes.length > 0;
+  const canOrder = useCanOrder();
   const route = useRoute();
   const [menuOpen, setMenuOpen] = useState(false);
   const dark = useDarkBackdrop(route);
@@ -185,7 +192,7 @@ export function Navigation() {
               onClick={() => commander("navbar")}
               className="rounded-full bg-red-600 px-4 md:px-5 py-2.5 text-sm font-bold text-paper hover:bg-red-700 transition-colors"
             >
-              {ordering ? t("nav.commander") : t("nav.menu")}
+              {canOrder ? t("nav.commander") : t("nav.menu")}
             </button>
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -216,7 +223,7 @@ export function Navigation() {
 
 /** Half-screen panel that slides in from the right: a red curtain first, then the cream panel. */
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const ordering = useCart().modes.length > 0;
+  const ordering = useCanOrder();
   const { t, lang, setLang } = useI18n();
   const reservations = reservationSettings.use();
   const route = useRoute();
@@ -300,11 +307,11 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             {LINKS.filter((l) => ordering || l.to !== "/commander").map((link) => (
               <a
                 key={link.to}
-                href={routeHref(link.to)}
+                href={link.to === "/commander" ? orderHref(true) : routeHref(link.to)}
                 aria-current={route === link.to ? "page" : undefined}
                 onClick={(e) => {
                   e.preventDefault();
-                  closeThen(() => navigate(link.to));
+                  closeThen(() => (link.to === "/commander" ? commander("side-menu-link") : navigate(link.to)));
                 }}
                 className={`sm-item group relative block h-[1.15em] overflow-hidden font-display font-extrabold text-[clamp(1.9rem,3.6vw,3rem)] leading-[1.15] tracking-[-0.02em] ${
                   route === link.to ? "text-red-600" : "text-ink"

@@ -1,6 +1,7 @@
 import { restaurant } from "../data/menu";
 import { businessInfo, telHref } from "../lib/business";
-import { useOnlineOrdering } from "../lib/cart";
+import { useCanOrder } from "../lib/cart";
+import { commander, orderHref } from "./Navigation";
 import { useI18n } from "../lib/i18n";
 import { openConsent } from "../lib/consent";
 import { PIXEL_ID } from "../lib/metaPixel";
@@ -11,7 +12,7 @@ import { SweepLink } from "./LineLink";
 import { SOCIALS } from "./Navigation";
 
 export function Footer() {
-  const ordering = useOnlineOrdering();
+  const ordering = useCanOrder();
   const { t } = useI18n();
   const hours = useHours();
   const info = businessInfo.use();
@@ -49,7 +50,7 @@ export function Footer() {
             <p className="alt text-lg mb-4">{t("footer.links")}</p>
             <div className="flex flex-col items-start">
               {links.filter(([to]) => ordering || to !== "/commander").map(([to, key]) => (
-                <SweepLink key={to} href={routeHref(to)} onClick={() => navigate(to)}>
+                <SweepLink key={to} href={to === "/commander" ? orderHref(true) : routeHref(to)} onClick={() => (to === "/commander" ? commander("footer") : navigate(to))}>
                   {t(key)}
                 </SweepLink>
               ))}

@@ -8,7 +8,7 @@ import { track } from "../lib/analytics";
 import { businessInfo, telHref } from "../lib/business";
 import { reservationSettings } from "../lib/reservations";
 import { asset } from "../lib/asset";
-import { useCart } from "../lib/cart";
+import { ORDER_REDIRECT, useCart } from "../lib/cart";
 import { submit as submitRecord } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { useI18n } from "../lib/i18n";
@@ -156,6 +156,11 @@ function OrderingClosed() {
 export function OrderPage() {
   const { t } = useI18n();
   const cart = useCart();
+  // For now orders are taken on RestoMenu: whoever lands here (old link, search result) goes there.
+  useEffect(() => {
+    if (ORDER_REDIRECT) window.location.replace(ORDER_REDIRECT);
+  }, []);
+  if (ORDER_REDIRECT) return <div className="min-h-[60vh]" aria-busy="true" />;
   if (!cart.modes.length) return <OrderingClosed />;
   return (
     <>

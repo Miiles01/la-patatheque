@@ -1,6 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { track } from "./analytics";
 import { useSettings } from "./settings";
+import { restaurant } from "../data/menu";
+
+/**
+ * TEMPORARY: while the site's own ordering is being set up, every « Commander » button
+ * sends customers to the restaurant's RestoMenu page, which still takes their orders.
+ * Set to null to switch back to ordering on this site (Paramètres → Commandes en ligne).
+ */
+export const ORDER_REDIRECT: string | null = restaurant.orderUrl;
 
 export type CartLine = { key: string; name: string; size?: string; price: number; qty: number; category?: string };
 export type OrderMode = "emporter" | "livraison";
@@ -50,7 +58,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Cart>(() => {
     const { lines } = state;
-    const modes: OrderMode[] = [...(settings.pickup ? ["emporter" as const] : []), ...(settings.delivery ? ["livraison" as const] : [])];
+    // While orders go to RestoMenu, the site's own cart stays off.
+    const modes: OrderMode[] = ORDER_REDIRECT ? [] : [...(settings.pickup ? ["emporter" as const] : []), ...(settings.delivery ? ["livraison" as const] : [])];
     const mode = modes.includes(state.mode) ? state.mode : modes[0];
     return {
       lines,
@@ -100,4 +109,9 @@ export const PROMO_RATE = 0.1;
 /** Whether customers can order on the site right now (Paramètres → Commandes en ligne). */
 export function useOnlineOrdering() {
   return useCart().modes.length > 0;
+}
+
+/** Whether « Commander » buttons show: ordering here, or on RestoMenu for now. */
+export function useCanOrder() {
+  return useOnlineOrdering() || !!ORDER_REDIRECT;
 }

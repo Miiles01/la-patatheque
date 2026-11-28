@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { jobsStore, type Job, type JobQuestion } from "../lib/jobs";
 import { LineButton } from "../components/LineLink";
-import { commander } from "../components/Navigation";
+import { commander, orderHref } from "../components/Navigation";
 import { Alt, btnOutline, btnPrimary, headingLg, PageHero, Success, TextArea, TextField } from "../components/ui";
 import { restaurant } from "../data/menu";
 import { track } from "../lib/analytics";
@@ -10,9 +10,9 @@ import { live } from "../lib/api";
 import { submit as submitRecord, type Application } from "../lib/demoStore";
 import { useSend } from "../lib/useSend";
 import { businessInfo, groupedHours, openingHours, telHref } from "../lib/business";
-import { useOnlineOrdering } from "../lib/cart";
+import { useCanOrder } from "../lib/cart";
 import { useI18n } from "../lib/i18n";
-import { Link, routeHref } from "../lib/router";
+import { Link } from "../lib/router";
 import { gsap, reducedMotion } from "../lib/motion";
 
 /** Opening hours as set in the admin, grouped for display. */
@@ -22,7 +22,7 @@ export function useHours() {
 }
 
 export function AboutPage() {
-  const ordering = useOnlineOrdering();
+  const ordering = useCanOrder();
   const { t } = useI18n();
   const numberRef = useRef<HTMLSpanElement>(null);
 
@@ -406,7 +406,7 @@ export function CareersPage() {
 }
 
 export function ContactPage() {
-  const ordering = useOnlineOrdering();
+  const ordering = useCanOrder();
   const { t } = useI18n();
   const hours = useHours();
   const info = businessInfo.use();
@@ -474,7 +474,7 @@ export function ContactPage() {
               </dd>
             </div>
             <div data-fade className="sm:col-span-2">
-              <LineButton href={routeHref(ordering ? "/commander" : "/menu")} onClick={() => commander("contact")} className="text-ink">
+              <LineButton href={orderHref(ordering)} onClick={() => commander("contact")} className="text-ink">
                 {ordering ? t("home.cta") : t("home.seeMenu")}
               </LineButton>
             </div>

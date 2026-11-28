@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { LineButton } from "../components/LineLink";
-import { commander } from "../components/Navigation";
+import { commander, orderHref } from "../components/Navigation";
 import { ReviewsCarousel } from "../components/ReviewsCarousel";
 import { openReservation } from "../components/ReservationModal";
 import { Alt, btnLight, btnOutline, btnPrimary, headingLg } from "../components/ui";
@@ -9,13 +9,14 @@ import { reservationSettings } from "../lib/reservations";
 import { restaurant, specialsNote, testimonials } from "../data/menu";
 import { useMenu } from "../lib/menuStore";
 import { asset } from "../lib/asset";
-import { useCart, type OrderMode, useOnlineOrdering } from "../lib/cart";
+import { useCanOrder, useCart, type OrderMode, useOnlineOrdering } from "../lib/cart";
 import { useFormatPrice, useI18n, type Key } from "../lib/i18n";
 import { reducedMotion } from "../lib/motion";
 import { navigate, routeHref } from "../lib/router";
 
 function Hero() {
   const ordering = useOnlineOrdering();
+  const canOrder = useCanOrder();
   const { t } = useI18n();
   const reservations = reservationSettings.use();
   return (
@@ -35,14 +36,14 @@ function Hero() {
         </p>
         <div data-fade="0.55" data-intro className="mt-10 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-x-8 gap-y-5">
           <button onClick={() => commander("hero")} className={`${btnPrimary} w-full sm:w-auto`}>
-            {ordering ? t("home.cta") : t("home.seeMenu")}
+            {canOrder ? t("home.cta") : t("home.seeMenu")}
           </button>
           {reservations.enabled && (
             <button onClick={openReservation} className={`${btnOutline} w-full sm:w-auto`}>
               {t("book.cta")}
             </button>
           )}
-          {ordering && (
+          {canOrder && (
             <LineButton href={routeHref("/menu")} onClick={() => navigate("/menu")} className="text-ink">
               {t("home.seeMenu")}
             </LineButton>
@@ -140,7 +141,7 @@ function useRailEdges(rail: React.RefObject<HTMLDivElement | null>) {
 }
 
 function BestSellers() {
-  const ordering = useOnlineOrdering();
+  const canOrder = useCanOrder();
   const { t } = useI18n();
   const { categories: menuCategories } = useMenu();
   const formatPrice = useFormatPrice();
@@ -164,8 +165,8 @@ function BestSellers() {
             </h2>
           </div>
           <div className="flex items-center gap-5 shrink-0">
-            {ordering && (
-              <LineButton href={routeHref("/commander")} onClick={() => commander("best-sellers")} className="text-ink">
+            {canOrder && (
+              <LineButton href={orderHref(true)} onClick={() => commander("best-sellers")} className="text-ink">
                 {t("nav.order")}
               </LineButton>
             )}
@@ -201,7 +202,7 @@ function BestSellers() {
             return (
               <a
                 key={b.key}
-                href={routeHref(ordering ? "/commander" : "/menu")}
+                href={orderHref(canOrder)}
                 onClick={(e) => {
                   e.preventDefault();
                   commander("best-sellers");
@@ -310,7 +311,7 @@ function Gallery() {
 }
 
 function Specials() {
-  const ordering = useOnlineOrdering();
+  const ordering = useCanOrder();
   const { t } = useI18n();
   const { specials } = useMenu();
   const formatPrice = useFormatPrice();
